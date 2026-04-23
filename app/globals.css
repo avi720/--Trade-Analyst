@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Assistant:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg-dark: #080808;
+  --panel-bg: #111111;
+  --border: #222222;
+  --green: #2CC84A;
+  --red: #FF4D4D;
+  --amber: #FFB800;
+  --text-main: #E0E0E0;
+  --text-dim: #888888;
+  --input-bg: #1A1A1A;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  font-family: 'Assistant', sans-serif;
+  margin: 0;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #444; }
+
+/* Input base class */
+.input-base {
+  background-color: var(--input-bg);
+  border: 1px solid #333;
+  color: white;
+  border-radius: 4px;
+  transition: border-color 0.2s;
+  outline: none;
+}
+.input-base:focus { border-color: var(--amber); }
+
+/* Ghost button */
+.btn-ghost {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-ghost:hover { background: #1a1a1a; }
+.btn-ghost:active { transform: translateY(1px); }
+
+/* Panel */
+.panel {
+  background-color: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}

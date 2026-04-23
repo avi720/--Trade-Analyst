@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id               String            @id @default(uuid())
+  email            String            @unique
+  name             String?
+  settings         Json              @default("{}")
+  createdAt        DateTime          @default(now())
+  brokerConnection BrokerConnection?
+  trades           Trade[]
+  conversations    AIConversation[]
+  brokerEvents     BrokerEvent[]
+}
+
+model BrokerConnection {
+  id                      String    @id @default(uuid())
+  userId                  String    @unique
+  brokerName              String    // "IBKR_FLEX"
+  accountId               String?
+  flexTokenEncrypted      String    // AES-256-GCM encrypted at rest
+  flexQueryIdTrades       String    // Query 1 — Trade Confirmations (polling)
+  flexQueryIdActivity     String    // Query 2 — Activity Flex (backfill)
+  pollingIntervalMin      Int       @default(15)
+  pricePollingIntervalMin Int       @default(15)
+  lastSyncAt              DateTime?
+  lastSyncStatus          String?   // "SUCCESS" | "ERROR" | "PARTIAL"
+  lastSyncError           String?
+  lastBackfillAt          DateTime?
+  isActive                Boolean   @default(true)
+  user                    User      @relation(fields: [userId], references: [id])
+}
+
+model Trade {
+  id                  String    @id @default(uuid())
+  userId              String
+  ticker              String
+  assetType           String    @default("STK")
+  direction           String    // "Long" | "Short"
+  status              String    // "Open" | "Closed"
+  setupType           String?   // "breakout" | "pullback_ema" | "range" | "vcp" | "other"
+  openedAt            DateTime
+  closedAt            DateTime?
+  avgEntryPrice       Decimal
+  avgExitPrice        Decimal?
+  totalQuantity       Decimal
+  totalQuantityOpened Decimal
+  multiplier          Int       @default(1)
+  stopPrice           Decimal?
+  targetPrice         Decimal?
+  rMultipleEntry      Decimal?
+  actualR             Decimal?
+  realizedPnl         Decimal?
+  totalCommission     Decimal?
+  lastKnownPrice      Decimal?
+  lastPriceUpdateAt   DateTime?
+  executionQuality    Int?      // 1-10
+  emotionalState      String?
+  result              String?   // "Win" | "Loss" | "Breakeven" | "Open"
+  didRight            String?
+  wouldChange         String?
+  notes               String?
+  externalRefId       String?
+  user                User      @relation(fields: [userId], references: [id])
+  orders              Order[]
+
+  @@index([userId, status])
+  @@index([userId, ticker])
+}
+
+model Order {
+  id                    String    @id @default(uuid())
+  tradeId               String
+  side                  String    // "BUY" | "SELL"
+  quantity              Decimal
+  price                 Decimal
+  proceeds              Decimal?
+  netCash               Decimal?
+  commission            Decimal?
+  commissionCurrency    String?
+  tax                   Decimal?
+  currency              String?
+  exchange              String?
+  orderType             String?   // "LMT" | "MKT" | etc.
+  executedAt            DateTime
+  orderTime             DateTime?
+  tradeDate             DateTime?
+  brokerExecId          String    @unique  // IBKR ExecID — global idempotency key
+  brokerOrderId         String?            // IBKR OrderID — NOT unique, for grouping partial fills
+  brokerTradeId         String?
+  brokerClientAccountId String?
+  rawPayload            Json
+  trade                 Trade     @relation(fields: [tradeId], references: [id])
+
+  @@index([executedAt])
+  @@index([brokerOrderId])
+  @@index([brokerTradeId])
+}
+
+model BrokerEvent {
+  id               String    @id @default(uuid())
+  userId           String
+  source           String    // "IBKR_FLEX"
+  receivedAt       DateTime  @default(now())
+  eventType        String    // "FLEX_FETCH" | "EXECUTION" | "BACKFILL_CHUNK"
+  rawPayload       Json
+  processingStatus String    // "PENDING" | "PROCESSED" | "FAILED" | "SKIPPED_DUPLICATE" | "REJECTED_NON_STOCK"
+  processingError  String?
+  processedAt      DateTime?
+  user             User      @relation(fields: [userId], references: [id])
+
+  @@index([userId, receivedAt])
+  @@index([processingStatus])
+}
+
+model AIConversation {
+  id          String   @id @default(uuid())
+  userId      String
+  contextType String   // "realtime" | "research"
+  messages    Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id])
+}

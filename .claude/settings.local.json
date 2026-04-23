@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "PowerShell(node --version)",
+      "PowerShell(npm --version)",
+      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); node --version; npm --version)",
+      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force; npm --version)",
+      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); Set-Location \"D:\\\\avipa\\\\Documents\\\\Programming\\\\Trade Analyst\"; npm install 2>&1)",
+      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); Set-Location \"D:\\\\avipa\\\\Documents\\\\Programming\\\\Trade Analyst\"; Start-Process -FilePath \"cmd.exe\" -ArgumentList \"/c npm run dev\" -WindowStyle Normal)",
+      "PowerShell(Start-Sleep -Seconds 4; try { $r = Invoke-WebRequest -Uri \"http://localhost:5173\" -TimeoutSec 3 -UseBasicParsing; \"Status: $\\($r.StatusCode\\)\" } catch { \"Not reachable: $_\" })",
+      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); Set-Location \"D:\\\\avipa\\\\Documents\\\\Programming\\\\Trade Analyst\"; npm run build 2>&1)",
+      "Bash(npm install *)",
+      "Bash(where node *)",
+      "Read(//usr/local/**)",
+      "Read(//d/Program Files/Node//**)",
+      "Bash(\"/d/Program Files/Node/npm\" --version)",
+      "Bash(export PATH=\"/d/Program Files/Node:$PATH\")",
+      "Bash(npm run *)",
+      "Bash(NEXT_TELEMETRY_DISABLED=1 npm run build)"
+    ]
+  }
+}
