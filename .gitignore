@@ -13,8 +13,8 @@
 .env.local
 .env.*.local
 
-# Prisma
-/prisma/migrations/*.sql
+# TypeScript
+tsconfig.tsbuildinfo
 
 # Misc
 .DS_Store
