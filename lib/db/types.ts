@@ -99,6 +99,8 @@ export type Database = {
           lastBackfillAt: string | null
           lastBackfillError: string | null
           lastBackfillStatus: string | null
+          lastPriceSyncAt: string | null
+          lastPriceSyncStatus: string | null
           lastSyncAt: string | null
           lastSyncError: string | null
           lastSyncStatus: string | null
@@ -117,6 +119,8 @@ export type Database = {
           lastBackfillAt?: string | null
           lastBackfillError?: string | null
           lastBackfillStatus?: string | null
+          lastPriceSyncAt?: string | null
+          lastPriceSyncStatus?: string | null
           lastSyncAt?: string | null
           lastSyncError?: string | null
           lastSyncStatus?: string | null
@@ -135,6 +139,8 @@ export type Database = {
           lastBackfillAt?: string | null
           lastBackfillError?: string | null
           lastBackfillStatus?: string | null
+          lastPriceSyncAt?: string | null
+          lastPriceSyncStatus?: string | null
           lastSyncAt?: string | null
           lastSyncError?: string | null
           lastSyncStatus?: string | null

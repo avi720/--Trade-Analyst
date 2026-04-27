@@ -4,13 +4,16 @@ import { useEffect, useState } from "react";
 
 interface ConnectionStatus {
   pollingIntervalMin?: number;
+  pricePollingIntervalMin?: number;
   lastSyncAt?: string | null;
   lastSyncStatus?: string | null;
+  lastPriceSyncAt?: string | null;
+  lastPriceSyncStatus?: string | null;
 }
 
-function dotColor(lastSyncAt: string | null | undefined, intervalMin: number): string {
-  if (!lastSyncAt) return "bg-[#888888]";
-  const msSince = Date.now() - new Date(lastSyncAt).getTime();
+function dotColor(lastAt: string | null | undefined, intervalMin: number): string {
+  if (!lastAt) return "bg-[#888888]";
+  const msSince = Date.now() - new Date(lastAt).getTime();
   const intervalMs = intervalMin * 60 * 1000;
   if (msSince < intervalMs * 2) return "bg-[#2CC84A]";
   if (msSince < intervalMs * 5) return "bg-[#FFB800]";
@@ -18,7 +21,7 @@ function dotColor(lastSyncAt: string | null | undefined, intervalMin: number): s
 }
 
 function formatShort(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "";
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return "עכשיו";
@@ -46,23 +49,32 @@ export function SyncIndicator() {
     return () => clearInterval(timer);
   }, []);
 
-  const intervalMin = conn?.pollingIntervalMin ?? 15;
-  const color = dotColor(conn?.lastSyncAt, intervalMin);
-  const label = formatShort(conn?.lastSyncAt);
-  const title = conn?.lastSyncAt
+  const ibkrIntervalMin = conn?.pollingIntervalMin ?? 15;
+  const priceIntervalMin = conn?.pricePollingIntervalMin ?? 15;
+
+  const ibkrColor = dotColor(conn?.lastSyncAt, ibkrIntervalMin);
+  const priceColor = dotColor(conn?.lastPriceSyncAt, priceIntervalMin);
+
+  const ibkrLabel = formatShort(conn?.lastSyncAt);
+  const priceLabel = formatShort(conn?.lastPriceSyncAt);
+
+  const ibkrTitle = conn?.lastSyncAt
     ? `IBKR — סנכרון אחרון: ${new Date(conn.lastSyncAt).toLocaleString("he-IL")} (${conn.lastSyncStatus ?? "—"})`
     : "IBKR — טרם סונכרן";
 
+  const priceTitle = conn?.lastPriceSyncAt
+    ? `מחירים — עדכון אחרון: ${new Date(conn.lastPriceSyncAt).toLocaleString("he-IL")} (${conn.lastPriceSyncStatus ?? "—"})`
+    : "מחירים — טרם עודכן";
+
   return (
     <div className="flex items-center gap-2 text-xs text-[#888888] font-mono">
-      <span className="flex items-center gap-1" title={title}>
-        <span className={`w-1.5 h-1.5 rounded-full ${color}`} />
-        IBKR {conn ? label : ""}
+      <span className="flex items-center gap-1" title={ibkrTitle}>
+        <span className={`w-1.5 h-1.5 rounded-full ${ibkrColor}`} />
+        IBKR {ibkrLabel}
       </span>
-      {/* Phase 4 placeholder */}
-      <span className="flex items-center gap-1" title="Polygon — Phase 4">
-        <span className="w-1.5 h-1.5 rounded-full bg-[#888888]" />
-        מחירים
+      <span className="flex items-center gap-1" title={priceTitle}>
+        <span className={`w-1.5 h-1.5 rounded-full ${priceColor}`} />
+        מחירים {priceLabel}
       </span>
     </div>
   );

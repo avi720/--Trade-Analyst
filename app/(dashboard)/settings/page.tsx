@@ -16,12 +16,15 @@ interface ConnectionStatus {
   flexQueryIdTrades?: string;
   flexQueryIdActivity?: string;
   pollingIntervalMin?: number;
+  pricePollingIntervalMin?: number;
   lastSyncAt?: string | null;
   lastSyncStatus?: string | null;
   lastSyncError?: string | null;
   lastBackfillAt?: string | null;
   lastBackfillStatus?: string | null;
   lastBackfillError?: string | null;
+  lastPriceSyncAt?: string | null;
+  lastPriceSyncStatus?: string | null;
 }
 
 interface TestResult {
@@ -119,7 +122,13 @@ export default function SettingsPage() {
   const [backfillError, setBackfillError] = useState<string | null>(null);
   const [conn, setConn] = useState<ConnectionStatus | null>(null);
 
-  // Form state
+  // Polygon form state
+  const [pricePollingInterval, setPricePollingInterval] = useState(15);
+  const [savingPrice, setSavingPrice] = useState(false);
+  const [savePriceError, setSavePriceError] = useState<string | null>(null);
+  const [savePriceOk, setSavePriceOk] = useState(false);
+
+  // IBKR form state
   const [flexToken, setFlexToken] = useState("");
   const [queryIdTrades, setQueryIdTrades] = useState("");
   const [queryIdActivity, setQueryIdActivity] = useState("");
@@ -135,6 +144,7 @@ export default function SettingsPage() {
         setQueryIdTrades(c.flexQueryIdTrades ?? "");
         setQueryIdActivity(c.flexQueryIdActivity ?? "");
         setPollingInterval(c.pollingIntervalMin ?? 15);
+        setPricePollingInterval(c.pricePollingIntervalMin ?? 15);
         setBackfillStatus(c.lastBackfillStatus ?? null);
         setBackfillError(c.lastBackfillError ?? null);
       }
@@ -231,6 +241,32 @@ export default function SettingsPage() {
       setBackfillError("שגיאת רשת");
     } finally {
       setBackfilling(false);
+    }
+  }
+
+  async function handleSavePrice(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingPrice(true);
+    setSavePriceError(null);
+    setSavePriceOk(false);
+    try {
+      const res = await fetch("/api/polygon/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pricePollingIntervalMin: pricePollingInterval }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setSavePriceError(typeof json.error === "string" ? json.error : JSON.stringify(json.error));
+      } else {
+        setSavePriceOk(true);
+        loadConnection();
+        setTimeout(() => setSavePriceOk(false), 3000);
+      }
+    } catch {
+      setSavePriceError("שגיאת רשת");
+    } finally {
+      setSavingPrice(false);
     }
   }
 
@@ -394,10 +430,61 @@ export default function SettingsPage() {
         )}
       </div>
 
-      {/* ── Polygon (Phase 4 stub) ── */}
+      {/* ── Polygon Price Updates ── */}
       <div className="panel p-6">
-        <h2 className="text-base font-medium text-[#E0E0E0] mb-2">עדכון מחירים (Polygon)</h2>
-        <p className="text-[#888888] text-sm">הגדרות polling — Phase 4</p>
+        <h2 className="text-base font-medium text-[#E0E0E0] mb-4">עדכון מחירים (Polygon)</h2>
+
+        <form onSubmit={handleSavePrice} className="space-y-4">
+          <div>
+            <label className="block text-sm text-[#888888] mb-1">
+              מרווח עדכון מחירים (דקות) — מינימום 15
+            </label>
+            <input
+              type="number"
+              min={15}
+              value={pricePollingInterval}
+              onChange={(e) =>
+                setPricePollingInterval(Math.max(15, parseInt(e.target.value) || 15))
+              }
+              className="w-32 bg-[#111111] border border-[#222222] rounded px-3 py-2 text-sm text-[#E0E0E0] focus:outline-none focus:border-[#FFB800] font-mono"
+            />
+            <p className="mt-1 text-xs text-[#555555]">
+              עצמאי ממרווח ה-IBKR. ממשיכים לעדכן מחירים גם כשאין עסקאות חדשות.
+            </p>
+          </div>
+
+          {savePriceError && <p className="text-[#FF4D4D] text-sm">{savePriceError}</p>}
+          {savePriceOk && <p className="text-[#2CC84A] text-sm">נשמר בהצלחה ✓</p>}
+
+          <button
+            type="submit"
+            disabled={savingPrice || !conn}
+            className="px-4 py-2 bg-[#FFB800] text-black text-sm font-medium rounded hover:bg-[#e6a600] disabled:opacity-50 transition-colors"
+          >
+            {savingPrice ? "שומר..." : "שמור"}
+          </button>
+        </form>
+
+        {/* Price sync status */}
+        {conn && (
+          <div className="mt-6 pt-4 border-t border-[#222222] space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-[#888888]">עדכון מחירים אחרון</span>
+              <span
+                className={
+                  conn.lastPriceSyncStatus === "SUCCESS"
+                    ? "text-[#2CC84A]"
+                    : conn.lastPriceSyncStatus === "ERROR"
+                    ? "text-[#FF4D4D]"
+                    : "text-[#888888]"
+                }
+              >
+                {formatRelativeTime(conn.lastPriceSyncAt)}{" "}
+                {conn.lastPriceSyncStatus && `(${conn.lastPriceSyncStatus})`}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── AI (Phase 7 stub) ── */}

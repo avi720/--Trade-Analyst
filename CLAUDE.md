@@ -170,6 +170,21 @@ DB objects (via Supabase MCP migrations):
 **Backfill**: async — POST /api/ibkr/backfill returns 202, GET polls status. Uses `setImmediate` (works on Render persistent Node process, NOT on Vercel serverless).
 **Cron**: Render fires every 15 min; endpoint skips internally if `pollingIntervalMin` hasn't elapsed.
 
+### Phase 4 — Polygon Price Updates (COMPLETE)
+
+- `lib/polygon/client.ts` — `fetchPrices(tickers[])` — calls `GET /v2/snapshot/locale/us/markets/stocks/tickers` (all US tickers, one call), filters client-side. **No `?tickers=` batch param** — Polygon does not support it on the free tier.
+- `lib/polygon/sync.ts` — `runPriceSync(userId)` — shared sync logic used by cron + refresh endpoint.
+- `app/api/cron/polygon-prices/route.ts` — Render Cron Job (secured with `CRON_SECRET`). Same pattern as `ibkr-sync`.
+- `app/api/polygon/settings/route.ts` — POST: saves `pricePollingIntervalMin`.
+- `app/api/polygon/refresh/route.ts` — POST: on-demand price refresh (ignores interval). Used by Phase 5 dashboard.
+- `app/api/ibkr/connection/route.ts` — extended to return `lastPriceSyncAt + lastPriceSyncStatus`.
+- `components/sync-indicator.tsx` — Polygon dot wired; color based on `lastPriceSyncAt` vs `pricePollingIntervalMin`.
+- `render.yaml` — second cron job `polygon-prices` added.
+
+DB migration: `phase4_price_sync_fields` — adds `lastPriceSyncAt TIMESTAMPTZ` and `lastPriceSyncStatus TEXT` to `BrokerConnection`.
+
+**Test status: 97/97 pass. Build clean.**
+
 ### Supabase typing notes
 
 `@supabase/ssr` v0.6.x's `createServerClient<Database>` does not propagate the `Database` generic correctly to `from()`/`upsert()` callsites — TypeScript narrows the values param to `never`. The runtime is fine. Workaround: `lib/supabase/server.ts` casts the return to `SupabaseClient<Database>`. Remove the cast once the upstream type is fixed.

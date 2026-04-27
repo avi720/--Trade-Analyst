@@ -42,3 +42,21 @@ services:
         sync: false
       - key: RENDER_EXTERNAL_URL
         sync: false          # e.g. https://trade-analyst.onrender.com
+
+  # ── Cron Job: Polygon price updates ──────────────────────────────────────────
+  # Fires every 15 minutes; the endpoint skips internally if pricePollingIntervalMin hasn't elapsed.
+  - type: cron
+    name: polygon-prices
+    runtime: image
+    schedule: "*/15 * * * *"
+    image:
+      url: docker.io/curlimages/curl:8.7.1
+    command: >
+      curl --silent --show-error --fail
+      --header "Authorization: Bearer $CRON_SECRET"
+      "$RENDER_EXTERNAL_URL/api/cron/polygon-prices"
+    envVars:
+      - key: CRON_SECRET
+        sync: false
+      - key: RENDER_EXTERNAL_URL
+        sync: false
