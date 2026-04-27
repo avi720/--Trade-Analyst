@@ -1,10 +1,29 @@
-export default function DashboardPage() {
+import { createClient } from '@/lib/supabase/server'
+import { OpenPositionsDashboard } from '@/components/open-positions-dashboard'
+
+export default async function DashboardPage() {
+  const supabase = await createClient()
+
+  const [tradesResult, connectionResult] = await Promise.all([
+    supabase
+      .from('Trade')
+      .select(
+        'id, ticker, direction, avgEntryPrice, totalQuantity, stopPrice, targetPrice, lastKnownPrice, lastPriceUpdateAt, setupType, openedAt, realizedPnl, totalCommission'
+      )
+      .eq('status', 'Open')
+      .order('openedAt', { ascending: false }),
+    supabase
+      .from('BrokerConnection')
+      .select(
+        'lastSyncAt, lastSyncStatus, pollingIntervalMin, lastPriceSyncAt, lastPriceSyncStatus, pricePollingIntervalMin'
+      )
+      .maybeSingle(),
+  ])
+
   return (
-    <div className="p-6">
-      <div className="panel p-8 text-center text-[#888888]">
-        <p className="text-lg font-mono">דאשבורד חי</p>
-        <p className="text-sm mt-2">פוזיציות פתוחות — Phase 5</p>
-      </div>
-    </div>
+    <OpenPositionsDashboard
+      trades={(tradesResult.data ?? []) as Parameters<typeof OpenPositionsDashboard>[0]['trades']}
+      connection={connectionResult.data ?? null}
+    />
   )
 }

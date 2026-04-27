@@ -44,7 +44,11 @@ app/
     └── cron/
         └── ibkr-sync/   # GET — Render Cron Job endpoint (secured with CRON_SECRET)
 
-components/               # Shared UI components
+components/
+├── header.tsx            # RTL nav + tabs + user dropdown + sync indicator
+├── sync-indicator.tsx    # IBKR + Polygon sync dots (green/amber/red)
+├── open-positions-dashboard.tsx  # Phase 5: client component for open positions
+└── chat-sidebar.tsx      # Phase 5: Phase 7 stub AI sidebar
 lib/
 ├── supabase/
 │   ├── server.ts         # createClient() — Server Components (anon key + RLS)
@@ -184,6 +188,20 @@ DB objects (via Supabase MCP migrations):
 DB migration: `phase4_price_sync_fields` — adds `lastPriceSyncAt TIMESTAMPTZ` and `lastPriceSyncStatus TEXT` to `BrokerConnection`.
 
 **Test status: 97/97 pass. Build clean.**
+
+### Phase 5 — Real-Time Dashboard (COMPLETE)
+
+**Pattern**: Server Component + `router.refresh()`. No new API route — `dashboard/page.tsx` fetches directly from Supabase (RLS-safe), passes props to client component. On refresh: client calls `POST /api/polygon/refresh` then `router.refresh()`.
+
+- `lib/utils/position-calc.ts` — Pure functions: `unrealizedPnl`, `unrealizedPct`, `currentR`, `exposure`, `relativeTimeHe`, `formatUsd`, `formatR`. All return `null` on missing price/stop (no NaN/Infinity).
+- `components/open-positions-dashboard.tsx` — Client component: 4 client-side filters (ticker, direction, setup, P&L), 3 summary cards, positions table, IBKR stale banner, auto-refresh on mount, manual refresh button.
+- `components/chat-sidebar.tsx` — RTL slide-in panel stub. Toggle button "חנן ▶". Phase 7 wires actual AI.
+- `app/(dashboard)/dashboard/page.tsx` — Async server component. Fetches `Trade` (status=Open) + `BrokerConnection` in parallel via `Promise.all`.
+- `__tests__/position-calc.test.ts` — 24 unit tests.
+
+**Dashboard features**: per-position P&L ($+%), current R (null if no stop), price staleness indicator (amber if >interval), IBKR stale banner (amber if >2×pollingInterval), auto-trigger Polygon refresh if stale on mount.
+
+**Test status: 121/121 pass. Build clean.**
 
 ### Supabase typing notes
 
