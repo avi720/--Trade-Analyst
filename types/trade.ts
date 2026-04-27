@@ -24,6 +24,7 @@ export interface NormalizedExecution {
   brokerOrderId?: string
   brokerTradeId?: string
   ticker: string
+  assetClass?: string  // e.g. 'STK', 'OPT', 'FUT' — used for STK validation
   side: 'BUY' | 'SELL' | 'SSHORT'
   quantity: number   // always positive
   price: number

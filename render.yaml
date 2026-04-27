@@ -1,0 +1,44 @@
+services:
+  # ── Next.js Web Service ──────────────────────────────────────────────────────
+  - type: web
+    name: trade-analyst
+    runtime: node
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    # Starter plan required — Free tier sleeps and breaks cron reliability.
+    plan: starter
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false          # set manually in Render dashboard
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: FLEX_TOKEN_ENCRYPTION_KEY
+        sync: false          # 64-char hex (32 bytes) — generate with: openssl rand -hex 32
+      - key: POLYGON_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: CRON_SECRET
+        sync: false          # random string — used to authenticate cron job requests
+
+  # ── Cron Job: IBKR Flex polling (Query 1 — Trade Confirmations) ─────────────
+  # Fires every 15 minutes; the endpoint skips internally if pollingIntervalMin hasn't elapsed.
+  - type: cron
+    name: ibkr-sync
+    runtime: image
+    schedule: "*/15 * * * *"
+    image:
+      url: docker.io/curlimages/curl:8.7.1
+    command: >
+      curl --silent --show-error --fail
+      --header "Authorization: Bearer $CRON_SECRET"
+      "$RENDER_EXTERNAL_URL/api/cron/ibkr-sync"
+    envVars:
+      - key: CRON_SECRET
+        sync: false
+      - key: RENDER_EXTERNAL_URL
+        sync: false          # e.g. https://trade-analyst.onrender.com

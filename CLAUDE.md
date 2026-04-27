@@ -19,7 +19,8 @@ npm run db:seed   # Seed DB (uses .env.local + service-role key)
 ## Architecture
 
 **Trade Analysis** is a Hebrew RTL trading journal with AI (Next.js 14 App Router + Supabase).
-Single-user proprietary tool — no public signup.
+Currently deployed as single-user (no signup UI — account created manually in Supabase dashboard).
+**Future plan: SaaS with public signup.** The architecture is already multi-user ready at the DB level (every app table has a `userId` FK + RLS). Do not add single-user shortcuts that would break multi-user later.
 
 ### Directory structure
 
@@ -32,10 +33,16 @@ app/
 │   ├── research/         # Tab 2: Analytics + charts (Phase 6)
 │   ├── search/           # Tab 3: Trade search (Phase 8)
 │   ├── profile/          # User profile
-│   └── settings/         # IBKR, Polygon, AI settings (Phase 3+)
+│   └── settings/         # IBKR connection, Polygon, AI settings
 ├── auth/callback/        # Supabase auth callback route
 └── api/
-    └── cron/             # Cron job endpoints (Phase 3+)
+    ├── ibkr/
+    │   ├── connect/      # POST — save/encrypt BrokerConnection
+    │   ├── connection/   # GET — sync status (no token)
+    │   ├── test-connection/ # POST — test both Flex queries
+    │   └── backfill/     # POST trigger + GET status — async Activity backfill
+    └── cron/
+        └── ibkr-sync/   # GET — Render Cron Job endpoint (secured with CRON_SECRET)
 
 components/               # Shared UI components
 lib/
@@ -48,7 +55,11 @@ lib/
 ├── trade/
 │   └── fifo.ts           # Pure FIFO matching function
 ├── ibkr/
-│   └── parse-date.ts     # IBKR Flex date parser
+│   ├── parse-date.ts     # IBKR Flex date parser (dd/MM/yyyy;HH:mm:ss TZ → UTC)
+│   ├── encrypt.ts        # AES-256-GCM encrypt/decrypt for Flex token
+│   ├── flex-client.ts    # 2-step Flex Web Service HTTP client
+│   ├── parse-flex-xml.ts # fast-xml-parser integration → NormalizedExecution[]
+│   └── process-executions.ts  # Pipeline: FIFO match + DB writes
 └── utils/
     ├── cn.ts             # Tailwind class merge
     └── calculations.ts   # calcStats, equityCurve, rDistribution, setupPerformance
@@ -58,6 +69,8 @@ scripts/
 
 types/
 └── trade.ts              # Domain types: NormalizedExecution, FifoAction, ClosedTrade, ...
+
+render.yaml               # Render deployment: Web Service + Cron Job (ibkr-sync)
 ```
 
 ### Data flow
@@ -76,7 +89,7 @@ Supabase Auth → middleware.ts → protected routes
 - **Auth**: Supabase email+password. Login page only — no signup. Account created manually in Supabase dashboard.
 - **DB access**: Supabase JS client (`@supabase/ssr` for server, `@supabase/supabase-js` for browser/scripts). NO ORM. Type safety via the generated `Database` type in `lib/db/types.ts`.
 - **Migrations**: Applied through Supabase MCP `apply_migration`. The `_prisma_migrations` table is a leftover from initial bootstrap — kept as an audit row, not used by any tooling.
-- **Single user**: No multi-user architecture. RLS enabled and used on every table.
+- **Multi-user ready**: RLS enabled and used on every table. Currently single-user (no signup UI), but SaaS is the future goal — don't hardcode single-user assumptions.
 - **RTL**: `<html dir="rtl" lang="he">` at root layout.
 - **Polygon**: Free tier (15 min delayed, 5 calls/min). Use Snapshot endpoint for batch ticker lookups.
 - **IBKR**: Flex Web Service — 2-step pull (request → download). Token valid ~1 year.
@@ -126,9 +139,10 @@ Tests in [__tests__/parse-date.test.ts](__tests__/parse-date.test.ts) cover all 
 
 DB objects (via Supabase MCP migrations):
 - `phase2_initial_schema` — 7 tables, RLS enabled on all 6 app tables
-- `phase2_reverse_position_fn` — atomic close+open Postgres function for FIFO REVERSAL
+- `phase3_backfill_status` — adds `lastBackfillStatus` + `lastBackfillError` to `BrokerConnection`
+- `phase3_reverse_position_fn` — atomic Postgres function for FIFO REVERSAL (close + open in one transaction). Called via `supabase.rpc('reverse_position', { p_close_trade_id, p_close_status, p_close_at, p_avg_exit_price, p_actual_r, p_result, p_realized_pnl, p_total_commission, p_close_order, p_new_trade, p_new_order })`. Note: there is also an older 5-param overload from an earlier attempt — always use the 11-param `p_`-prefixed version.
 
-**Test status**: 61/61 pass. Build (TypeScript gate) clean.
+**Test status**: 86/86 pass. Build (TypeScript gate) clean.
 
 ### FIFO logic notes
 
@@ -137,6 +151,24 @@ DB objects (via Supabase MCP migrations):
 - **REVERSAL** produces two DB writes — callers MUST persist them via `supabase.rpc('reverse_position', {...})` so they happen in one Postgres transaction
 - `rDistribution` uses left-inclusive bins: `[min, max)`. r=0 → "0R–1R", r=2 → ">2R"
 - `actualR` is null when stopPrice is null OR riskPerShare < 0.0001 (prevents Infinity/NaN)
+
+### Phase 3 — IBKR Flex Web Service Integration (COMPLETE)
+
+- `lib/ibkr/encrypt.ts` — AES-256-GCM encrypt/decrypt for Flex token (`FLEX_TOKEN_ENCRYPTION_KEY` env = 64-char hex)
+- `lib/ibkr/flex-client.ts` — `fetchFlexQuery(token, queryId)` — 2-step HTTP fetch with retry
+- `lib/ibkr/parse-flex-xml.ts` — `parseTradeConfirmXml()` / `parseActivityXml()` / `validateStk()`
+- `lib/ibkr/process-executions.ts` — `processExecutions(executions, userId)` — main pipeline
+- `app/api/ibkr/{connect,connection,test-connection,backfill}/route.ts` — settings API
+- `app/api/cron/ibkr-sync/route.ts` — cron endpoint secured by `CRON_SECRET` header
+- `app/(dashboard)/settings/page.tsx` — full IBKR settings UI with guide + test + backfill
+- `components/sync-indicator.tsx` — live sync status dot (green/amber/red)
+- `render.yaml` — Render Web Service + Cron Job config
+- `__tests__/flex-xml.test.ts` — 18 XML parser tests
+- `__tests__/process-executions.test.ts` — 8 pipeline unit tests (mocked Supabase)
+
+**New env vars**: `CRON_SECRET` (secures cron endpoint)
+**Backfill**: async — POST /api/ibkr/backfill returns 202, GET polls status. Uses `setImmediate` (works on Render persistent Node process, NOT on Vercel serverless).
+**Cron**: Render fires every 15 min; endpoint skips internally if `pollingIntervalMin` hasn't elapsed.
 
 ### Supabase typing notes
 

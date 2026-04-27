@@ -97,6 +97,8 @@ export type Database = {
           id: string
           isActive: boolean
           lastBackfillAt: string | null
+          lastBackfillError: string | null
+          lastBackfillStatus: string | null
           lastSyncAt: string | null
           lastSyncError: string | null
           lastSyncStatus: string | null
@@ -113,6 +115,8 @@ export type Database = {
           id?: string
           isActive?: boolean
           lastBackfillAt?: string | null
+          lastBackfillError?: string | null
+          lastBackfillStatus?: string | null
           lastSyncAt?: string | null
           lastSyncError?: string | null
           lastSyncStatus?: string | null
@@ -129,6 +133,8 @@ export type Database = {
           id?: string
           isActive?: boolean
           lastBackfillAt?: string | null
+          lastBackfillError?: string | null
+          lastBackfillStatus?: string | null
           lastSyncAt?: string | null
           lastSyncError?: string | null
           lastSyncStatus?: string | null
@@ -413,16 +419,33 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      reverse_position: {
-        Args: {
-          close_order: Json
-          close_trade_id: string
-          close_update: Json
-          open_order: Json
-          open_trade: Json
-        }
-        Returns: Json
-      }
+      reverse_position:
+        | {
+            Args: {
+              close_order: Json
+              close_trade_id: string
+              close_update: Json
+              open_order: Json
+              open_trade: Json
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_actual_r: number
+              p_avg_exit_price: number
+              p_close_at: string
+              p_close_order: Json
+              p_close_status: string
+              p_close_trade_id: string
+              p_new_order: Json
+              p_new_trade: Json
+              p_realized_pnl: number
+              p_result: string
+              p_total_commission: number
+            }
+            Returns: undefined
+          }
     }
     Enums: {
       [_ in never]: never
