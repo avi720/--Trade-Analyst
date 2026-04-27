@@ -1,10 +1,16 @@
-export default function ResearchPage() {
-  return (
-    <div className="p-6">
-      <div className="panel p-8 text-center text-[#888888]">
-        <p className="text-lg font-mono">תחקור</p>
-        <p className="text-sm mt-2">גרפים וסטטיסטיקות — Phase 6</p>
-      </div>
-    </div>
-  )
+import { createClient } from '@/lib/supabase/server'
+import { ResearchDashboard } from '@/components/research-dashboard'
+
+export default async function ResearchPage() {
+  const supabase = await createClient()
+
+  const { data: rawTrades } = await supabase
+    .from('Trade')
+    .select(
+      'id, ticker, direction, setupType, openedAt, closedAt, actualR, realizedPnl, avgEntryPrice, avgExitPrice, stopPrice, totalQuantityOpened, result, executionQuality'
+    )
+    .eq('status', 'Closed')
+    .order('closedAt', { ascending: true })
+
+  return <ResearchDashboard trades={(rawTrades ?? []) as Parameters<typeof ResearchDashboard>[0]['trades']} />
 }

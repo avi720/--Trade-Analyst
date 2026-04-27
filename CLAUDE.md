@@ -203,6 +203,37 @@ DB migration: `phase4_price_sync_fields` — adds `lastPriceSyncAt TIMESTAMPTZ` 
 
 **Test status: 121/121 pass. Build clean.**
 
+### Phase 6 — Research Dashboard (COMPLETE)
+
+**Pattern**: Server Component + client component filtering, same as Phase 5.
+
+- `lib/utils/research-charts.ts` — Pure functions: `pnlByTicker`, `holdTimeVsR`, `pnlByDayOfWeek`, `pnlByHour`. (Note: uses `getUTCHours()/getUTCDay()` for timezone consistency with IBKR UTC timestamps.)
+- `components/research-dashboard.tsx` — Client component: 7 filters (date range, ticker, setup, direction, result, execQual, holdTime), 8 metric cards (from `calcStats`), 6 Recharts charts with user-selectable visibility (toggle panel, localStorage persistence).
+- `app/(dashboard)/research/page.tsx` — Async server component. Fetches all closed trades.
+- `__tests__/research-charts.test.ts` — 23 unit tests for chart data prep functions.
+
+**Dashboard features**:
+- 7 client-side filters: all aggregate in real-time, "Clear filters" button when active
+- 8 metric cards: trade count, win rate, avg R, profit factor, expectancy, max drawdown, total P&L, avg win/loss ratio
+- Chart toggle panel: collapsible "גרפים מוצגים [✎ ערוך]" with 6 checkboxes (default all on)
+- 6 Recharts charts: equity curve (line), R distribution (bar), setup perf (grouped bar, dual Y-axis), P&L by ticker (horiz bar), hold time vs R (scatter colored by result), P&L by day-of-week + hour (2 bar charts in 1 card)
+- Colors: green (#2CC84A) win/positive, red (#FF4D4D) loss/negative, amber (#FFB800) accent
+- Empty state: "אין טריידים סגורים בטווח זה" when no matches
+
+**Test status: 144/144 pass. Build clean.**
+
 ### Supabase typing notes
 
 `@supabase/ssr` v0.6.x's `createServerClient<Database>` does not propagate the `Database` generic correctly to `from()`/`upsert()` callsites — TypeScript narrows the values param to `never`. The runtime is fine. Workaround: `lib/supabase/server.ts` casts the return to `SupabaseClient<Database>`. Remove the cast once the upstream type is fixed.
+
+---
+
+## End-of-Phase Checklist
+
+After each phase completion:
+
+1. **Create phase-X-handoff.md** in `docs/` — summary of what was built, external services status, test results, key architectural decisions, next phase overview.
+2. **Update CLAUDE.md** — add "### Phase X — [Title] (COMPLETE)" section with file list, features, test status, any notes for future sessions.
+3. **Write session handoff prompt** — for the next session, like the one in `trade-analysis-prompt.md` for Phase 6. Include: what was done, test status, key files to read, what's next, questions to clarify before building.
+4. **Get user approval** — before proceeding, confirm phase is truly complete and handoff is accurate.
+5. **Commit + push** — only after approval. Message: "Phase X — [Title] (## tests ✅ build ✅)" (e.g., "Phase 6 — Research Dashboard (144 tests ✅ build ✅)").
