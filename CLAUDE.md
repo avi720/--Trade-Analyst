@@ -41,6 +41,7 @@ app/
     │   ├── connection/   # GET — sync status (no token)
     │   ├── test-connection/ # POST — test both Flex queries
     │   └── backfill/     # POST trigger + GET status — async Activity backfill
+    ├── chat/             # POST — Gemini AI chat endpoint
     └── cron/
         └── ibkr-sync/   # GET — Render Cron Job endpoint (secured with CRON_SECRET)
 
@@ -48,7 +49,7 @@ components/
 ├── header.tsx            # RTL nav + tabs + user dropdown + sync indicator
 ├── sync-indicator.tsx    # IBKR + Polygon sync dots (green/amber/red)
 ├── open-positions-dashboard.tsx  # Phase 5: client component for open positions
-└── chat-sidebar.tsx      # Phase 5: Phase 7 stub AI sidebar
+└── chat-sidebar.tsx      # Phase 7: live AI chat sidebar (חנן)
 lib/
 ├── supabase/
 │   ├── server.ts         # createClient() — Server Components (anon key + RLS)
@@ -56,6 +57,9 @@ lib/
 │   └── admin.ts          # createAdminClient() — service-role, bypasses RLS
 ├── db/
 │   └── types.ts          # Generated Database type from Supabase MCP
+├── chat/
+│   ├── chat-context.tsx  # ChatContextProvider + useChatContext React Context
+│   └── gemini-client.ts  # callGemini() with exponential backoff (5 retries)
 ├── trade/
 │   └── fifo.ts           # Pure FIFO matching function
 ├── ibkr/
@@ -222,6 +226,28 @@ DB migration: `phase4_price_sync_fields` — adds `lastPriceSyncAt TIMESTAMPTZ` 
 
 **Test status: 144/144 pass. Build clean.**
 
+### Phase 7 — AI Chat "חנן" (COMPLETE)
+
+- `lib/chat/chat-context.tsx` — `ChatContextProvider` + `useChatContext` React Context. Shares `isOpen`, `toggleChat`, `contextData`, `setContextData` across the entire layout tree. Must be a `'use client'` wrapper around the Server Component layout.
+- `lib/chat/gemini-client.ts` — `callGemini(history, message, systemPrompt, model, retries?, delayFn?)`. Exponential backoff: delays `[1000, 2000, 4000, 8000, 16000]` ms; retries on 429 + 5xx; immediate throw on 4xx. Injectable `delayFn` for testing.
+- `app/api/chat/route.ts` — POST endpoint. Uses authenticated `createClient()` (RLS, NOT service-role). Two context modes: "חכם" uses client-provided `contextData`, "עומק" queries `Trade` table directly. Upserts `AIConversation` with full `messages: Json` history.
+- `components/chat-sidebar.tsx` — Full replacement of Phase 5 stub. Fixed `position: fixed` slide-in panel (w-80, left-0, z-40). localStorage persistence of `chat_conversation_id` + `chat_context_mode`. Loads prior conversation from Supabase on mount. Context mode toggle (חכם ⚡ / עומק 🔬). Auto-scroll, loading state, inline error display.
+- `components/header.tsx` — "חנן ▶" toggle button wired to `useChatContext().toggleChat`.
+- `app/(dashboard)/layout.tsx` — `ChatContextProvider` wraps entire layout. `<ChatSidebar />` placed **outside** the `overflow-hidden` flex div (sibling, not child) — required for `position: fixed` to anchor to viewport correctly.
+- `components/research-dashboard.tsx` — Removed local chatOpen; added `setContextData` effect with research stats + filtered trades.
+- `components/open-positions-dashboard.tsx` — Removed local chatOpen; added `setContextData` effect with open position P&L data.
+- `__tests__/chat/gemini-client.test.ts` — 7 unit tests (success, 429 retry, exhaustion, 400 no-retry, model selection, 5xx retry, history passing).
+
+**New env var**: `GEMINI_API_KEY` — set in Render + `.env.local`.
+**Models**: `gemini-2.0-flash` (חכם mode) · `gemini-2.0-pro` (עומק mode).
+**DB**: No new migration. `AIConversation` table + `ai_conversations_own` RLS policy already existed.
+
+**IBKR Flex parser bug fix** (also this session): Real IBKR Activity XML uses camelCase fields (`ibExecID`, `symbol`, `buySell`, `tradePrice`, etc.) + `FlexQueryResponse` root wrapper. Added `resolveStatement()` for dual root path, updated every field in `normalizeNode()` with `PascalCase ?? camelCase` fallback. Added 4 new test cases (18→22 XML tests).
+
+**Layout fix**: `<ChatSidebar />` must be outside `overflow-hidden` ancestor — some browsers block `position: fixed` from escaping a flex container with overflow-hidden, causing the sidebar to render inline below the content.
+
+**Test status: 155/155 pass. Build clean.**
+
 ### Supabase typing notes
 
 `@supabase/ssr` v0.6.x's `createServerClient<Database>` does not propagate the `Database` generic correctly to `from()`/`upsert()` callsites — TypeScript narrows the values param to `never`. The runtime is fine. Workaround: `lib/supabase/server.ts` casts the return to `SupabaseClient<Database>`. Remove the cast once the upstream type is fixed.
@@ -234,6 +260,6 @@ After each phase completion:
 
 1. **Create phase-X-handoff.md** in `docs/` — summary of what was built, external services status, test results, key architectural decisions, next phase overview.
 2. **Update CLAUDE.md** — add "### Phase X — [Title] (COMPLETE)" section with file list, features, test status, any notes for future sessions.
-3. **Write session handoff prompt** — for the next session, like the one in `trade-analysis-prompt.md` for Phase 6. Include: what was done, test status, key files to read, what's next, questions to clarify before building.
+3. **Write preparation prompt** — for the next session, to write in the dialog box. Include in brief: what was done, test status, key files to read, what's next, ask "questions to clarify before building".
 4. **Get user approval** — before proceeding, confirm phase is truly complete and handoff is accurate.
 5. **Commit + push** — only after approval. Message: "Phase X — [Title] (## tests ✅ build ✅)" (e.g., "Phase 6 — Research Dashboard (144 tests ✅ build ✅)").

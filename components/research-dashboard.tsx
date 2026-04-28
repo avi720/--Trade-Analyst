@@ -7,7 +7,7 @@ import {
   ScatterChart, Scatter,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, ReferenceLine,
 } from 'recharts'
-import { ChatSidebar } from './chat-sidebar'
+import { useChatContext } from '@/lib/chat/chat-context'
 import { calcStats, equityCurve, rDistribution, setupPerformance } from '@/lib/utils/calculations'
 import { pnlByTicker, holdTimeVsR, pnlByDayOfWeek, pnlByHour } from '@/lib/utils/research-charts'
 import { formatUsd } from '@/lib/utils/position-calc'
@@ -120,7 +120,7 @@ function MetricCard({ label, value, color }: { label: string; value: string; col
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function ResearchDashboard({ trades: rawTrades }: Props) {
-  const [chatOpen, setChatOpen] = useState(false)
+  const { setContextData } = useChatContext()
   const [togglePanelOpen, setTogglePanelOpen] = useState(false)
   const [chartVisible, setChartVisible] = useState<Record<ChartId, boolean>>(defaultVisibility)
 
@@ -176,6 +176,27 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
       execQualMin, execQualMax, holdHoursMin, holdHoursMax])
 
   const stats = useMemo(() => calcStats(filteredTrades), [filteredTrades])
+
+  useEffect(() => {
+    setContextData({
+      source: 'research',
+      tradeCount: stats.totalTrades,
+      winRate: stats.winRate,
+      avgR: stats.avgR,
+      expectancy: stats.expectancy,
+      totalPnl: stats.totalPnl,
+      maxDrawdown: stats.maxDrawdown,
+      profitFactor: stats.profitFactor,
+      trades: filteredTrades.map(t => ({
+        ticker: t.ticker,
+        direction: t.direction,
+        actualR: t.actualR,
+        result: t.result,
+        setup: t.setupType,
+        closedAt: t.closedAt?.toISOString() ?? null,
+      })),
+    })
+  }, [filteredTrades, stats, setContextData])
 
   const chartData = useMemo(() => {
     const allHold = holdTimeVsR(filteredTrades)
@@ -306,10 +327,6 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
                   נקה פילטרים
                 </button>
               )}
-              <button onClick={() => setChatOpen(true)}
-                className="btn-ghost px-3 py-1.5 text-sm font-sans text-[#FFB800] border border-[#333333] rounded">
-                חנן ▶
-              </button>
             </div>
 
           </div>
@@ -628,8 +645,6 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
         )}
       </main>
 
-      {/* AI Chat sidebar stub */}
-      <ChatSidebar isOpen={chatOpen} onClose={() => setChatOpen(false)} />
     </div>
   )
 }

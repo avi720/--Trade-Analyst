@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { SyncIndicator } from './sync-indicator'
 import { cn } from '@/lib/utils/cn'
+import { useChatContext } from '@/lib/chat/chat-context'
 
 const TABS = [
   { label: 'דאשבורד חי', href: '/dashboard' },
@@ -20,6 +21,7 @@ export function Header({ userEmail }: HeaderProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const { toggleChat } = useChatContext()
 
   async function handleSignOut() {
     const { createClient } = await import('@/lib/supabase/client')
@@ -56,8 +58,14 @@ export function Header({ userEmail }: HeaderProps) {
         ))}
       </nav>
 
-      {/* Left side in RTL: sync indicator + user dropdown */}
+      {/* Left side in RTL: chat toggle + sync indicator + user dropdown */}
       <div className="flex items-center gap-3">
+        <button
+          onClick={toggleChat}
+          className="px-3 py-1.5 rounded-md text-sm font-mono text-[#FFB800] hover:bg-[#1A1A1A] transition-colors border border-[#333333]"
+        >
+          חנן ▶
+        </button>
         <SyncIndicator />
 
         {/* User dropdown */}

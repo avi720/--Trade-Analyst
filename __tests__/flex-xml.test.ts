@@ -399,6 +399,90 @@ describe("parseActivityXml", () => {
   });
 });
 
+describe("parseActivityXml — real IBKR format (camelCase + FlexQueryResponse wrapper)", () => {
+  // Real IBKR Activity XML uses:
+  //   - FlexQueryResponse root element (instead of bare FlexStatements)
+  //   - camelCase attribute names (ibExecID, symbol, buySell, tradePrice, ibCommission…)
+  //   - assetCategory instead of AssetClass
+  //   - dateTime instead of Date/Time
+  function makeRealActivityXml(tradeNodes: string[]): string {
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<FlexQueryResponse queryName="TradeAnalysis_History" type="AF">
+<FlexStatements count="1">
+<FlexStatement accountId="U18277746" fromDate="14/10/2025" toDate="24/04/2026" period="LastNCalendarDays" whenGenerated="27/04/2026;04:38:59 EDT">
+<Trades>
+${tradeNodes.join("\n")}
+</Trades>
+</FlexStatement>
+</FlexStatements>
+</FlexQueryResponse>`;
+  }
+
+  const REAL_BUY = `<Trade accountId="U18277746" currency="USD" assetCategory="STK" symbol="QQQ"
+    tradeID="8472019748" dateTime="31/10/2025;14:07:12 EDT" quantity="2"
+    proceeds="-1257.6" ibCommission="-2" netCash="-1259.6" buySell="BUY"
+    ibOrderID="4560070212" ibExecID="0001a2f5.6904c07e.01.01"
+    orderType="LMT" tradeDate="31/10/2025" exchange="IBKRATS" tradePrice="628.8"
+    taxes="0" ibCommissionCurrency="USD" orderTime="31/10/2025;14:07:12 EDT" />`;
+
+  const REAL_SELL = `<Trade accountId="U18277746" currency="USD" assetCategory="STK" symbol="QQQ"
+    tradeID="8472099999" dateTime="05/11/2025;10:30:00 EST" quantity="-2"
+    proceeds="1260.0" ibCommission="-2" netCash="1258.0" buySell="SELL"
+    ibOrderID="4560099999" ibExecID="0001a2f5.6904ffff.01.01"
+    orderType="MKT" tradeDate="05/11/2025" exchange="NASDAQ" tradePrice="630.0"
+    taxes="0" ibCommissionCurrency="USD" orderTime="05/11/2025;10:30:00 EST" />`;
+
+  const REAL_CASH = `<Trade accountId="U18277746" currency="ILS" assetCategory="CASH" symbol="USD.ILS"
+    tradeID="8458311410" dateTime="30/10/2025;01:52:38 EDT" quantity="1843"
+    proceeds="-5997.63804" ibCommission="-3.06710833" netCash="0" buySell="BUY"
+    ibOrderID="4551428366" ibExecID="00024d0d.68fe9beb.01.01"
+    orderType="MKT" tradeDate="30/10/2025" exchange="IDEALFX" tradePrice="3.25428"
+    taxes="0" ibCommissionCurrency="USD" orderTime="30/10/2025;01:52:38 EDT" />`;
+
+  it("parses a real IBKR BUY trade (camelCase + FlexQueryResponse wrapper)", () => {
+    const results = parseActivityXml(makeRealActivityXml([REAL_BUY]));
+    expect(results).toHaveLength(1);
+    const exec = results[0];
+    expect(exec.brokerExecId).toBe("0001a2f5.6904c07e.01.01");
+    expect(exec.ticker).toBe("QQQ");
+    expect(exec.side).toBe("BUY");
+    expect(exec.quantity).toBe(2);
+    expect(exec.price).toBe(628.8);
+    expect(exec.commission).toBe(2);
+    expect(exec.assetClass).toBe("STK");
+    expect(exec.currency).toBe("USD");
+    expect(exec.brokerOrderId).toBe("4560070212");
+    expect(exec.executedAt).toBeInstanceOf(Date);
+    // 31/10/2025 14:07:12 EDT = UTC+4 = 18:07:12 UTC
+    expect(exec.executedAt.toISOString()).toBe("2025-10-31T18:07:12.000Z");
+  });
+
+  it("parses SELL with negative quantity — quantity is abs()", () => {
+    const results = parseActivityXml(makeRealActivityXml([REAL_SELL]));
+    expect(results).toHaveLength(1);
+    expect(results[0].side).toBe("SELL");
+    expect(results[0].quantity).toBe(2); // abs(-2)
+    expect(results[0].price).toBe(630.0);
+  });
+
+  it("filters out CASH (forex) entries via validateStk", () => {
+    const results = parseActivityXml(makeRealActivityXml([REAL_BUY, REAL_CASH]));
+    // Both parsed — but CASH filtered later by validateStk in processExecutions
+    expect(results).toHaveLength(2);
+    expect(validateStk(results[0])).toBe(true);  // STK
+    expect(validateStk(results[1])).toBe(false); // CASH
+  });
+
+  it("parses multiple trades in real format", () => {
+    const results = parseActivityXml(makeRealActivityXml([REAL_BUY, REAL_SELL]));
+    expect(results).toHaveLength(2);
+    expect(results.map(r => r.brokerExecId)).toEqual([
+      "0001a2f5.6904c07e.01.01",
+      "0001a2f5.6904ffff.01.01",
+    ]);
+  });
+});
+
 describe("validateStk", () => {
   it("returns true for STK", () => {
     const results = parseTradeConfirmXml(makeTradeConfirmXml([BUY_STK]));

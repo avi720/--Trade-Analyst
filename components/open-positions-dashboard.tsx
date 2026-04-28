@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChatSidebar } from './chat-sidebar'
+import { useChatContext } from '@/lib/chat/chat-context'
 import {
   unrealizedPnl,
   unrealizedPct,
@@ -77,7 +77,7 @@ function priceStaleMinutes(lastPriceUpdateAt: string | null, intervalMin: number
 
 export function OpenPositionsDashboard({ trades, connection }: Props) {
   const router = useRouter()
-  const [chatOpen, setChatOpen] = useState(false)
+  const { setContextData } = useChatContext()
   const [refreshing, setRefreshing] = useState(false)
   const [tickerFilter, setTickerFilter] = useState('')
   const [directionFilter, setDirectionFilter] = useState<DirectionFilter>('all')
@@ -96,6 +96,19 @@ export function OpenPositionsDashboard({ trades, connection }: Props) {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    setContextData({
+      source: 'positions',
+      openPositions: trades.map(t => ({
+        ticker: t.ticker,
+        direction: t.direction,
+        unrealizedPnl: unrealizedPnl(toCalcTrade(t)),
+        currentR: currentR(toCalcTrade(t)),
+        holdDays: Math.floor((Date.now() - new Date(t.openedAt).getTime()) / 86_400_000),
+      })),
+    })
+  }, [trades, setContextData])
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true)
@@ -219,12 +232,6 @@ export function OpenPositionsDashboard({ trades, connection }: Props) {
 
           {/* Spacer + refresh button */}
           <div className="flex-1" />
-          <button
-            onClick={() => setChatOpen(true)}
-            className="btn-ghost px-3 py-1.5 text-sm font-sans text-[#FFB800] border border-[#333333] rounded"
-          >
-            חנן ▶
-          </button>
           <button
             onClick={handleRefresh}
             disabled={refreshing}
@@ -361,8 +368,6 @@ export function OpenPositionsDashboard({ trades, connection }: Props) {
         )}
       </main>
 
-      {/* AI Chat sidebar stub */}
-      <ChatSidebar isOpen={chatOpen} onClose={() => setChatOpen(false)} />
     </div>
   )
 }

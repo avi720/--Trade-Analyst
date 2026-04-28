@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Header } from '@/components/header'
+import { ChatContextProvider } from '@/lib/chat/chat-context'
+import { ChatSidebar } from '@/components/chat-sidebar'
 import type { TablesInsert } from '@/lib/db/types'
 
 export default async function DashboardLayout({
@@ -29,11 +31,14 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
-      <Header userEmail={user.email} />
-      <main className="flex-1 overflow-auto">
-        {children}
-      </main>
-    </div>
+    <ChatContextProvider>
+      <div className="flex flex-col h-screen overflow-hidden">
+        <Header userEmail={user.email} />
+        <main className="flex-1 overflow-auto">
+          {children}
+        </main>
+      </div>
+      <ChatSidebar />
+    </ChatContextProvider>
   )
 }

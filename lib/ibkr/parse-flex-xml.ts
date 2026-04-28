@@ -38,55 +38,91 @@ function toString(val: unknown): string | undefined {
   return String(val);
 }
 
-// Converts a raw IBKR trade node (from either query type) into NormalizedExecution.
-// Returns null if required fields are missing or unparseable — caller should skip these.
+/**
+ * Resolves FlexStatement from a parsed XML doc.
+ *
+ * IBKR returns two possible root shapes depending on query type / SDK version:
+ *   (a) FlexStatements → FlexStatement          (test XML / older format)
+ *   (b) FlexQueryResponse → FlexStatements → FlexStatement  (real Activity reports)
+ */
+function resolveStatement(doc: Record<string, unknown>): Record<string, unknown> | null {
+  type D = Record<string, Record<string, unknown>>;
+  const statements =
+    (doc as D)?.FlexQueryResponse?.FlexStatements ??
+    (doc as D)?.FlexStatements;
+
+  if (!statements) return null;
+  const stmt = (statements as Record<string, unknown>)?.FlexStatement;
+  return (stmt as Record<string, unknown>) ?? null;
+}
+
+/**
+ * Converts a raw IBKR trade node into NormalizedExecution.
+ *
+ * Handles both naming conventions that IBKR uses:
+ *   - TradeConfirm reports: PascalCase  (ExecID, Symbol, Buy/Sell, Price, Commission…)
+ *   - Activity reports:     camelCase   (ibExecID, symbol, buySell, tradePrice, ibCommission…)
+ *
+ * Returns null if required fields are missing or unparseable — caller skips these.
+ */
 function normalizeNode(node: Record<string, unknown>): NormalizedExecution | null {
-  const execId = toString(node["ExecID"]);
+  // ExecID: TradeConfirm → "ExecID", Activity → "ibExecID"
+  const execId = toString(node["ExecID"] ?? node["ibExecID"]);
   if (!execId) {
     console.warn("[parse-flex-xml] Skipping node: missing ExecID", node);
     return null;
   }
 
-  const ticker = toString(node["Symbol"]);
+  // Symbol: TradeConfirm → "Symbol", Activity → "symbol"
+  const ticker = toString(node["Symbol"] ?? node["symbol"]);
   if (!ticker) {
     console.warn("[parse-flex-xml] Skipping node: missing Symbol", node);
     return null;
   }
 
-  const side = normalizeSide(node["Buy/Sell"] ?? node["BuySell"]);
+  // Buy/Sell: TradeConfirm → "Buy/Sell" / "BuySell", Activity → "buySell"
+  const side = normalizeSide(node["Buy/Sell"] ?? node["BuySell"] ?? node["buySell"]);
   if (!side) {
     console.warn("[parse-flex-xml] Skipping node: invalid Buy/Sell value", node);
     return null;
   }
 
-  const quantity = toNumber(node["Quantity"]);
+  // Quantity: TradeConfirm → "Quantity", Activity → "quantity"
+  const quantity = toNumber(node["Quantity"] ?? node["quantity"]);
   if (quantity === null) {
     console.warn("[parse-flex-xml] Skipping node: invalid Quantity", node);
     return null;
   }
 
-  const price = toNumber(node["Price"]);
+  // Price: TradeConfirm → "Price", Activity → "tradePrice"
+  const price = toNumber(node["Price"] ?? node["tradePrice"]);
   if (price === null) {
     console.warn("[parse-flex-xml] Skipping node: invalid Price", node);
     return null;
   }
 
-  // Date/Time is the primary timestamp — prefer it over TradeDate
-  const rawDateTime = node["Date/Time"] ?? node["DateTime"];
+  // Date/Time: TradeConfirm → "Date/Time" / "DateTime", Activity → "dateTime"
+  const rawDateTime = node["Date/Time"] ?? node["DateTime"] ?? node["dateTime"];
   const executedAt = typeof rawDateTime === "string" ? parseIbkrDate(rawDateTime) : null;
   if (!executedAt) {
     console.warn("[parse-flex-xml] Skipping node: unparseable Date/Time", rawDateTime, node);
     return null;
   }
 
-  const commission = toNumber(node["Commission"]) ?? 0;
-  const assetClass = toString(node["AssetClass"]);
+  // Commission: TradeConfirm → "Commission", Activity → "ibCommission"
+  const commission = toNumber(node["Commission"] ?? node["ibCommission"]) ?? 0;
+
+  // AssetClass: TradeConfirm → "AssetClass", Activity → "assetCategory"
+  const assetClass = toString(node["AssetClass"] ?? node["assetCategory"]);
 
   return {
     brokerExecId: execId,
-    brokerOrderId: toString(node["OrderID"]),
-    brokerTradeId: toString(node["TradeID"]),
-    brokerClientAccountId: toString(node["ClientAccountID"]),
+    // OrderID: TradeConfirm → "OrderID", Activity → "ibOrderID"
+    brokerOrderId: toString(node["OrderID"] ?? node["ibOrderID"]),
+    // TradeID: TradeConfirm → "TradeID", Activity → "tradeID"
+    brokerTradeId: toString(node["TradeID"] ?? node["tradeID"]),
+    // AccountID: TradeConfirm → "ClientAccountID", Activity → "accountId"
+    brokerClientAccountId: toString(node["ClientAccountID"] ?? node["accountId"]),
     ticker,
     assetClass,
     side,
@@ -94,15 +130,17 @@ function normalizeNode(node: Record<string, unknown>): NormalizedExecution | nul
     price: Math.abs(price),
     commission: Math.abs(commission),
     executedAt,
-    currency: toString(node["CurrencyPrimary"]),
-    exchange: toString(node["Exchange"]),
-    orderType: toString(node["OrderType"]),
+    // Currency: TradeConfirm → "CurrencyPrimary", Activity → "currency"
+    currency: toString(node["CurrencyPrimary"] ?? node["currency"]),
+    exchange: toString(node["Exchange"] ?? node["exchange"]),
+    // OrderType: TradeConfirm → "OrderType", Activity → "orderType"
+    orderType: toString(node["OrderType"] ?? node["orderType"]),
     rawPayload: node,
   };
 }
 
 // Parses a Trade Confirmations Flex Query XML response.
-// Node path: FlexStatements → FlexStatement → TradeConfirms → TradeConfirm[]
+// Node path: [FlexQueryResponse →] FlexStatements → FlexStatement → TradeConfirms → TradeConfirm[]
 export function parseTradeConfirmXml(xml: string): NormalizedExecution[] {
   if (!xml || xml.trim() === "") return [];
 
@@ -114,12 +152,10 @@ export function parseTradeConfirmXml(xml: string): NormalizedExecution[] {
     return [];
   }
 
-  const statement = (doc as Record<string, Record<string, unknown>>)
-    ?.FlexStatements?.FlexStatement;
-
+  const statement = resolveStatement(doc);
   if (!statement) return [];
 
-  const confirms = (statement as Record<string, unknown>)?.TradeConfirms;
+  const confirms = statement?.TradeConfirms;
   if (!confirms) return []; // empty response — no trades for the period
 
   const nodes: Record<string, unknown>[] = Array.isArray(
@@ -135,7 +171,7 @@ export function parseTradeConfirmXml(xml: string): NormalizedExecution[] {
 }
 
 // Parses an Activity Flex Query XML response.
-// Node path: FlexStatements → FlexStatement → Trades → Trade[]
+// Node path: [FlexQueryResponse →] FlexStatements → FlexStatement → Trades → Trade[]
 export function parseActivityXml(xml: string): NormalizedExecution[] {
   if (!xml || xml.trim() === "") return [];
 
@@ -147,12 +183,10 @@ export function parseActivityXml(xml: string): NormalizedExecution[] {
     return [];
   }
 
-  const statement = (doc as Record<string, Record<string, unknown>>)
-    ?.FlexStatements?.FlexStatement;
-
+  const statement = resolveStatement(doc);
   if (!statement) return [];
 
-  const trades = (statement as Record<string, unknown>)?.Trades;
+  const trades = statement?.Trades;
   if (!trades) return [];
 
   const nodes: Record<string, unknown>[] = Array.isArray(
