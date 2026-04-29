@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ChevronDown, ChevronUp, CheckCircle, XCircle, Loader2, ExternalLink } from "lucide-react";
+import { ChevronDown, ChevronUp, CheckCircle, XCircle, Loader2 } from "lucide-react";
 
-// The 20 required IBKR Flex fields
+// The required IBKR Flex fields for the Activity report
 const REQUIRED_FIELDS = [
   "ClientAccountID", "CurrencyPrimary", "AssetClass", "Symbol",
   "TradeID", "OrderID", "ExecID", "OrderTime", "Date/Time", "TradeDate",
@@ -13,7 +13,6 @@ const REQUIRED_FIELDS = [
 
 interface ConnectionStatus {
   id?: string;
-  flexQueryIdTrades?: string;
   flexQueryIdActivity?: string;
   pollingIntervalMin?: number;
   pricePollingIntervalMin?: number;
@@ -27,7 +26,7 @@ interface ConnectionStatus {
   lastPriceSyncStatus?: string | null;
 }
 
-interface TestResult {
+interface ActivityTestResult {
   ok: boolean;
   error?: string;
 }
@@ -67,29 +66,20 @@ function SetupGuide({ open, onToggle }: { open: boolean; onToggle: () => void })
             </p>
           </div>
           <div>
-            <p className="text-[#E0E0E0] font-medium mb-1">שלב 2 — יצירת Query 1 (Trade Confirmations)</p>
+            <p className="text-[#E0E0E0] font-medium mb-1">שלב 2 — יצירת Activity Flex Query</p>
             <p>
-              ב-IBKR Portal: <span className="text-[#E0E0E0]">Reports → Flex Queries → Create New → Trade Confirmations</span>
+              ב-IBKR Portal:{" "}
+              <span className="text-[#E0E0E0]">Reports → Flex Queries → Create New → Activity</span>
               <br />
-              טווח: <span className="text-[#E0E0E0]">Today</span> (או Last Business Day)
+              טווח: <span className="text-[#E0E0E0]">Last 90 Days</span> (או יותר לBackfill ראשוני)
               <br />
               פורמט תאריך: <span className="font-mono text-[#2CC84A]">dd/MM/yyyy</span> — פורמט שעה:{" "}
               <span className="font-mono text-[#2CC84A]">HH:mm:ss TimeZone</span>
             </p>
           </div>
           <div>
-            <p className="text-[#E0E0E0] font-medium mb-1">שלב 3 — יצירת Query 2 (Activity)</p>
-            <p>
-              <span className="text-[#E0E0E0]">Reports → Flex Queries → Create New → Activity</span>
-              <br />
-              טווח: <span className="text-[#E0E0E0]">Last 90 Days</span> (או יותר)
-              <br />
-              <strong className="text-[#FFB800]">אותם 20 שדות בדיוק כמו Query 1.</strong>
-            </p>
-          </div>
-          <div>
             <p className="text-[#E0E0E0] font-medium mb-2">
-              20 השדות הנדרשים (זהים לשני ה-Queries):
+              20 השדות הנדרשים:
             </p>
             <div className="grid grid-cols-2 gap-1">
               {REQUIRED_FIELDS.map((f) => (
@@ -100,7 +90,7 @@ function SetupGuide({ open, onToggle }: { open: boolean; onToggle: () => void })
             </div>
           </div>
           <p className="text-xs text-[#555555]">
-            שלב 4: העתק את ה-Token ואת שני ה-Query IDs לשדות למטה.
+            שלב 3: העתק את ה-Token ואת ה-Query ID לשדות למטה.
           </p>
         </div>
       )}
@@ -114,9 +104,10 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [backfilling, setBackfilling] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveOk, setSaveOk] = useState(false);
-  const [testResult, setTestResult] = useState<{ query1: TestResult; query2: TestResult; firstSuccess?: boolean } | null>(null);
+  const [testResult, setTestResult] = useState<{ activity: ActivityTestResult; firstSuccess?: boolean } | null>(null);
   const [testError, setTestError] = useState<string | null>(null);
   const [backfillStatus, setBackfillStatus] = useState<string | null>(null);
   const [backfillError, setBackfillError] = useState<string | null>(null);
@@ -130,9 +121,8 @@ export default function SettingsPage() {
 
   // IBKR form state
   const [flexToken, setFlexToken] = useState("");
-  const [queryIdTrades, setQueryIdTrades] = useState("");
   const [queryIdActivity, setQueryIdActivity] = useState("");
-  const [pollingInterval, setPollingInterval] = useState(15);
+  const [pollingInterval, setPollingInterval] = useState(720);
 
   const loadConnection = useCallback(async () => {
     const res = await fetch("/api/ibkr/connection");
@@ -141,9 +131,8 @@ export default function SettingsPage() {
       if (json.connection) {
         const c: ConnectionStatus = json.connection;
         setConn(c);
-        setQueryIdTrades(c.flexQueryIdTrades ?? "");
         setQueryIdActivity(c.flexQueryIdActivity ?? "");
-        setPollingInterval(c.pollingIntervalMin ?? 15);
+        setPollingInterval(c.pollingIntervalMin ?? 720);
         setPricePollingInterval(c.pricePollingIntervalMin ?? 15);
         setBackfillStatus(c.lastBackfillStatus ?? null);
         setBackfillError(c.lastBackfillError ?? null);
@@ -182,7 +171,6 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           flexToken,
-          flexQueryIdTrades: queryIdTrades,
           flexQueryIdActivity: queryIdActivity,
           pollingIntervalMin: pollingInterval,
         }),
@@ -215,7 +203,6 @@ export default function SettingsPage() {
       } else {
         setTestResult(json);
         if (json.firstSuccess) {
-          // Auto-prompt user to backfill
           setGuideOpen(false);
         }
       }
@@ -241,6 +228,29 @@ export default function SettingsPage() {
       setBackfillError("שגיאת רשת");
     } finally {
       setBackfilling(false);
+    }
+  }
+
+  async function handleExportCsv() {
+    setExportingCsv(true);
+    try {
+      const res = await fetch("/api/export/activity-csv");
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        alert(json.error ?? "שגיאה בייצוא CSV");
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `activity_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("שגיאת רשת בייצוא CSV");
+    } finally {
+      setExportingCsv(false);
     }
   }
 
@@ -300,37 +310,13 @@ export default function SettingsPage() {
           </div>
 
           <div>
-            <label className="block text-sm text-[#888888] mb-1">Query ID — Trade Confirmations (Query 1)</label>
-            <input
-              type="text"
-              value={queryIdTrades}
-              onChange={(e) => setQueryIdTrades(e.target.value)}
-              placeholder="123456"
-              className="w-full bg-[#111111] border border-[#222222] rounded px-3 py-2 text-sm text-[#E0E0E0] placeholder-[#555555] focus:outline-none focus:border-[#FFB800] font-mono"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm text-[#888888] mb-1">Query ID — Activity (Query 2)</label>
+            <label className="block text-sm text-[#888888] mb-1">Query ID — Activity</label>
             <input
               type="text"
               value={queryIdActivity}
               onChange={(e) => setQueryIdActivity(e.target.value)}
-              placeholder="789012"
+              placeholder="123456"
               className="w-full bg-[#111111] border border-[#222222] rounded px-3 py-2 text-sm text-[#E0E0E0] placeholder-[#555555] focus:outline-none focus:border-[#FFB800] font-mono"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm text-[#888888] mb-1">
-              מרווח polling (דקות) — מינימום 15
-            </label>
-            <input
-              type="number"
-              min={15}
-              value={pollingInterval}
-              onChange={(e) => setPollingInterval(Math.max(15, parseInt(e.target.value) || 15))}
-              className="w-32 bg-[#111111] border border-[#222222] rounded px-3 py-2 text-sm text-[#E0E0E0] focus:outline-none focus:border-[#FFB800] font-mono"
             />
           </div>
 
@@ -366,8 +352,7 @@ export default function SettingsPage() {
         {testError && <p className="mt-3 text-[#FF4D4D] text-sm">{testError}</p>}
         {testResult && (
           <div className="mt-4 space-y-2">
-            <QueryStatusRow label="Query 1 — Trade Confirmations" result={testResult.query1} />
-            <QueryStatusRow label="Query 2 — Activity" result={testResult.query2} />
+            <QueryStatusRow label="Activity Flex Query" result={testResult.activity} />
             {testResult.firstSuccess && (
               <div className="mt-3 p-3 border border-[#2CC84A] rounded text-sm text-[#2CC84A]">
                 חיבור ראשוני הצליח! מומלץ להריץ Backfill היסטורי עכשיו ↓
@@ -407,7 +392,7 @@ export default function SettingsPage() {
               </span>
             </div>
 
-            <div className="pt-2">
+            <div className="pt-2 flex gap-3 flex-wrap">
               {backfillStatus === "RUNNING" ? (
                 <span className="flex items-center gap-2 text-[#FFB800] text-sm">
                   <Loader2 size={14} className="animate-spin" />
@@ -422,8 +407,21 @@ export default function SettingsPage() {
                   Run Activity Backfill
                 </button>
               )}
+              <button
+                onClick={handleExportCsv}
+                disabled={exportingCsv || !conn}
+                className="px-3 py-1.5 border border-[#222222] text-[#888888] text-xs rounded hover:border-[#444444] hover:text-[#E0E0E0] disabled:opacity-40 transition-colors"
+              >
+                {exportingCsv ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 size={12} className="animate-spin" /> מייצא...
+                  </span>
+                ) : (
+                  "ייצא Activity כ-CSV"
+                )}
+              </button>
               {backfillError && (
-                <p className="mt-1 text-[#FF4D4D] text-xs">{backfillError}</p>
+                <p className="w-full mt-1 text-[#FF4D4D] text-xs">{backfillError}</p>
               )}
             </div>
           </div>
@@ -493,16 +491,16 @@ export default function SettingsPage() {
         <p className="text-[#888888] text-sm">הגדרות מודל — Phase 7</p>
       </div>
 
-      {/* ── Display (Phase 8 stub) ── */}
+      {/* ── Display ── */}
       <div className="panel p-6">
         <h2 className="text-base font-medium text-[#E0E0E0] mb-2">תצוגה</h2>
-        <p className="text-[#888888] text-sm">מטבע, אזור זמן, מצב תצוגה — Phase 8</p>
+        <p className="text-[#888888] text-sm">מטבע, אזור זמן, מצב תצוגה</p>
       </div>
     </div>
   );
 }
 
-function QueryStatusRow({ label, result }: { label: string; result: TestResult }) {
+function QueryStatusRow({ label, result }: { label: string; result: ActivityTestResult }) {
   return (
     <div className="flex items-center gap-2 text-sm">
       {result.ok ? (

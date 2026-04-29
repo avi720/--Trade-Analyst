@@ -25,12 +25,13 @@ services:
       - key: CRON_SECRET
         sync: false          # random string — used to authenticate cron job requests
 
-  # ── Cron Job: IBKR Flex polling (Query 1 — Trade Confirmations) ─────────────
-  # Fires every 15 minutes; the endpoint skips internally if pollingIntervalMin hasn't elapsed.
+  # ── Cron Job: IBKR Activity Flex polling ────────────────────────────────────
+  # Fires twice daily at 08:00 & 20:00 UTC (10:00 & 22:00 IST standard time).
+  # Activity report updates once per day at end-of-day, so twice-daily is sufficient.
   - type: cron
     name: ibkr-sync
     runtime: image
-    schedule: "*/15 * * * *"
+    schedule: "0 8,20 * * *"
     image:
       url: docker.io/curlimages/curl:8.7.1
     command: >

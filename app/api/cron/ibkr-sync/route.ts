@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptToken } from "@/lib/ibkr/encrypt";
 import { fetchFlexQuery } from "@/lib/ibkr/flex-client";
-import { parseTradeConfirmXml } from "@/lib/ibkr/parse-flex-xml";
+import { parseActivityXml } from "@/lib/ibkr/parse-flex-xml";
 import { processExecutions } from "@/lib/ibkr/process-executions";
 
-// Secured with CRON_SECRET header — called by Render Cron Job every 15 minutes
+// Secured with CRON_SECRET header — called by Render Cron Job twice daily (08:00 & 20:00 UTC)
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("Authorization");
   if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   const { data: conn, error: connErr } = await admin
     .from("BrokerConnection")
     .select(
-      "id, userId, flexTokenEncrypted, flexQueryIdTrades, pollingIntervalMin, lastSyncAt"
+      "id, userId, flexTokenEncrypted, flexQueryIdActivity, pollingIntervalMin, lastSyncAt"
     )
     .eq("isActive", true)
     .maybeSingle();
@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const token = decryptToken(conn.flexTokenEncrypted);
-    const xml = await fetchFlexQuery(token, conn.flexQueryIdTrades);
+    const xml = await fetchFlexQuery(token, conn.flexQueryIdActivity);
 
     // Audit log — store raw XML (capped)
     await admin.from("BrokerEvent").insert({
@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
       processingStatus: "PENDING",
     });
 
-    const executions = parseTradeConfirmXml(xml);
+    const executions = parseActivityXml(xml);
     const results = await processExecutions(executions, conn.userId);
 
     const failed = results.filter((r) => r.status === "FAILED");

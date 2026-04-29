@@ -2,7 +2,6 @@
 // Do not edit by hand.
 // To regenerate: call the Supabase MCP tool with project_id nwvswntqrqqtwzrhzpmi
 // or run: npx supabase gen types typescript --project-id nwvswntqrqqtwzrhzpmi > lib/db/types.ts
-
 export type Json =
   | string
   | number
@@ -92,7 +91,7 @@ export type Database = {
           accountId: string | null
           brokerName: string
           flexQueryIdActivity: string
-          flexQueryIdTrades: string
+          flexQueryIdTrades: string | null
           flexTokenEncrypted: string
           id: string
           isActive: boolean
@@ -112,7 +111,7 @@ export type Database = {
           accountId?: string | null
           brokerName: string
           flexQueryIdActivity: string
-          flexQueryIdTrades: string
+          flexQueryIdTrades?: string | null
           flexTokenEncrypted: string
           id?: string
           isActive?: boolean
@@ -132,7 +131,7 @@ export type Database = {
           accountId?: string | null
           brokerName?: string
           flexQueryIdActivity?: string
-          flexQueryIdTrades?: string
+          flexQueryIdTrades?: string | null
           flexTokenEncrypted?: string
           id?: string
           isActive?: boolean

@@ -8,7 +8,6 @@ import { cn } from '@/lib/utils/cn'
 import { useChatContext } from '@/lib/chat/chat-context'
 
 const TABS = [
-  { label: 'דאשבורד חי', href: '/dashboard' },
   { label: 'תחקור', href: '/research' },
   { label: 'חיפוש', href: '/search' },
 ]

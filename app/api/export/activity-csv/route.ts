@@ -4,10 +4,13 @@ import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptToken } from "@/lib/ibkr/encrypt";
 import { fetchFlexQuery } from "@/lib/ibkr/flex-client";
+import { parseActivityXml } from "@/lib/ibkr/parse-flex-xml";
+import { executionsToCsv } from "@/lib/ibkr/xml-to-csv";
 import type { Database } from "@/lib/db/types";
 
-// Tests the Activity Flex Query connection
-export async function POST() {
+// Returns the latest Activity Flex data as a downloadable CSV.
+// Fetches fresh data from IBKR (same query used for backfill/sync).
+export async function GET() {
   const cookieStore = cookies();
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,41 +28,33 @@ export async function POST() {
     .maybeSingle();
 
   if (!conn) {
-    return NextResponse.json({ error: "No connection configured" }, { status: 404 });
+    return NextResponse.json({ error: "No IBKR connection configured" }, { status: 404 });
   }
 
   let token: string;
   try {
     token = decryptToken(conn.flexTokenEncrypted);
   } catch {
-    return NextResponse.json({ error: "Failed to decrypt token — check server configuration" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to decrypt token" }, { status: 500 });
   }
 
-  let activityOk = true;
-  let activityError: string | undefined;
-
+  let xml: string;
   try {
-    await fetchFlexQuery(token, conn.flexQueryIdActivity);
+    xml = await fetchFlexQuery(token, conn.flexQueryIdActivity);
   } catch (err) {
-    activityOk = false;
-    activityError = err instanceof Error ? err.message : String(err);
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: `IBKR fetch failed: ${msg}` }, { status: 502 });
   }
 
-  // If this is the first successful test, flag it so the UI can prompt backfill
-  let firstSuccess = false;
-  if (activityOk) {
-    const { data: existingConn } = await admin
-      .from("BrokerConnection")
-      .select("lastSyncAt, lastBackfillAt")
-      .eq("userId", user.id)
-      .maybeSingle();
-    if (existingConn && !existingConn.lastSyncAt && !existingConn.lastBackfillAt) {
-      firstSuccess = true;
-    }
-  }
+  const executions = parseActivityXml(xml);
+  const csv = executionsToCsv(executions);
 
-  return NextResponse.json({
-    activity: { ok: activityOk, error: activityError },
-    firstSuccess,
+  const date = new Date().toISOString().slice(0, 10);
+  return new NextResponse(csv, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": `attachment; filename="activity_${date}.csv"`,
+    },
   });
 }

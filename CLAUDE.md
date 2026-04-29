@@ -29,18 +29,20 @@ app/
 ├── (auth)/login/         # Login page (email+password, no signup)
 ├── (dashboard)/          # Protected routes — requires auth
 │   ├── layout.tsx        # Dashboard shell + Header + User upsert
-│   ├── dashboard/        # Tab 1: Real-time open positions (Phase 5)
-│   ├── research/         # Tab 2: Analytics + charts (Phase 6)
-│   ├── search/           # Tab 3: Trade search (Phase 8)
+│   ├── dashboard/        # [HIDDEN] Real-time open positions (Phase 5 — code kept, tab removed)
+│   ├── research/         # Tab 1: Analytics + charts (Phase 6)
+│   ├── search/           # Tab 2: Trade search (future)
 │   ├── profile/          # User profile
-│   └── settings/         # IBKR connection, Polygon, AI settings
+│   └── settings/         # IBKR connection, Polygon, AI settings + CSV export
 ├── auth/callback/        # Supabase auth callback route
 └── api/
     ├── ibkr/
-    │   ├── connect/      # POST — save/encrypt BrokerConnection
+    │   ├── connect/      # POST — save/encrypt BrokerConnection (Activity Query only)
     │   ├── connection/   # GET — sync status (no token)
-    │   ├── test-connection/ # POST — test both Flex queries
+    │   ├── test-connection/ # POST — test Activity Flex Query
     │   └── backfill/     # POST trigger + GET status — async Activity backfill
+    ├── export/
+    │   └── activity-csv/ # GET — download Activity Flex data as CSV
     ├── chat/             # POST — Gemini AI chat endpoint
     └── cron/
         └── ibkr-sync/   # GET — Render Cron Job endpoint (secured with CRON_SECRET)
@@ -102,6 +104,8 @@ Supabase Auth → middleware.ts → protected routes
 - **Polygon**: Free tier (15 min delayed, 5 calls/min). Use Snapshot endpoint for batch ticker lookups.
 - **IBKR**: Flex Web Service — 2-step pull (request → download). Token valid ~1 year.
 - **Encryption**: IBKR Flex token encrypted AES-256-GCM. Key from env only.
+- **Single Flex Query**: Only Activity Flex Query is used (no Trade Confirmations). Activity updates once per day at end-of-day. Cron runs 2×/day (08:00 & 20:00 UTC). `flexQueryIdTrades` column exists in DB but is nullable and unused.
+- **Nav tabs**: Only 2 tabs shown — "תחקור" (/research) and "חיפוש" (/search). The live dashboard tab (/dashboard) is hidden (code kept, not deleted).
 
 ### Theme
 
@@ -176,7 +180,7 @@ DB objects (via Supabase MCP migrations):
 
 **New env vars**: `CRON_SECRET` (secures cron endpoint)
 **Backfill**: async — POST /api/ibkr/backfill returns 202, GET polls status. Uses `setImmediate` (works on Render persistent Node process, NOT on Vercel serverless).
-**Cron**: Render fires every 15 min; endpoint skips internally if `pollingIntervalMin` hasn't elapsed.
+**Cron**: Render fires at 08:00 & 20:00 UTC (twice daily); endpoint skips internally if `pollingIntervalMin` hasn't elapsed. Activity report updates once per end-of-day so twice-daily polling is sufficient.
 
 ### Phase 4 — Polygon Price Updates (COMPLETE)
 
@@ -253,6 +257,25 @@ DB migration: `phase4_price_sync_fields` — adds `lastPriceSyncAt TIMESTAMPTZ` 
 `@supabase/ssr` v0.6.x's `createServerClient<Database>` does not propagate the `Database` generic correctly to `from()`/`upsert()` callsites — TypeScript narrows the values param to `never`. The runtime is fine. Workaround: `lib/supabase/server.ts` casts the return to `SupabaseClient<Database>`. Remove the cast once the upstream type is fixed.
 
 ---
+
+### Refactor — Activity-Only Flex Query + CSV Export (COMPLETE)
+
+**Purpose**: Simplify IBKR integration by dropping Trade Confirmation Query (Query 1) entirely.
+Activity report updates once per day at end-of-day, so no need for 15-min polling.
+
+**Changes made**:
+- `app/api/cron/ibkr-sync/route.ts` — uses `parseActivityXml()` + `flexQueryIdActivity` (was Trade Confirm)
+- `app/api/ibkr/connect/route.ts` — accepts only `flexQueryIdActivity` (removed `flexQueryIdTrades`)
+- `app/api/ibkr/test-connection/route.ts` — tests only Activity Query, returns `{ activity, firstSuccess }`
+- `app/(dashboard)/settings/page.tsx` — removed Query 1 input + updated setup guide; added "ייצא Activity כ-CSV" button
+- `render.yaml` — cron changed from `*/15 * * * *` to `0 8,20 * * *` (08:00 & 20:00 UTC)
+- `components/header.tsx` — removed "דאשבורד חי" tab (code at /dashboard untouched)
+- `lib/ibkr/xml-to-csv.ts` — **NEW** converts `NormalizedExecution[]` → CSV string
+- `app/api/export/activity-csv/route.ts` — **NEW** GET endpoint; fetches fresh Activity XML → returns downloadable CSV
+- `lib/db/types.ts` — regenerated; `flexQueryIdTrades` is now `string | null` (nullable)
+- DB migration `make_flex_query_trades_nullable` — `ALTER TABLE "BrokerConnection" ALTER COLUMN "flexQueryIdTrades" DROP NOT NULL`
+
+**Test status: 155/155 pass. Build clean.**
 
 ## End-of-Phase Checklist
 
