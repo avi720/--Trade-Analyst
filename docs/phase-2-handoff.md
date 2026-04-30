@@ -78,7 +78,7 @@ NEXT_PUBLIC_SUPABASE_URL=https://nwvswntqrqqtwzrhzpmi.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_q7Um2e9p7tYPpv6oTxJ8Pw_wD2DzSHK
 SUPABASE_SERVICE_ROLE_KEY=<filled>
 FLEX_TOKEN_ENCRYPTION_KEY=<32-byte hex>
-POLYGON_API_KEY=<filled>
+MASSIVE_API_KEY=<filled>
 GEMINI_API_KEY=<filled>
 ```
 

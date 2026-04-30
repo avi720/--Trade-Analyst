@@ -26,7 +26,7 @@ npm run dev   # http://localhost:3000
 | `DATABASE_URL` | PostgreSQL URL עם pgbouncer |
 | `DIRECT_URL` | PostgreSQL URL ישיר (למigrations) |
 | `FLEX_TOKEN_ENCRYPTION_KEY` | 32-byte hex להצפנת Flex token |
-| `POLYGON_API_KEY` | Polygon API key (Free tier) |
+| `MASSIVE_API_KEY` | Polygon API key (Free tier) |
 | `GEMINI_API_KEY` | Google Gemini API key |
 
 **ליצירת FLEX_TOKEN_ENCRYPTION_KEY:**

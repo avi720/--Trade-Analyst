@@ -59,7 +59,7 @@ SUPABASE_SERVICE_ROLE_KEY=<user filled>
 DATABASE_URL=<user filled>
 DIRECT_URL=<user filled>
 FLEX_TOKEN_ENCRYPTION_KEY=a25ae8eb06de1944db5daa86c2467f93069403ae7bb8352699e15ef9ef0734ed
-POLYGON_API_KEY=<user filled>
+MASSIVE_API_KEY=<user filled>
 GEMINI_API_KEY=<user filled>
 ```
 

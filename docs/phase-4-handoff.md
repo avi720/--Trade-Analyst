@@ -46,7 +46,7 @@ NEXT_PUBLIC_SUPABASE_URL=https://nwvswntqrqqtwzrhzpmi.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
 SUPABASE_SERVICE_ROLE_KEY=<service role key>
 FLEX_TOKEN_ENCRYPTION_KEY=<32-byte hex>
-POLYGON_API_KEY=<filled>
+MASSIVE_API_KEY=<filled>
 GEMINI_API_KEY=<filled>
 CRON_SECRET=<random string — for cron endpoint auth>
 ```
