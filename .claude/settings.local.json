@@ -67,7 +67,8 @@
       "PowerShell($env:PATH = \"C:\\\\Program Files\\\\nodejs;$env:PATH\"; cd \"D:\\\\avipa\\\\Documents\\\\Programming\\\\‏‏Trade Analyst\"; npm run test:run 2>&1)",
       "PowerShell($env:PATH += \";C:\\\\Program Files\\\\nodejs\"; cd \"D:\\\\avipa\\\\Documents\\\\Programming\\\\‏‏Trade Analyst\"; npm run test:run 2>&1)",
       "mcp__b41ee877-1c14-47e4-9de5-3679f950df0a__execute_sql",
-      "WebFetch(domain:massive.com)"
+      "WebFetch(domain:massive.com)",
+      "Bash(git -C \"D:/avipa/Documents/Programming/‏‏Trade Analyst\" show --stat 10aefff)"
     ]
   }
 }

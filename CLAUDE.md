@@ -1,116 +1,56 @@
-# CLAUDE.md — Trade Analysis
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Commands
 
 ```bash
-npm run dev       # Dev server (http://localhost:3000)
-npm run build     # Production build
-npm run start     # Start production server
-npm run test      # Run tests (Vitest, watch)
-npm run test:run  # Run tests once (CI mode)
-npm run db:seed   # Seed DB (uses .env.local + service-role key)
-
-# DB schema changes go through the Supabase MCP `apply_migration` tool.
-# To regenerate the typed Database client:
-#   call MCP `generate_typescript_types` for project nwvswntqrqqtwzrhzpmi
-#   → write the output to lib/db/types.ts
+npm run dev                                  # Dev server (http://localhost:3000)
+npm run build                                # Production build (TypeScript gate)
+npm run start                                # Start production server
+npm run lint                                 # ESLint (next lint)
+npm run test                                 # Vitest watch
+npm run test:run                             # Vitest once
+npm run test:run -- __tests__/fifo.test.ts   # Single file
+npm run test:run -- -t "REVERSAL"            # Tests matching name
+npm run db:seed                              # Seed DB (uses .env.local + service-role key)
 ```
+
+DB schema changes go through the Supabase MCP `apply_migration` tool. To regenerate the typed Database client, call MCP `generate_typescript_types` for project `nwvswntqrqqtwzrhzpmi` and write the output to `lib/db/types.ts`.
 
 ## Architecture
 
-**Trade Analysis** is a Hebrew RTL trading journal with AI (Next.js 14 App Router + Supabase).
-Currently deployed as single-user (no signup UI — account created manually in Supabase dashboard).
-**Future plan: SaaS with public signup.** The architecture is already multi-user ready at the DB level (every app table has a `userId` FK + RLS). Do not add single-user shortcuts that would break multi-user later.
+**Trade Analysis** is a Hebrew RTL trading journal with AI assistant ("חנן"), built on Next.js 14 App Router + Supabase.
 
-### Directory structure
-
-```
-app/
-├── (auth)/login/         # Login page (email+password, no signup)
-├── (dashboard)/          # Protected routes — requires auth
-│   ├── layout.tsx        # Dashboard shell + Header + User upsert
-│   ├── dashboard/        # [HIDDEN] Real-time open positions (Phase 5 — code kept, tab removed)
-│   ├── research/         # Tab 1: Analytics + charts (Phase 6)
-│   ├── search/           # Tab 2: Trade search (future)
-│   ├── profile/          # User profile
-│   └── settings/         # IBKR connection, Polygon, AI settings + CSV export
-├── auth/callback/        # Supabase auth callback route
-└── api/
-    ├── ibkr/
-    │   ├── connect/      # POST — save/encrypt BrokerConnection (Activity Query only)
-    │   ├── connection/   # GET — sync status (no token)
-    │   ├── test-connection/ # POST — test Activity Flex Query
-    │   └── backfill/     # POST trigger + GET status — async Activity backfill
-    ├── export/
-    │   └── activity-csv/ # GET — download Activity Flex data as CSV
-    ├── chat/             # POST — Gemini AI chat endpoint
-    └── cron/
-        └── ibkr-sync/   # GET — Render Cron Job endpoint (secured with CRON_SECRET)
-
-components/
-├── header.tsx            # RTL nav + tabs + user dropdown + sync indicator
-├── sync-indicator.tsx    # IBKR + Polygon sync dots (green/amber/red)
-├── open-positions-dashboard.tsx  # Phase 5: client component for open positions
-└── chat-sidebar.tsx      # Phase 7: live AI chat sidebar (חנן)
-lib/
-├── supabase/
-│   ├── server.ts         # createClient() — Server Components (anon key + RLS)
-│   ├── client.ts         # createClient() — Client Components (browser, anon key)
-│   └── admin.ts          # createAdminClient() — service-role, bypasses RLS
-├── db/
-│   └── types.ts          # Generated Database type from Supabase MCP
-├── chat/
-│   ├── chat-context.tsx  # ChatContextProvider + useChatContext React Context
-│   └── gemini-client.ts  # callGemini() with exponential backoff (5 retries)
-├── trade/
-│   └── fifo.ts           # Pure FIFO matching function
-├── ibkr/
-│   ├── parse-date.ts     # IBKR Flex date parser (dd/MM/yyyy;HH:mm:ss TZ → UTC)
-│   ├── encrypt.ts        # AES-256-GCM encrypt/decrypt for Flex token
-│   ├── flex-client.ts    # 2-step Flex Web Service HTTP client
-│   ├── parse-flex-xml.ts # fast-xml-parser integration → NormalizedExecution[]
-│   └── process-executions.ts  # Pipeline: FIFO match + DB writes
-└── utils/
-    ├── cn.ts             # Tailwind class merge
-    └── calculations.ts   # calcStats, equityCurve, rDistribution, setupPerformance
-
-scripts/
-└── seed.ts               # Seeds 27 synthetic trades via service-role client
-
-types/
-└── trade.ts              # Domain types: NormalizedExecution, FifoAction, ClosedTrade, ...
-
-render.yaml               # Render deployment: Web Service + Cron Job (ibkr-sync)
-```
+Currently deployed as single-user (no signup UI — account is created manually in the Supabase dashboard). **The future plan is SaaS with public signup**, so the architecture is already multi-user ready at the DB level: every app table has a `userId` FK and RLS policies of the form `auth.uid() = "userId"` (or `= "id"` on `User`). Do not add single-user shortcuts that would break a multi-user rollout.
 
 ### Data flow
 
 ```
-Supabase Auth → middleware.ts → protected routes
-                                    ↓
-                              DashboardLayout
-                              (server, checks session, upserts User row)
-                                    ↓
-                              Header + Tab content
+Supabase Auth → middleware.ts → protected routes → DashboardLayout
+                                                   (server, checks session, upserts User row)
+                                                   → Header + tab content
 ```
+
+The dashboard layout (`app/(dashboard)/layout.tsx`) wraps everything in `ChatContextProvider`, and `<ChatSidebar />` is placed **outside** the `overflow-hidden` flex div as a sibling — required so `position: fixed` anchors to the viewport instead of rendering inline.
 
 ### Key design decisions
 
-- **Auth**: Supabase email+password. Login page only — no signup. Account created manually in Supabase dashboard.
-- **DB access**: Supabase JS client (`@supabase/ssr` for server, `@supabase/supabase-js` for browser/scripts). NO ORM. Type safety via the generated `Database` type in `lib/db/types.ts`.
-- **Migrations**: Applied through Supabase MCP `apply_migration`. The `_prisma_migrations` table is a leftover from initial bootstrap — kept as an audit row, not used by any tooling.
-- **Multi-user ready**: RLS enabled and used on every table. Currently single-user (no signup UI), but SaaS is the future goal — don't hardcode single-user assumptions.
-- **RTL**: `<html dir="rtl" lang="he">` at root layout.
-- **Polygon**: Free tier (15 min delayed, 5 calls/min). Use Snapshot endpoint for batch ticker lookups.
-- **IBKR**: Flex Web Service — 2-step pull (request → download). Token valid ~1 year.
-- **Encryption**: IBKR Flex token encrypted AES-256-GCM. Key from env only.
-- **Single Flex Query**: Only Activity Flex Query is used (no Trade Confirmations). Activity updates once per day at end-of-day. Cron runs 2×/day (08:00 & 20:00 UTC). `flexQueryIdTrades` column exists in DB but is nullable and unused.
-- **Nav tabs**: Only 2 tabs shown — "תחקור" (/research) and "חיפוש" (/search). The live dashboard tab (/dashboard) is hidden (code kept, not deleted).
+- **Auth**: Supabase email+password. Login page only — no signup. Manual account provisioning in Supabase dashboard.
+- **DB access**: Supabase JS client (`@supabase/ssr` server, `@supabase/supabase-js` browser/scripts). **No ORM**. Type safety via the generated `Database` type in `lib/db/types.ts`. The `_prisma_migrations` table is a leftover from initial bootstrap — kept as an audit row, not used by tooling.
+- **Migrations**: Apply via Supabase MCP `apply_migration`.
+- **RLS**: Enabled on every app table. Don't bypass it from request paths — only `lib/supabase/admin.ts` (service-role) skips RLS, and that's reserved for cron jobs and the seed script.
+- **RTL**: `<html dir="rtl" lang="he">` at root layout. User-facing copy is Hebrew; code/identifiers/comments stay in English.
+- **IBKR**: Flex Web Service — 2-step pull (request → download). Token valid ~1 year. Encrypted AES-256-GCM at rest.
+- **Single Flex Query**: Only the **Activity** Flex Query is used (Trade Confirmations was dropped). Activity updates once per end-of-day, so cron runs 2×/day at 08:00 & 20:00 UTC. The `flexQueryIdTrades` column is nullable and unused.
+- **Massive (formerly Polygon)**: All `lib/polygon` → `lib/massive`, `app/api/polygon` → `app/api/massive`, env var `POLYGON_API_KEY` → `MASSIVE_API_KEY`. **Price sync is currently disabled** (`render.yaml` cron commented out; sync dot removed from `components/sync-indicator.tsx`; settings panel hidden in `app/(dashboard)/settings/page.tsx`). Code paths still exist for re-enabling.
+- **Routing**: `/dashboard` is hidden — all entry points (`app/page.tsx`, `middleware.ts`, login, auth callback) redirect to `/research`. The dashboard component code is kept, not deleted.
+- **Nav tabs**: "תחקור" (`/research`) · "חיפוש" (`/search`) · "ייבוא-ידני" (`/manual-import`).
 
 ### Theme
 
 | Variable | Value | Use |
-|----------|-------|-----|
+|---|---|---|
 | `--bg-dark` | `#080808` | Page background |
 | `--panel-bg` | `#111111` | Panel backgrounds |
 | `--border` | `#222222` | Borders |
@@ -120,224 +60,75 @@ Supabase Auth → middleware.ts → protected routes
 | `--text-main` | `#E0E0E0` | Primary text |
 | `--text-dim` | `#888888` | Secondary text |
 
-Fonts: **IBM Plex Mono** (numbers, mono) + **Assistant** (UI, Hebrew)
+Fonts: **IBM Plex Mono** (numbers) + **Assistant** (UI, Hebrew).
 
-### DB schema highlights
+## DB schema highlights
 
-- `Trade` + `Order` — FIFO-based. Each execution = one Order. Trade aggregates multiple Orders.
+- `Trade` + `Order` — FIFO-based. Each execution = one `Order`. A `Trade` aggregates multiple `Order`s.
 - `Order.brokerExecId` — UNIQUE. Global idempotency key for IBKR dedup.
-- `Order.brokerOrderId` — NOT unique. Groups partial fills (same order, multiple ExecIDs).
-- `BrokerEvent` — raw XML audit log for every IBKR fetch.
-- `BrokerConnection.flexTokenEncrypted` — AES-256-GCM, never returned in API responses.
-- All app tables have RLS policies of the form `auth.uid() = "userId"` (or `= "id"` on `User`).
+- `Order.brokerOrderId` — NOT unique. Groups partial fills.
+- `BrokerEvent` — raw XML audit log of every IBKR fetch.
+- `BrokerConnection.flexTokenEncrypted` — AES-256-GCM. Never returned in API responses.
 
-### IBKR date parsing (CRITICAL)
+## Database RPCs
 
-IBKR Flex uses `dd/MM/yyyy;HH:mm:ss TimeZone` format (e.g., `23/04/2026;14:30:00 EST`).
-`new Date()` cannot parse this. `date-fns parse()` also won't work because it creates dates in LOCAL timezone. Use manual component parsing + `Date.UTC()` — see [lib/ibkr/parse-date.ts](lib/ibkr/parse-date.ts).
-Tests in [__tests__/parse-date.test.ts](__tests__/parse-date.test.ts) cover all US timezones (EST/EDT/CST/CDT/PST/PDT) + DST transitions.
+- `reverse_position(p_close_trade_id, p_close_status, p_close_at, p_avg_exit_price, p_actual_r, p_result, p_realized_pnl, p_total_commission, p_close_order, p_new_trade, p_new_order)` — atomic FIFO REVERSAL (close existing position + open opposite-side trade in one Postgres transaction). **Always use this 11-param `p_`-prefixed overload**; an older 5-param overload exists from an earlier attempt and must not be used.
 
-### Phase 2 — DB Models + FIFO Logic (COMPLETE)
+## FIFO logic — invariants
 
-- `lib/supabase/{server,client,admin}.ts` — three Supabase clients (anon-server, anon-browser, service-role)
-- `lib/db/types.ts` — generated `Database` type
-- `lib/ibkr/parse-date.ts` — IBKR Flex date parser
-- `lib/utils/calculations.ts` — calcStats, equityCurve, rDistribution, setupPerformance
-- `lib/trade/fifo.ts` — `matchExecution()` pure FIFO function
-- `types/trade.ts` — domain types
-- `scripts/seed.ts` — 27 synthetic trades for dev seeding
-- `__tests__/{parse-date,calculations,fifo}.test.ts` — 20 + 17 + 22 unit tests
-- `__tests__/integration/fifo-to-db.test.ts` — 2 integration tests against real Supabase
+- `matchExecution(exec, openTrade)` (in `lib/trade/fifo.ts`) returns a `FifoAction` discriminated union: `OPEN | SCALE_IN | REDUCE | CLOSE | REVERSAL`.
+- All arithmetic uses plain `number`. Postgres NUMERIC columns come back from Supabase as `number`.
+- **REVERSAL** produces two DB writes — callers MUST persist them via `supabase.rpc('reverse_position', { ... })` so they happen atomically.
+- `rDistribution` uses left-inclusive bins `[min, max)`. r=0 → "0R–1R", r=2 → ">2R".
+- `actualR` is null when `stopPrice` is null OR `riskPerShare < 0.0001` (prevents Infinity/NaN).
 
-DB objects (via Supabase MCP migrations):
-- `phase2_initial_schema` — 7 tables, RLS enabled on all 6 app tables
-- `phase3_backfill_status` — adds `lastBackfillStatus` + `lastBackfillError` to `BrokerConnection`
-- `phase3_reverse_position_fn` — atomic Postgres function for FIFO REVERSAL (close + open in one transaction). Called via `supabase.rpc('reverse_position', { p_close_trade_id, p_close_status, p_close_at, p_avg_exit_price, p_actual_r, p_result, p_realized_pnl, p_total_commission, p_close_order, p_new_trade, p_new_order })`. Note: there is also an older 5-param overload from an earlier attempt — always use the 11-param `p_`-prefixed version.
+## IBKR date parsing (CRITICAL)
 
-**Test status**: 86/86 pass. Build (TypeScript gate) clean.
+IBKR Flex uses `dd/MM/yyyy;HH:mm:ss TimeZone` (e.g., `23/04/2026;14:30:00 EST`). `new Date()` cannot parse this; `date-fns parse()` won't work either because it builds dates in the local timezone. Use manual component parsing + `Date.UTC()` — see [lib/ibkr/parse-date.ts](lib/ibkr/parse-date.ts). Tests in [__tests__/parse-date.test.ts](__tests__/parse-date.test.ts) cover all US zones (EST/EDT/CST/CDT/PST/PDT) + DST transitions.
 
-### FIFO logic notes
+The Flex parser also has a dual-root quirk: real Activity XML uses camelCase fields (`ibExecID`, `tradePrice`, …) wrapped in `FlexQueryResponse`, while older fixtures use PascalCase. `lib/ibkr/parse-flex-xml.ts` resolves both via `resolveStatement()` and falls back `PascalCase ?? camelCase` per field.
 
-- `matchExecution(exec, openTrade)` returns a `FifoAction` discriminated union: `OPEN | SCALE_IN | REDUCE | CLOSE | REVERSAL`
-- All arithmetic uses plain `number` (Postgres NUMERIC columns are returned by Supabase as `number`)
-- **REVERSAL** produces two DB writes — callers MUST persist them via `supabase.rpc('reverse_position', {...})` so they happen in one Postgres transaction
-- `rDistribution` uses left-inclusive bins: `[min, max)`. r=0 → "0R–1R", r=2 → ">2R"
-- `actualR` is null when stopPrice is null OR riskPerShare < 0.0001 (prevents Infinity/NaN)
+## Supabase typing workaround
 
-### Phase 3 — IBKR Flex Web Service Integration (COMPLETE)
+`@supabase/ssr` v0.6.x's `createServerClient<Database>` does not propagate the `Database` generic to `from()`/`upsert()` callsites — TS narrows `values` to `never`. The runtime is fine. Workaround: `lib/supabase/server.ts` casts the return to `SupabaseClient<Database>`. Remove the cast once upstream is fixed.
 
-- `lib/ibkr/encrypt.ts` — AES-256-GCM encrypt/decrypt for Flex token (`FLEX_TOKEN_ENCRYPTION_KEY` env = 64-char hex)
-- `lib/ibkr/flex-client.ts` — `fetchFlexQuery(token, queryId)` — 2-step HTTP fetch with retry
-- `lib/ibkr/parse-flex-xml.ts` — `parseTradeConfirmXml()` / `parseActivityXml()` / `validateStk()`
-- `lib/ibkr/process-executions.ts` — `processExecutions(executions, userId)` — main pipeline
-- `app/api/ibkr/{connect,connection,test-connection,backfill}/route.ts` — settings API
-- `app/api/cron/ibkr-sync/route.ts` — cron endpoint secured by `CRON_SECRET` header
-- `app/(dashboard)/settings/page.tsx` — full IBKR settings UI with guide + test + backfill
-- `components/sync-indicator.tsx` — live sync status dot (green/amber/red)
-- `render.yaml` — Render Web Service + Cron Job config
-- `__tests__/flex-xml.test.ts` — 18 XML parser tests
-- `__tests__/process-executions.test.ts` — 8 pipeline unit tests (mocked Supabase)
+## Backfill / cron behavior
 
-**New env vars**: `CRON_SECRET` (secures cron endpoint)
-**Backfill**: async — POST /api/ibkr/backfill returns 202, GET polls status. Uses `setImmediate` (works on Render persistent Node process, NOT on Vercel serverless).
-**Cron**: Render fires at 08:00 & 20:00 UTC (twice daily); endpoint skips internally if `pollingIntervalMin` hasn't elapsed. Activity report updates once per end-of-day so twice-daily polling is sufficient.
+- **Backfill**: async — `POST /api/ibkr/backfill` returns 202; `GET` polls status. Uses `setImmediate`, which works on Render's persistent Node process but **not** on Vercel serverless.
+- **IBKR cron**: Render fires at 08:00 & 20:00 UTC. The endpoint also enforces `pollingIntervalMin` internally and skips early calls.
+- **Massive price cron**: currently disabled (see Massive note above).
 
-### Phase 4 — Polygon Price Updates (COMPLETE)
+## Env vars
 
-- `lib/polygon/client.ts` — `fetchPrices(tickers[])` — calls `GET /v2/snapshot/locale/us/markets/stocks/tickers` (all US tickers, one call), filters client-side. **No `?tickers=` batch param** — Polygon does not support it on the free tier.
-- `lib/polygon/sync.ts` — `runPriceSync(userId)` — shared sync logic used by cron + refresh endpoint.
-- `app/api/cron/polygon-prices/route.ts` — Render Cron Job (secured with `CRON_SECRET`). Same pattern as `ibkr-sync`.
-- `app/api/polygon/settings/route.ts` — POST: saves `pricePollingIntervalMin`.
-- `app/api/polygon/refresh/route.ts` — POST: on-demand price refresh (ignores interval). Used by Phase 5 dashboard.
-- `app/api/ibkr/connection/route.ts` — extended to return `lastPriceSyncAt + lastPriceSyncStatus`.
-- `components/sync-indicator.tsx` — Polygon dot wired; color based on `lastPriceSyncAt` vs `pricePollingIntervalMin`.
-- `render.yaml` — second cron job `polygon-prices` added.
+The required names are listed in `.env.example` (do not commit values). Brief purpose:
 
-DB migration: `phase4_price_sync_fields` — adds `lastPriceSyncAt TIMESTAMPTZ` and `lastPriceSyncStatus TEXT` to `BrokerConnection`.
+| Name | Purpose |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL (browser-safe) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key (browser-safe, RLS-bound) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key — server-only, bypasses RLS |
+| `DATABASE_URL` / `DIRECT_URL` | Supabase Postgres connection strings (pgbouncer + direct) |
+| `FLEX_TOKEN_ENCRYPTION_KEY` | 64-char hex — AES-256-GCM key for IBKR Flex token at rest |
+| `MASSIVE_API_KEY` | Massive API key (price data; sync currently disabled) |
+| `GEMINI_API_KEY` | Google Gemini API key for the chat assistant |
+| `CRON_SECRET` | Bearer token expected by cron endpoints (`/api/cron/*`) |
+| `NEXTAUTH_URL` | Production base URL (Render). Not needed for local dev. |
 
-**Test status: 97/97 pass. Build clean.**
+If you add a new env var, add the **name** to `.env.example` and document its purpose here.
 
-### Phase 5 — Real-Time Dashboard (COMPLETE)
+## Phase history
 
-**Pattern**: Server Component + `router.refresh()`. No new API route — `dashboard/page.tsx` fetches directly from Supabase (RLS-safe), passes props to client component. On refresh: client calls `POST /api/polygon/refresh` then `router.refresh()`.
+Detailed phase build logs (file-by-file changes, test counts, decisions in flight) live in `docs/`. The **invariants** that survive each phase have been pulled into the sections above; the build logs are reference material only.
 
-- `lib/utils/position-calc.ts` — Pure functions: `unrealizedPnl`, `unrealizedPct`, `currentR`, `exposure`, `relativeTimeHe`, `formatUsd`, `formatR`. All return `null` on missing price/stop (no NaN/Infinity).
-- `components/open-positions-dashboard.tsx` — Client component: 4 client-side filters (ticker, direction, setup, P&L), 3 summary cards, positions table, IBKR stale banner, auto-refresh on mount, manual refresh button.
-- `components/chat-sidebar.tsx` — RTL slide-in panel stub. Toggle button "חנן ▶". Phase 7 wires actual AI.
-- `app/(dashboard)/dashboard/page.tsx` — Async server component. Fetches `Trade` (status=Open) + `BrokerConnection` in parallel via `Promise.all`.
-- `__tests__/position-calc.test.ts` — 24 unit tests.
-
-**Dashboard features**: per-position P&L ($+%), current R (null if no stop), price staleness indicator (amber if >interval), IBKR stale banner (amber if >2×pollingInterval), auto-trigger Polygon refresh if stale on mount.
-
-**Test status: 121/121 pass. Build clean.**
-
-### Phase 6 — Research Dashboard (COMPLETE)
-
-**Pattern**: Server Component + client component filtering, same as Phase 5.
-
-- `lib/utils/research-charts.ts` — Pure functions: `pnlByTicker`, `holdTimeVsR`, `pnlByDayOfWeek`, `pnlByHour`. (Note: uses `getUTCHours()/getUTCDay()` for timezone consistency with IBKR UTC timestamps.)
-- `components/research-dashboard.tsx` — Client component: 7 filters (date range, ticker, setup, direction, result, execQual, holdTime), 8 metric cards (from `calcStats`), 6 Recharts charts with user-selectable visibility (toggle panel, localStorage persistence).
-- `app/(dashboard)/research/page.tsx` — Async server component. Fetches all closed trades.
-- `__tests__/research-charts.test.ts` — 23 unit tests for chart data prep functions.
-
-**Dashboard features**:
-- 7 client-side filters: all aggregate in real-time, "Clear filters" button when active
-- 8 metric cards: trade count, win rate, avg R, profit factor, expectancy, max drawdown, total P&L, avg win/loss ratio
-- Chart toggle panel: collapsible "גרפים מוצגים [✎ ערוך]" with 6 checkboxes (default all on)
-- 6 Recharts charts: equity curve (line), R distribution (bar), setup perf (grouped bar, dual Y-axis), P&L by ticker (horiz bar), hold time vs R (scatter colored by result), P&L by day-of-week + hour (2 bar charts in 1 card)
-- Colors: green (#2CC84A) win/positive, red (#FF4D4D) loss/negative, amber (#FFB800) accent
-- Empty state: "אין טריידים סגורים בטווח זה" when no matches
-
-**Test status: 144/144 pass. Build clean.**
-
-### Phase 7 — AI Chat "חנן" (COMPLETE)
-
-- `lib/chat/chat-context.tsx` — `ChatContextProvider` + `useChatContext` React Context. Shares `isOpen`, `toggleChat`, `contextData`, `setContextData` across the entire layout tree. Must be a `'use client'` wrapper around the Server Component layout.
-- `lib/chat/gemini-client.ts` — `callGemini(history, message, systemPrompt, model, retries?, delayFn?)`. Exponential backoff: delays `[1000, 2000, 4000, 8000, 16000]` ms; retries on 429 + 5xx; immediate throw on 4xx. Injectable `delayFn` for testing.
-- `app/api/chat/route.ts` — POST endpoint. Uses authenticated `createClient()` (RLS, NOT service-role). Two context modes: "חכם" uses client-provided `contextData`, "עומק" queries `Trade` table directly. Upserts `AIConversation` with full `messages: Json` history.
-- `components/chat-sidebar.tsx` — Full replacement of Phase 5 stub. Fixed `position: fixed` slide-in panel (w-80, left-0, z-40). localStorage persistence of `chat_conversation_id` + `chat_context_mode`. Loads prior conversation from Supabase on mount. Context mode toggle (חכם ⚡ / עומק 🔬). Auto-scroll, loading state, inline error display.
-- `components/header.tsx` — "חנן ▶" toggle button wired to `useChatContext().toggleChat`.
-- `app/(dashboard)/layout.tsx` — `ChatContextProvider` wraps entire layout. `<ChatSidebar />` placed **outside** the `overflow-hidden` flex div (sibling, not child) — required for `position: fixed` to anchor to viewport correctly.
-- `components/research-dashboard.tsx` — Removed local chatOpen; added `setContextData` effect with research stats + filtered trades.
-- `components/open-positions-dashboard.tsx` — Removed local chatOpen; added `setContextData` effect with open position P&L data.
-- `__tests__/chat/gemini-client.test.ts` — 7 unit tests (success, 429 retry, exhaustion, 400 no-retry, model selection, 5xx retry, history passing).
-
-**New env var**: `GEMINI_API_KEY` — set in Render + `.env.local`.
-**Models**: `gemini-2.0-flash` (חכם mode) · `gemini-2.0-pro` (עומק mode).
-**DB**: No new migration. `AIConversation` table + `ai_conversations_own` RLS policy already existed.
-
-**IBKR Flex parser bug fix** (also this session): Real IBKR Activity XML uses camelCase fields (`ibExecID`, `symbol`, `buySell`, `tradePrice`, etc.) + `FlexQueryResponse` root wrapper. Added `resolveStatement()` for dual root path, updated every field in `normalizeNode()` with `PascalCase ?? camelCase` fallback. Added 4 new test cases (18→22 XML tests).
-
-**Layout fix**: `<ChatSidebar />` must be outside `overflow-hidden` ancestor — some browsers block `position: fixed` from escaping a flex container with overflow-hidden, causing the sidebar to render inline below the content.
-
-**Test status: 155/155 pass. Build clean.**
-
-### Supabase typing notes
-
-`@supabase/ssr` v0.6.x's `createServerClient<Database>` does not propagate the `Database` generic correctly to `from()`/`upsert()` callsites — TypeScript narrows the values param to `never`. The runtime is fine. Workaround: `lib/supabase/server.ts` casts the return to `SupabaseClient<Database>`. Remove the cast once the upstream type is fixed.
-
----
-
-### Refactor — Activity-Only Flex Query + CSV Export (COMPLETE)
-
-**Purpose**: Simplify IBKR integration by dropping Trade Confirmation Query (Query 1) entirely.
-Activity report updates once per day at end-of-day, so no need for 15-min polling.
-
-**Changes made**:
-- `app/api/cron/ibkr-sync/route.ts` — uses `parseActivityXml()` + `flexQueryIdActivity` (was Trade Confirm)
-- `app/api/ibkr/connect/route.ts` — accepts only `flexQueryIdActivity` (removed `flexQueryIdTrades`)
-- `app/api/ibkr/test-connection/route.ts` — tests only Activity Query, returns `{ activity, firstSuccess }`
-- `app/(dashboard)/settings/page.tsx` — removed Query 1 input + updated setup guide; added "ייצא Activity כ-CSV" button
-- `render.yaml` — cron changed from `*/15 * * * *` to `0 8,20 * * *` (08:00 & 20:00 UTC)
-- `components/header.tsx` — removed "דאשבורד חי" tab (code at /dashboard untouched)
-- `lib/ibkr/xml-to-csv.ts` — **NEW** converts `NormalizedExecution[]` → CSV string
-- `app/api/export/activity-csv/route.ts` — **NEW** GET endpoint; fetches fresh Activity XML → returns downloadable CSV
-- `lib/db/types.ts` — regenerated; `flexQueryIdTrades` is now `string | null` (nullable)
-- DB migration `make_flex_query_trades_nullable` — `ALTER TABLE "BrokerConnection" ALTER COLUMN "flexQueryIdTrades" DROP NOT NULL`
-
-**Test status: 155/155 pass. Build clean.**
-
-### Phase 8 — Trade Search + Soft Field Editing + Manual Entry / Excel Import (COMPLETE)
-
-**Pattern**: Async Server Component loads all trades once, passes to Client Component for client-side filtering/sorting/pagination. Same pattern as Phase 6 Research. Rationale: single-user app with <1000 trades — instant reactive UI, no server round-trip per filter change.
-
-**Features**:
-1. **Search Tab** — Filterable, sortable, paginated trade results (25/page). Filters: ticker/notes, date range, direction, result, setupType, R range, status. Click row → opens trade detail modal.
-2. **Trade Detail Modal** — Read-only trade summary + Orders sub-table + editable soft fields form (notes, setupType, emotionalState, executionQuality, stopPrice, targetPrice, didRight, wouldChange). PATCH `/api/trades/[id]` with whitelist validation.
-3. **Manual Import Tab** — Two sub-tabs: manual entry form (ticker, date, time, side, quantity, price, commission, currency per leg) and Excel import (download template → upload → preview → confirm). Both routes feed into existing `processExecutions()` pipeline via `NormalizedExecution[]`.
-
-**Files**:
-- `app/(dashboard)/search/page.tsx` — Server Component loading all closed trades
-- `components/trade-search.tsx` — Client-side filtering, sorting, pagination (25/page)
-- `components/trade-detail-modal.tsx` — Modal with editable soft fields
-- `app/api/trades/[id]/route.ts` — PATCH endpoint with soft-field whitelist
-- `app/(dashboard)/manual-import/page.tsx` — Manual import page shell
-- `components/manual-import-tabs.tsx` — Sub-tab toggle between manual entry + Excel import
-- `components/trade-entry-form.tsx` — Dynamic row form for manual leg entry
-- `components/trade-excel-import.tsx` — Upload, preview, confirm flow for Excel
-- `lib/trade/manual-entry.ts` — Leg validation + NormalizedExecution builder
-- `lib/trade/excel-import.ts` — SheetJS integration: parseExcelBuffer + generateTemplate
-- `app/api/trades/manual/route.ts` — POST: manual leg submission → processExecutions
-- `app/api/trades/import/route.ts` — GET: template download; POST: Excel upload → processExecutions
-- `components/header.tsx` — Modified: added "ייבוא-ידני" nav tab
-- `__tests__/manual-entry.test.ts` — 20 tests: leg validation, ID generation, batch processing
-- `__tests__/excel-import.test.ts` — 14 tests: parsing (valid rows, column aliasing, Hebrew headers), template generation
-
-**API Routes**:
-| Method | Route | Purpose |
+| Phase | Scope | Handoff |
 |---|---|---|
-| PATCH | `/api/trades/[id]` | Update soft fields (whitelist: notes, setupType, emotionalState, executionQuality, stopPrice, targetPrice, didRight, wouldChange) |
-| POST | `/api/trades/manual` | JSON `{ legs: ManualLeg[] }` → processExecutions |
-| GET | `/api/trades/import?template=true` | Download blank Excel template |
-| POST | `/api/trades/import` | multipart/form-data → parseExcelBuffer → processExecutions |
+| 1 | Bootstrap + auth + layout | [docs/phase-1-handoff.md](docs/phase-1-handoff.md) |
+| 2 | DB models + FIFO logic | [docs/phase-2-handoff.md](docs/phase-2-handoff.md) |
+| 3 | IBKR Flex Web Service integration | [docs/phase-3-handoff.md](docs/phase-3-handoff.md) |
+| 4 | Polygon (now Massive) price sync | [docs/phase-4-handoff.md](docs/phase-4-handoff.md) |
+| 5 | Real-time open-positions dashboard (now hidden) | [docs/phase-5-handoff.md](docs/phase-5-handoff.md) |
+| 6 | Research dashboard (analytics + charts) | [docs/phase-6-handoff.md](docs/phase-6-handoff.md) |
+| 7 | AI chat sidebar "חנן" (Gemini) | [docs/phase-7-handoff.md](docs/phase-7-handoff.md) |
+| 8 | Trade search + soft-field editing + manual / Excel import | [docs/phase-8-handoff.md](docs/phase-8-handoff.md) |
 
-**Key Decisions**:
-- **Client-side filtering**: Instant reactive UI without server round-trips per filter change. URL holds state for shareability.
-- **Soft-field whitelist**: PATCH endpoint validates against Set to prevent unauthorized field modifications.
-- **Synthetic brokerExecId**: Format `MANUAL-{TICKER}-{TIMESTAMP}-{INDEX}` avoids collision with IBKR IDs, unique within session.
-- **Reuse processExecutions()**: Manual and Excel entries converted to `NormalizedExecution[]` and fed through existing FIFO pipeline (dup check, REVERSAL handling, atomic RPC).
-- **SheetJS for Excel**: Pure JS, no native binaries, ARM64-safe. Supports column reordering and Hebrew aliases.
-
-**New env vars**: None.
-**DB changes**: None. Existing soft fields already in Trade schema.
-
-**Test status: 189/189 pass** (155 baseline + 34 new)
-
-**Build status: Clean** (Next.js 14, no TypeScript errors)
-
-**Known Limitations / Future Work**:
-1. Excel format: Currently reads first sheet only, does not support multiple sheets.
-2. Manual entry: No CSV export yet (can be Phase 9).
-3. Search UX: No multi-select filters (e.g., "AAPL OR MSFT"); filters are AND-ed.
-4. Soft field editing: Limited to modal; no inline editing in search table.
-5. Search pagination: No server-side pagination optimization yet (fine for <1000 trades).
-
-## End-of-Phase Checklist
-
-After each phase completion:
-
-1. **Create phase-X-handoff.md** in `docs/` — summary of what was built, external services status, test results, key architectural decisions, next phase overview.
-2. **Update CLAUDE.md** — add "### Phase X — [Title] (COMPLETE)" section with file list, features, test status, any notes for future sessions.
-3. **Write preparation prompt** — for the next session, write as MD file and save on the desktop. Include in brief: what was done, test status, key files to read, what's next, ask "questions to clarify before building".
-4. **Get user approval** — before proceeding, confirm phase is truly complete and handoff is accurate.
-5. **Commit + push** — only after approval. Message: "Phase X — [Title] (## tests ✅ build ✅)" (e.g., "Phase 6 — Research Dashboard (144 tests ✅ build ✅)").
+Refactors after Phase 7: Activity-only Flex query + CSV export. Refactor after Phase 8: Polygon→Massive rename + price-sync disabled + `/dashboard` hidden behind `/research` redirects.
