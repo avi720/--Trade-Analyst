@@ -283,6 +283,6 @@ After each phase completion:
 
 1. **Create phase-X-handoff.md** in `docs/` — summary of what was built, external services status, test results, key architectural decisions, next phase overview.
 2. **Update CLAUDE.md** — add "### Phase X — [Title] (COMPLETE)" section with file list, features, test status, any notes for future sessions.
-3. **Write preparation prompt** — for the next session, to write in the dialog box. Include in brief: what was done, test status, key files to read, what's next, ask "questions to clarify before building".
+3. **Write preparation prompt** — for the next session, write as MD file and save on the desktop. Include in brief: what was done, test status, key files to read, what's next, ask "questions to clarify before building".
 4. **Get user approval** — before proceeding, confirm phase is truly complete and handoff is accurate.
 5. **Commit + push** — only after approval. Message: "Phase X — [Title] (## tests ✅ build ✅)" (e.g., "Phase 6 — Research Dashboard (144 tests ✅ build ✅)").

@@ -1,5 +1,4 @@
 // Shared domain types for trade logic.
-// ClosedTrade uses plain number (caller converts Prisma Decimal with .toNumber()).
 
 export interface ClosedTrade {
   id: string
@@ -38,7 +37,6 @@ export interface NormalizedExecution {
 }
 
 // Minimal snapshot of an existing open Trade passed to FIFO logic.
-// Caller converts Prisma Decimal fields with .toNumber() before passing.
 export interface OpenTradeSnapshot {
   id: string
   direction: 'Long' | 'Short'

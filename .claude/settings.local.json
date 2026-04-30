@@ -52,7 +52,22 @@
       "Bash(node --env-file=.env.local -e \"console.log\\('URL:', !!process.env.NEXT_PUBLIC_SUPABASE_URL, 'KEY:', !!process.env.SUPABASE_SERVICE_ROLE_KEY\\)\")",
       "Bash(npm view *)",
       "Bash(npx tsc *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "PowerShell($env:Path = \"D:\\\\Program Files\\\\Node;\" + $env:Path; cd \"D:\\\\avipa\\\\Documents\\\\Programming\\\\‏‏Trade Analyst\"; npm run test:run -- --reporter=verbose 2>&1 | Select-Object -Last 80)",
+      "PowerShell($env:Path = \"D:\\\\Program Files\\\\Node;\" + $env:Path; cd \"D:\\\\avipa\\\\Documents\\\\Programming\\\\‏‏Trade Analyst\"; npm run test:run 2>&1 | Select-Object -Last 20)",
+      "PowerShell($env:Path = \"D:\\\\Program Files\\\\Node;\" + $env:Path; Set-Location \"D:\\\\avipa\\\\Documents\\\\Programming\\\\‏‏Trade Analyst\"; npm run test:run 2>&1)",
+      "PowerShell(& \"D:\\\\Program Files\\\\Node\\\\node.exe\" --version)",
+      "PowerShell(& \"D:\\\\Program Files\\\\Node\\\\node.exe\" -e \"console.log\\(process.arch\\)\")",
+      "PowerShell(& \"C:\\\\Program Files\\\\nodejs\\\\node.exe\" --version)",
+      "PowerShell(& \"C:\\\\Program Files\\\\nodejs\\\\node.exe\" -e \"console.log\\(process.arch\\)\")",
+      "PowerShell(Test-Path \"D:\\\\Program Files\\\\Node\"; \\(Get-Item \"D:\\\\Program Files\\\\Node\"\\).PSIsContainer; Get-ChildItem -Path \"D:\\\\Program Files\\\\Node\" -Force)",
+      "Bash(git restore *)",
+      "PowerShell($env:PATH = \"C:\\\\Program Files\\\\nodejs;$env:PATH\"; cd \"D:\\\\avipa\\\\Documents\\\\Programming\\\\‏‏Trade Analyst\"; npm run test:run 2>&1)",
+      "PowerShell($env:PATH += \";C:\\\\Program Files\\\\nodejs\"; cd \"D:\\\\avipa\\\\Documents\\\\Programming\\\\‏‏Trade Analyst\"; npm run test:run 2>&1)",
+      "mcp__b41ee877-1c14-47e4-9de5-3679f950df0a__execute_sql",
+      "WebFetch(domain:massive.com)"
     ]
   }
 }

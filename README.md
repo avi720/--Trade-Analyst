@@ -12,12 +12,7 @@ npm run dev   # http://localhost:3000
 ### דרישות מוקדמות
 
 1. **Supabase** — יצור project ב-[supabase.com](https://supabase.com)
-2. **Prisma migrations** — לאחר הגדרת `DATABASE_URL`:
-   ```bash
-   npx prisma migrate dev --name init
-   npx prisma generate
-   ```
-3. **חשבון משתמש** — נוצר ידנית ב-Supabase dashboard (Authentication → Users → Add User)
+2. **חשבון משתמש** — נוצר ידנית ב-Supabase dashboard (Authentication → Users → Add User)
 
 ### Environment Variables
 
@@ -60,12 +55,12 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 |-------|--------|------|
 | 0 | ✅ | Planning |
 | 1 | ✅ | Foundation — Next.js + Auth + Layout |
-| 2 | ⬜ | Models + FIFO Logic + Tests |
-| 3 | ⬜ | IBKR Flex Integration |
-| 4 | ⬜ | Polygon Price Updates |
-| 5 | ⬜ | Real-Time Dashboard |
-| 6 | ⬜ | Research Dashboard |
-| 7 | ⬜ | AI Chat (חנן) |
+| 2 | ✅ | Models + FIFO Logic + Tests |
+| 3 | ✅ | IBKR Flex Integration |
+| 4 | ✅ | Polygon Price Updates |
+| 5 | ✅ | Real-Time Dashboard | // canceld
+| 6 | ✅ | Research Dashboard |
+| 7 | ✅ | AI Chat (חנן) |
 | 8 | ⬜ | Search + Polish |
 
 ## ארכיטקטורה
@@ -87,6 +82,4 @@ components/               # Shared UI components
 lib/
 ├── supabase/             # Supabase client (server + browser)
 └── utils/                # Utility functions
-prisma/
-└── schema.prisma         # DB schema
 ```
