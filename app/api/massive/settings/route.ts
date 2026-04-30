@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     .eq("userId", user.id);
 
   if (error) {
-    console.error("[api/polygon/settings] DB error:", error.message);
+    console.error("[api/massive/settings] DB error:", error.message);
     return NextResponse.json({ error: "Failed to save settings" }, { status: 500 });
   }
 

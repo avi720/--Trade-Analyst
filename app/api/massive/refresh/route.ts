@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { runPriceSync } from "@/lib/polygon/sync";
+import { runPriceSync } from "@/lib/massive/sync";
 import type { Database } from "@/lib/db/types";
 
 // On-demand price refresh — ignores the polling interval.
@@ -34,7 +34,7 @@ export async function POST() {
     return NextResponse.json({ ok: true, updated: result.updated, tickers: result.tickers });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error("[api/polygon/refresh] Error:", message);
+    console.error("[api/massive/refresh] Error:", message);
 
     await admin
       .from("BrokerConnection")

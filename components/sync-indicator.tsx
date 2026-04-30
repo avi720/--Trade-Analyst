@@ -50,21 +50,22 @@ export function SyncIndicator() {
   }, []);
 
   const ibkrIntervalMin = conn?.pollingIntervalMin ?? 15;
-  const priceIntervalMin = conn?.pricePollingIntervalMin ?? 15;
 
   const ibkrColor = dotColor(conn?.lastSyncAt, ibkrIntervalMin);
-  const priceColor = dotColor(conn?.lastPriceSyncAt, priceIntervalMin);
-
   const ibkrLabel = formatShort(conn?.lastSyncAt);
-  const priceLabel = formatShort(conn?.lastPriceSyncAt);
 
   const ibkrTitle = conn?.lastSyncAt
     ? `IBKR — סנכרון אחרון: ${new Date(conn.lastSyncAt).toLocaleString("he-IL")} (${conn.lastSyncStatus ?? "—"})`
     : "IBKR — טרם סונכרן";
 
+  /* DASHBOARD-FUTURE: price sync indicator — re-enable when live dashboard is released.
+  const priceIntervalMin = conn?.pricePollingIntervalMin ?? 15;
+  const priceColor = dotColor(conn?.lastPriceSyncAt, priceIntervalMin);
+  const priceLabel = formatShort(conn?.lastPriceSyncAt);
   const priceTitle = conn?.lastPriceSyncAt
     ? `מחירים — עדכון אחרון: ${new Date(conn.lastPriceSyncAt).toLocaleString("he-IL")} (${conn.lastPriceSyncStatus ?? "—"})`
     : "מחירים — טרם עודכן";
+  */
 
   return (
     <div className="flex items-center gap-2 text-xs text-[#888888] font-mono">
@@ -72,10 +73,12 @@ export function SyncIndicator() {
         <span className={`w-1.5 h-1.5 rounded-full ${ibkrColor}`} />
         IBKR {ibkrLabel}
       </span>
+      {/* DASHBOARD-FUTURE: price sync dot — uncomment with price indicator vars above.
       <span className="flex items-center gap-1" title={priceTitle}>
         <span className={`w-1.5 h-1.5 rounded-full ${priceColor}`} />
         מחירים {priceLabel}
       </span>
+      */}
     </div>
   );
 }

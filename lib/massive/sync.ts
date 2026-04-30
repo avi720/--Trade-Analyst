@@ -32,7 +32,7 @@ export async function runPriceSync(userId: string): Promise<PriceSyncResult> {
   const priceMap = await fetchPrices(tickers);
 
   if (priceMap.size === 0) {
-    // Polygon returned nothing (rate limit or no data) — not an error, just 0 updates
+    // Massive returned nothing (rate limit or no data) — not an error, just 0 updates
     return { updated: 0, tickers, status: "SUCCESS" };
   }
 
@@ -49,7 +49,7 @@ export async function runPriceSync(userId: string): Promise<PriceSyncResult> {
       .eq("id", trade.id);
 
     if (updateErr) {
-      console.error(`[polygon/sync] Failed to update trade ${trade.id}:`, updateErr.message);
+      console.error(`[massive/sync] Failed to update trade ${trade.id}:`, updateErr.message);
     } else {
       updated++;
     }

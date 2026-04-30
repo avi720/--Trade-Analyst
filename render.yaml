@@ -18,7 +18,7 @@ services:
         sync: false
       - key: FLEX_TOKEN_ENCRYPTION_KEY
         sync: false          # 64-char hex (32 bytes) — generate with: openssl rand -hex 32
-      - key: POLYGON_API_KEY
+      - key: MASSIVE_API_KEY
         sync: false
       - key: GEMINI_API_KEY
         sync: false
@@ -44,20 +44,22 @@ services:
       - key: RENDER_EXTERNAL_URL
         sync: false          # e.g. https://trade-analyst.onrender.com
 
-  # ── Cron Job: Polygon price updates ──────────────────────────────────────────
-  # Fires every 15 minutes; the endpoint skips internally if pricePollingIntervalMin hasn't elapsed.
-  - type: cron
-    name: polygon-prices
-    runtime: image
-    schedule: "*/15 * * * *"
-    image:
-      url: docker.io/curlimages/curl:8.7.1
-    command: >
-      curl --silent --show-error --fail
-      --header "Authorization: Bearer $CRON_SECRET"
-      "$RENDER_EXTERNAL_URL/api/cron/polygon-prices"
-    envVars:
-      - key: CRON_SECRET
-        sync: false
-      - key: RENDER_EXTERNAL_URL
-        sync: false
+  # ── Cron Job: Massive price updates ─────────────────────────────────────────
+  # DASHBOARD-FUTURE: disabled until live-dashboard feature is released.
+  # To re-enable: uncomment the block below and set MASSIVE_API_KEY in Render dashboard.
+  #
+  # - type: cron
+  #   name: massive-prices
+  #   runtime: image
+  #   schedule: "*/15 * * * *"
+  #   image:
+  #     url: docker.io/curlimages/curl:8.7.1
+  #   command: >
+  #     curl --silent --show-error --fail
+  #     --header "Authorization: Bearer $CRON_SECRET"
+  #     "$RENDER_EXTERNAL_URL/api/cron/massive-prices"
+  #   envVars:
+  #     - key: CRON_SECRET
+  #       sync: false
+  #     - key: RENDER_EXTERNAL_URL
+  #       sync: false

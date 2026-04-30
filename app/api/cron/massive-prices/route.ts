@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { runPriceSync } from "@/lib/polygon/sync";
+import { runPriceSync } from "@/lib/massive/sync";
 
-// Secured with CRON_SECRET header — called by Render Cron Job every 15 minutes.
+// Secured with CRON_SECRET header — called by Render Cron Job.
 // Skips internally if pricePollingIntervalMin hasn't elapsed since lastPriceSyncAt.
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("Authorization");
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     .maybeSingle();
 
   if (connErr) {
-    console.error("[cron/polygon-prices] DB error loading connection:", connErr.message);
+    console.error("[cron/massive-prices] DB error loading connection:", connErr.message);
     return NextResponse.json({ error: "DB error" }, { status: 500 });
   }
   if (!conn) {
@@ -48,11 +48,11 @@ export async function GET(req: NextRequest) {
     syncStatus = syncResult.status;
     if (syncResult.error) syncError = syncResult.error;
 
-    console.log(`[cron/polygon-prices] Updated ${syncResult.updated} trade(s) across tickers:`, syncResult.tickers);
+    console.log(`[cron/massive-prices] Updated ${syncResult.updated} trade(s) across tickers:`, syncResult.tickers);
   } catch (err) {
     syncStatus = "ERROR";
     syncError = err instanceof Error ? err.message : String(err);
-    console.error("[cron/polygon-prices] Error:", syncError);
+    console.error("[cron/massive-prices] Error:", syncError);
   }
 
   // Always update the sync timestamp so the interval check works next run

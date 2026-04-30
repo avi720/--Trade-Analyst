@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fetchPrices } from "@/lib/polygon/client";
+import { fetchPrices } from "@/lib/massive/client";
 
-// Minimal Polygon snapshot response shape
+// Minimal Massive snapshot response shape
 function makeSnapshotResponse(tickers: Array<{ ticker: string; lastTradePrice?: number; dayClose?: number }>) {
   return {
     status: "OK",
@@ -14,7 +14,7 @@ function makeSnapshotResponse(tickers: Array<{ ticker: string; lastTradePrice?: 
 }
 
 beforeEach(() => {
-  vi.stubEnv("POLYGON_API_KEY", "test-key");
+  vi.stubEnv("MASSIVE_API_KEY", "test-key");
   vi.restoreAllMocks();
 });
 
@@ -74,7 +74,7 @@ describe("fetchPrices", () => {
     expect(result.get("AAPL")).toBe(175.0);
   });
 
-  it("ticker missing from Polygon response is absent from result (not an error)", async () => {
+  it("ticker missing from Massive response is absent from result (not an error)", async () => {
     vi.spyOn(global, "fetch").mockResolvedValueOnce(
       new Response(
         JSON.stringify(makeSnapshotResponse([{ ticker: "AAPL", lastTradePrice: 175.0 }])),
@@ -101,7 +101,7 @@ describe("fetchPrices", () => {
       new Response("Internal Server Error", { status: 500 })
     );
 
-    await expect(fetchPrices(["AAPL"])).rejects.toThrow("Polygon snapshot failed: 500");
+    await expect(fetchPrices(["AAPL"])).rejects.toThrow("Massive snapshot failed: 500");
   });
 
   it("returns empty Map when response has no tickers array", async () => {
@@ -146,8 +146,8 @@ describe("fetchPrices", () => {
     expect(result.get("AAPL")).toBe(175.0);
   });
 
-  it("throws when POLYGON_API_KEY is not set", async () => {
-    vi.stubEnv("POLYGON_API_KEY", "");
-    await expect(fetchPrices(["AAPL"])).rejects.toThrow("POLYGON_API_KEY env var is not set");
+  it("throws when MASSIVE_API_KEY is not set", async () => {
+    vi.stubEnv("MASSIVE_API_KEY", "");
+    await expect(fetchPrices(["AAPL"])).rejects.toThrow("MASSIVE_API_KEY env var is not set");
   });
 });

@@ -90,7 +90,7 @@ export function OpenPositionsDashboard({ trades, connection }: Props) {
     const sinceSync = Date.now() - new Date(connection.lastPriceSyncAt ?? 0).getTime()
     const intervalMs = connection.pricePollingIntervalMin * 60_000
     if (sinceSync > intervalMs) {
-      fetch('/api/polygon/refresh', { method: 'POST' })
+      fetch('/api/massive/refresh', { method: 'POST' })
         .then(() => router.refresh())
         .catch(() => {/* silent — cron will catch up */})
     }
@@ -113,7 +113,7 @@ export function OpenPositionsDashboard({ trades, connection }: Props) {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true)
     try {
-      await fetch('/api/polygon/refresh', { method: 'POST' })
+      await fetch('/api/massive/refresh', { method: 'POST' })
       router.refresh()
     } finally {
       setRefreshing(false)
