@@ -10,6 +10,7 @@ import { useChatContext } from '@/lib/chat/chat-context'
 const TABS = [
   { label: 'תחקור', href: '/research' },
   { label: 'חיפוש', href: '/search' },
+  { label: 'ייבוא-ידני', href: '/manual-import' },
 ]
 
 interface HeaderProps {

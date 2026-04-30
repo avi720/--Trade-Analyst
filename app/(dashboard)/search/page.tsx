@@ -1,10 +1,19 @@
-export default function SearchPage() {
-  return (
-    <div className="p-6">
-      <div className="panel p-8 text-center text-[#888888]">
-        <p className="text-lg font-mono">חיפוש</p>
-        <p className="text-sm mt-2">חיפוש טריידים — Phase 8</p>
-      </div>
-    </div>
-  )
+import { createClient } from '@/lib/supabase/server'
+import { TradeSearch } from '@/components/trade-search'
+
+export default async function SearchPage({
+  searchParams,
+}: {
+  searchParams: Record<string, string>
+}) {
+  const supabase = await createClient()
+
+  const { data: trades } = await supabase
+    .from('Trade')
+    .select(
+      'id, ticker, direction, status, setupType, openedAt, closedAt, actualR, realizedPnl, totalCommission, result, notes, emotionalState, executionQuality, stopPrice, targetPrice, didRight, wouldChange, avgEntryPrice, avgExitPrice, totalQuantityOpened'
+    )
+    .order('openedAt', { ascending: false })
+
+  return <TradeSearch trades={trades ?? []} initialParams={searchParams} />
 }

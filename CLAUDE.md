@@ -277,6 +277,61 @@ Activity report updates once per day at end-of-day, so no need for 15-min pollin
 
 **Test status: 155/155 pass. Build clean.**
 
+### Phase 8 — Trade Search + Soft Field Editing + Manual Entry / Excel Import (COMPLETE)
+
+**Pattern**: Async Server Component loads all trades once, passes to Client Component for client-side filtering/sorting/pagination. Same pattern as Phase 6 Research. Rationale: single-user app with <1000 trades — instant reactive UI, no server round-trip per filter change.
+
+**Features**:
+1. **Search Tab** — Filterable, sortable, paginated trade results (25/page). Filters: ticker/notes, date range, direction, result, setupType, R range, status. Click row → opens trade detail modal.
+2. **Trade Detail Modal** — Read-only trade summary + Orders sub-table + editable soft fields form (notes, setupType, emotionalState, executionQuality, stopPrice, targetPrice, didRight, wouldChange). PATCH `/api/trades/[id]` with whitelist validation.
+3. **Manual Import Tab** — Two sub-tabs: manual entry form (ticker, date, time, side, quantity, price, commission, currency per leg) and Excel import (download template → upload → preview → confirm). Both routes feed into existing `processExecutions()` pipeline via `NormalizedExecution[]`.
+
+**Files**:
+- `app/(dashboard)/search/page.tsx` — Server Component loading all closed trades
+- `components/trade-search.tsx` — Client-side filtering, sorting, pagination (25/page)
+- `components/trade-detail-modal.tsx` — Modal with editable soft fields
+- `app/api/trades/[id]/route.ts` — PATCH endpoint with soft-field whitelist
+- `app/(dashboard)/manual-import/page.tsx` — Manual import page shell
+- `components/manual-import-tabs.tsx` — Sub-tab toggle between manual entry + Excel import
+- `components/trade-entry-form.tsx` — Dynamic row form for manual leg entry
+- `components/trade-excel-import.tsx` — Upload, preview, confirm flow for Excel
+- `lib/trade/manual-entry.ts` — Leg validation + NormalizedExecution builder
+- `lib/trade/excel-import.ts` — SheetJS integration: parseExcelBuffer + generateTemplate
+- `app/api/trades/manual/route.ts` — POST: manual leg submission → processExecutions
+- `app/api/trades/import/route.ts` — GET: template download; POST: Excel upload → processExecutions
+- `components/header.tsx` — Modified: added "ייבוא-ידני" nav tab
+- `__tests__/manual-entry.test.ts` — 20 tests: leg validation, ID generation, batch processing
+- `__tests__/excel-import.test.ts` — 14 tests: parsing (valid rows, column aliasing, Hebrew headers), template generation
+
+**API Routes**:
+| Method | Route | Purpose |
+|---|---|---|
+| PATCH | `/api/trades/[id]` | Update soft fields (whitelist: notes, setupType, emotionalState, executionQuality, stopPrice, targetPrice, didRight, wouldChange) |
+| POST | `/api/trades/manual` | JSON `{ legs: ManualLeg[] }` → processExecutions |
+| GET | `/api/trades/import?template=true` | Download blank Excel template |
+| POST | `/api/trades/import` | multipart/form-data → parseExcelBuffer → processExecutions |
+
+**Key Decisions**:
+- **Client-side filtering**: Instant reactive UI without server round-trips per filter change. URL holds state for shareability.
+- **Soft-field whitelist**: PATCH endpoint validates against Set to prevent unauthorized field modifications.
+- **Synthetic brokerExecId**: Format `MANUAL-{TICKER}-{TIMESTAMP}-{INDEX}` avoids collision with IBKR IDs, unique within session.
+- **Reuse processExecutions()**: Manual and Excel entries converted to `NormalizedExecution[]` and fed through existing FIFO pipeline (dup check, REVERSAL handling, atomic RPC).
+- **SheetJS for Excel**: Pure JS, no native binaries, ARM64-safe. Supports column reordering and Hebrew aliases.
+
+**New env vars**: None.
+**DB changes**: None. Existing soft fields already in Trade schema.
+
+**Test status: 189/189 pass** (155 baseline + 34 new)
+
+**Build status: Clean** (Next.js 14, no TypeScript errors)
+
+**Known Limitations / Future Work**:
+1. Excel format: Currently reads first sheet only, does not support multiple sheets.
+2. Manual entry: No CSV export yet (can be Phase 9).
+3. Search UX: No multi-select filters (e.g., "AAPL OR MSFT"); filters are AND-ed.
+4. Soft field editing: Limited to modal; no inline editing in search table.
+5. Search pagination: No server-side pagination optimization yet (fine for <1000 trades).
+
 ## End-of-Phase Checklist
 
 After each phase completion:
