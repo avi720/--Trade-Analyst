@@ -58,13 +58,9 @@ export type Database = {
           accountId: string | null
           brokerName: string
           flexQueryIdActivity: string
-          flexQueryIdTrades: string | null
           flexTokenEncrypted: string
           id: string
           isActive: boolean
-          lastBackfillAt: string | null
-          lastBackfillError: string | null
-          lastBackfillStatus: string | null
           lastPriceSyncAt: string | null
           lastPriceSyncStatus: string | null
           lastSyncAt: string | null
@@ -78,13 +74,9 @@ export type Database = {
           accountId?: string | null
           brokerName: string
           flexQueryIdActivity: string
-          flexQueryIdTrades?: string | null
           flexTokenEncrypted: string
           id?: string
           isActive?: boolean
-          lastBackfillAt?: string | null
-          lastBackfillError?: string | null
-          lastBackfillStatus?: string | null
           lastPriceSyncAt?: string | null
           lastPriceSyncStatus?: string | null
           lastSyncAt?: string | null
@@ -98,13 +90,9 @@ export type Database = {
           accountId?: string | null
           brokerName?: string
           flexQueryIdActivity?: string
-          flexQueryIdTrades?: string | null
           flexTokenEncrypted?: string
           id?: string
           isActive?: boolean
-          lastBackfillAt?: string | null
-          lastBackfillError?: string | null
-          lastBackfillStatus?: string | null
           lastPriceSyncAt?: string | null
           lastPriceSyncStatus?: string | null
           lastSyncAt?: string | null

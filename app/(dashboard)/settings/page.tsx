@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { ChevronDown, ChevronUp, CheckCircle, XCircle, Loader2 } from "lucide-react";
+
+const TOAST_DURATION = 10;
 
 // The required IBKR Flex fields for the Activity report
 const REQUIRED_FIELDS = [
@@ -19,9 +21,6 @@ interface ConnectionStatus {
   lastSyncAt?: string | null;
   lastSyncStatus?: string | null;
   lastSyncError?: string | null;
-  lastBackfillAt?: string | null;
-  lastBackfillStatus?: string | null;
-  lastBackfillError?: string | null;
   lastPriceSyncAt?: string | null;
   lastPriceSyncStatus?: string | null;
 }
@@ -40,6 +39,26 @@ function formatRelativeTime(iso: string | null | undefined): string {
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `לפני ${hours} שע'`;
   return new Date(iso).toLocaleDateString("he-IL");
+}
+
+function CountdownCircle({ remaining, total }: { remaining: number; total: number }) {
+  const r = 5;
+  const circ = 2 * Math.PI * r;
+  const offset = circ * (1 - remaining / total);
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" style={{ transform: "rotate(-90deg)", flexShrink: 0 }}>
+      <circle cx="7" cy="7" r={r} fill="none" stroke="#1a3a1a" strokeWidth="2" />
+      <circle
+        cx="7" cy="7" r={r}
+        fill="none"
+        stroke="#2CC84A"
+        strokeWidth="2"
+        strokeDasharray={circ}
+        strokeDashoffset={offset}
+        strokeLinecap="round"
+      />
+    </svg>
+  );
 }
 
 // --- IBKR Setup Guide ---
@@ -71,7 +90,7 @@ function SetupGuide({ open, onToggle }: { open: boolean; onToggle: () => void })
               ב-IBKR Portal:{" "}
               <span className="text-[#E0E0E0]">Reports → Flex Queries → Create New → Activity</span>
               <br />
-              טווח: <span className="text-[#E0E0E0]">Last 90 Days</span> (או יותר לBackfill ראשוני)
+              טווח: <span className="text-[#E0E0E0]">Last 90 Days</span> (או יותר לסנכרון ראשוני)
               <br />
               פורמט תאריך: <span className="font-mono text-[#2CC84A]">dd/MM/yyyy</span> — פורמט שעה:{" "}
               <span className="font-mono text-[#2CC84A]">HH:mm:ss TimeZone</span>
@@ -103,22 +122,15 @@ export default function SettingsPage() {
   const [guideOpen, setGuideOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [backfilling, setBackfilling] = useState(false);
   const [exportingCsv, setExportingCsv] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveOk, setSaveOk] = useState(false);
+  const [toastSecondsLeft, setToastSecondsLeft] = useState(0);
   const [testResult, setTestResult] = useState<{ activity: ActivityTestResult; firstSuccess?: boolean } | null>(null);
   const [testError, setTestError] = useState<string | null>(null);
-  const [backfillStatus, setBackfillStatus] = useState<string | null>(null);
-  const [backfillError, setBackfillError] = useState<string | null>(null);
   const [conn, setConn] = useState<ConnectionStatus | null>(null);
-
-  /* DASHBOARD-FUTURE: Massive price polling state — re-enable with price settings UI below.
-  const [pricePollingInterval, setPricePollingInterval] = useState(15);
-  const [savingPrice, setSavingPrice] = useState(false);
-  const [savePriceError, setSavePriceError] = useState<string | null>(null);
-  const [savePriceOk, setSavePriceOk] = useState(false);
-  */
+  const [initialSyncRunning, setInitialSyncRunning] = useState(false);
+  const lastSyncAtBeforeSave = useRef<string | null>(null);
 
   // IBKR form state
   const [flexToken, setFlexToken] = useState("");
@@ -134,38 +146,64 @@ export default function SettingsPage() {
         setConn(c);
         setQueryIdActivity(c.flexQueryIdActivity ?? "");
         setPollingInterval(c.pollingIntervalMin ?? 720);
-        // DASHBOARD-FUTURE: setPricePollingInterval(c.pricePollingIntervalMin ?? 15);
-        setBackfillStatus(c.lastBackfillStatus ?? null);
-        setBackfillError(c.lastBackfillError ?? null);
       }
     }
   }, []);
 
   useEffect(() => { loadConnection(); }, [loadConnection]);
 
-  // Poll backfill status while running
+  // Toast countdown — 10 seconds with circle
   useEffect(() => {
-    if (backfillStatus !== "RUNNING") return;
+    if (!saveOk) return;
+    setToastSecondsLeft(TOAST_DURATION);
+    const interval = setInterval(() => {
+      setToastSecondsLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setSaveOk(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [saveOk]);
+
+  // Poll until initial sync completes (lastSyncAt changes)
+  useEffect(() => {
+    if (!initialSyncRunning) return;
+    let elapsed = 0;
     const interval = setInterval(async () => {
-      const res = await fetch("/api/ibkr/backfill");
+      elapsed += 2;
+      const res = await fetch("/api/ibkr/connection");
       if (res.ok) {
         const json = await res.json();
-        setBackfillStatus(json.status);
-        setBackfillError(json.error ?? null);
-        if (json.status !== "RUNNING") {
+        const newSyncAt: string | null = json.connection?.lastSyncAt ?? null;
+        if (newSyncAt && newSyncAt !== lastSyncAtBeforeSave.current) {
+          setInitialSyncRunning(false);
+          if (json.connection) {
+            setConn(json.connection);
+            setQueryIdActivity(json.connection.flexQueryIdActivity ?? "");
+            setPollingInterval(json.connection.pollingIntervalMin ?? 720);
+          }
           clearInterval(interval);
-          loadConnection();
+          return;
         }
+      }
+      if (elapsed >= 120) {
+        setInitialSyncRunning(false);
+        clearInterval(interval);
       }
     }, 2000);
     return () => clearInterval(interval);
-  }, [backfillStatus, loadConnection]);
+  }, [initialSyncRunning]);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setSaveError(null);
     setSaveOk(false);
+    lastSyncAtBeforeSave.current = conn?.lastSyncAt ?? null;
     try {
       const res = await fetch("/api/ibkr/connect", {
         method: "POST",
@@ -182,8 +220,8 @@ export default function SettingsPage() {
       } else {
         setSaveOk(true);
         setFlexToken("");
+        setInitialSyncRunning(true);
         loadConnection();
-        setTimeout(() => setSaveOk(false), 3000);
       }
     } catch {
       setSaveError("שגיאת רשת");
@@ -214,24 +252,6 @@ export default function SettingsPage() {
     }
   }
 
-  async function handleBackfill() {
-    setBackfilling(true);
-    setBackfillError(null);
-    try {
-      const res = await fetch("/api/ibkr/backfill", { method: "POST" });
-      const json = await res.json();
-      if (!res.ok) {
-        setBackfillError(json.error ?? "שגיאה");
-      } else {
-        setBackfillStatus("RUNNING");
-      }
-    } catch {
-      setBackfillError("שגיאת רשת");
-    } finally {
-      setBackfilling(false);
-    }
-  }
-
   async function handleExportCsv() {
     setExportingCsv(true);
     try {
@@ -254,34 +274,6 @@ export default function SettingsPage() {
       setExportingCsv(false);
     }
   }
-
-  /* DASHBOARD-FUTURE: price settings save handler — re-enable with state vars and UI below.
-  async function handleSavePrice(e: React.FormEvent) {
-    e.preventDefault();
-    setSavingPrice(true);
-    setSavePriceError(null);
-    setSavePriceOk(false);
-    try {
-      const res = await fetch("/api/massive/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pricePollingIntervalMin: pricePollingInterval }),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        setSavePriceError(typeof json.error === "string" ? json.error : JSON.stringify(json.error));
-      } else {
-        setSavePriceOk(true);
-        loadConnection();
-        setTimeout(() => setSavePriceOk(false), 3000);
-      }
-    } catch {
-      setSavePriceError("שגיאת רשת");
-    } finally {
-      setSavingPrice(false);
-    }
-  }
-  */
 
   const syncStatusColor =
     conn?.lastSyncStatus === "SUCCESS"
@@ -307,7 +299,7 @@ export default function SettingsPage() {
               type="password"
               value={flexToken}
               onChange={(e) => setFlexToken(e.target.value)}
-              placeholder={conn ? "••••••••  (השאר ריק לשמור token קיים)" : "הדבק את ה-Flex Token כאן"}
+              placeholder={conn ? "••••••••  (נדרש להזין מחדש לשינויים)" : "הדבק את ה-Flex Token כאן"}
               className="w-full bg-[#111111] border border-[#222222] rounded px-3 py-2 text-sm text-[#E0E0E0] placeholder-[#555555] focus:outline-none focus:border-[#FFB800] font-mono"
             />
           </div>
@@ -324,7 +316,13 @@ export default function SettingsPage() {
           </div>
 
           {saveError && <p className="text-[#FF4D4D] text-sm">{saveError}</p>}
-          {saveOk && <p className="text-[#2CC84A] text-sm">נשמר בהצלחה ✓</p>}
+
+          {saveOk && (
+            <div className="flex items-center gap-2 text-[#2CC84A] text-sm">
+              <CountdownCircle remaining={toastSecondsLeft} total={TOAST_DURATION} />
+              <span>נשמר בהצלחה ✓</span>
+            </div>
+          )}
 
           <div className="flex gap-3">
             <button
@@ -356,11 +354,6 @@ export default function SettingsPage() {
         {testResult && (
           <div className="mt-4 space-y-2">
             <QueryStatusRow label="Activity Flex Query" result={testResult.activity} />
-            {testResult.firstSuccess && (
-              <div className="mt-3 p-3 border border-[#2CC84A] rounded text-sm text-[#2CC84A]">
-                חיבור ראשוני הצליח! מומלץ להריץ Backfill היסטורי עכשיו ↓
-              </div>
-            )}
           </div>
         )}
 
@@ -369,47 +362,25 @@ export default function SettingsPage() {
           <div className="mt-6 pt-4 border-t border-[#222222] space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-[#888888]">סנכרון אחרון</span>
-              <span className={syncStatusColor}>
-                {formatRelativeTime(conn.lastSyncAt)}{" "}
-                {conn.lastSyncStatus && `(${conn.lastSyncStatus})`}
+              <span className={initialSyncRunning ? "text-[#FFB800]" : syncStatusColor}>
+                {initialSyncRunning ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 size={12} className="animate-spin inline" />
+                    סנכרון ראשוני מתבצע...
+                  </span>
+                ) : (
+                  <>
+                    {formatRelativeTime(conn.lastSyncAt)}{" "}
+                    {conn.lastSyncStatus && `(${conn.lastSyncStatus})`}
+                  </>
+                )}
               </span>
             </div>
-            {conn.lastSyncError && (
+            {conn.lastSyncError && !initialSyncRunning && (
               <p className="text-[#FF4D4D] text-xs">{conn.lastSyncError}</p>
             )}
-            <div className="flex justify-between">
-              <span className="text-[#888888]">Backfill אחרון</span>
-              <span
-                className={
-                  conn.lastBackfillStatus === "SUCCESS"
-                    ? "text-[#2CC84A]"
-                    : conn.lastBackfillStatus === "ERROR"
-                    ? "text-[#FF4D4D]"
-                    : "text-[#888888]"
-                }
-              >
-                {formatRelativeTime(conn.lastBackfillAt)}{" "}
-                {conn.lastBackfillStatus && conn.lastBackfillStatus !== "RUNNING"
-                  ? `(${conn.lastBackfillStatus})`
-                  : ""}
-              </span>
-            </div>
 
-            <div className="pt-2 flex gap-3 flex-wrap">
-              {backfillStatus === "RUNNING" ? (
-                <span className="flex items-center gap-2 text-[#FFB800] text-sm">
-                  <Loader2 size={14} className="animate-spin" />
-                  Backfill רץ...
-                </span>
-              ) : (
-                <button
-                  onClick={handleBackfill}
-                  disabled={backfilling || !conn}
-                  className="px-3 py-1.5 border border-[#222222] text-[#888888] text-xs rounded hover:border-[#444444] hover:text-[#E0E0E0] disabled:opacity-40 transition-colors"
-                >
-                  Run Activity Backfill
-                </button>
-              )}
+            <div className="pt-2">
               <button
                 onClick={handleExportCsv}
                 disabled={exportingCsv || !conn}
@@ -423,51 +394,10 @@ export default function SettingsPage() {
                   "ייצא Activity כ-CSV"
                 )}
               </button>
-              {backfillError && (
-                <p className="w-full mt-1 text-[#FF4D4D] text-xs">{backfillError}</p>
-              )}
             </div>
           </div>
         )}
       </div>
-
-      {/* DASHBOARD-FUTURE: Massive price settings panel — re-enable when live dashboard is released.
-      Restore state vars, handleSavePrice, and the setPricePollingInterval call in loadConnection.
-      <div className="panel p-6">
-        <h2 className="text-base font-medium text-[#E0E0E0] mb-4">עדכון מחירים (Massive)</h2>
-        <form onSubmit={handleSavePrice} className="space-y-4">
-          <div>
-            <label className="block text-sm text-[#888888] mb-1">
-              מרווח עדכון מחירים (דקות) — מינימום 15
-            </label>
-            <input type="number" min={15} value={pricePollingInterval}
-              onChange={(e) => setPricePollingInterval(Math.max(15, parseInt(e.target.value) || 15))}
-              className="w-32 bg-[#111111] border border-[#222222] rounded px-3 py-2 text-sm text-[#E0E0E0] focus:outline-none focus:border-[#FFB800] font-mono"
-            />
-            <p className="mt-1 text-xs text-[#555555]">
-              עצמאי ממרווח ה-IBKR. ממשיכים לעדכן מחירים גם כשאין עסקאות חדשות.
-            </p>
-          </div>
-          {savePriceError && <p className="text-[#FF4D4D] text-sm">{savePriceError}</p>}
-          {savePriceOk && <p className="text-[#2CC84A] text-sm">נשמר בהצלחה ✓</p>}
-          <button type="submit" disabled={savingPrice || !conn}
-            className="px-4 py-2 bg-[#FFB800] text-black text-sm font-medium rounded hover:bg-[#e6a600] disabled:opacity-50 transition-colors">
-            {savingPrice ? "שומר..." : "שמור"}
-          </button>
-        </form>
-        {conn && (
-          <div className="mt-6 pt-4 border-t border-[#222222] space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-[#888888]">עדכון מחירים אחרון</span>
-              <span className={conn.lastPriceSyncStatus === "SUCCESS" ? "text-[#2CC84A]"
-                : conn.lastPriceSyncStatus === "ERROR" ? "text-[#FF4D4D]" : "text-[#888888]"}>
-                {formatRelativeTime(conn.lastPriceSyncAt)} {conn.lastPriceSyncStatus && `(${conn.lastPriceSyncStatus})`}
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
-      */}
 
       {/* ── AI (Phase 7 stub) ── */}
       <div className="panel p-6">

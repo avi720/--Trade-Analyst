@@ -45,21 +45,7 @@ export async function POST() {
     activityError = err instanceof Error ? err.message : String(err);
   }
 
-  // If this is the first successful test, flag it so the UI can prompt backfill
-  let firstSuccess = false;
-  if (activityOk) {
-    const { data: existingConn } = await admin
-      .from("BrokerConnection")
-      .select("lastSyncAt, lastBackfillAt")
-      .eq("userId", user.id)
-      .maybeSingle();
-    if (existingConn && !existingConn.lastSyncAt && !existingConn.lastBackfillAt) {
-      firstSuccess = true;
-    }
-  }
-
   return NextResponse.json({
     activity: { ok: activityOk, error: activityError },
-    firstSuccess,
   });
 }
