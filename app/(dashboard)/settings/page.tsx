@@ -32,7 +32,7 @@ interface ActivityTestResult {
 
 function formatRelativeTime(iso: string | null | undefined): string {
   if (!iso) return "—";
-  const diff = Date.now() - new Date(iso).getTime();
+  const diff = Date.now() - new Date(iso + "Z").getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return "עכשיו";
   if (mins < 60) return `לפני ${mins} דק'`;

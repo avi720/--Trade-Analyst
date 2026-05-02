@@ -51,13 +51,13 @@ export async function GET(req: NextRequest) {
     const xml = await fetchFlexQuery(token, conn.flexQueryIdActivity);
 
     // Audit log — store raw XML (capped)
-    await admin.from("BrokerEvent").insert({
+    const { data: event } = await admin.from("BrokerEvent").insert({
       userId: conn.userId,
       source: "IBKR_FLEX",
       eventType: "FLEX_FETCH",
       rawPayload: { xml: xml.slice(0, 10000) },
       processingStatus: "PENDING",
-    });
+    }).select("id").single();
 
     const executions = parseActivityXml(xml);
     const results = await processExecutions(executions, conn.userId);
@@ -68,25 +68,52 @@ export async function GET(req: NextRequest) {
       syncError = `${failed.length} execution(s) failed. First: ${failed[0].error}`;
     }
 
+    // Mark the event as processed
+    if (event) {
+      await admin.from("BrokerEvent").update({
+        processingStatus: syncStatus === "ERROR" ? "ERROR" : "PROCESSED",
+        processedAt: new Date().toISOString(),
+        processingError: syncError,
+      }).eq("id", event.id);
+    }
+
+    // Extract accountId from any execution and persist to BrokerConnection
+    const accountId = executions[0]?.brokerClientAccountId ?? null;
+
     console.log(
       `[cron/ibkr-sync] Processed ${executions.length} executions.`,
       results.reduce((acc, r) => ({ ...acc, [r.status]: (acc[r.status] ?? 0) + 1 }), {} as Record<string, number>)
     );
+
+    // Update sync timestamps + accountId
+    await admin
+      .from("BrokerConnection")
+      .update({
+        lastSyncAt: new Date().toISOString(),
+        lastSyncStatus: syncStatus,
+        lastSyncError: syncError,
+        ...(accountId ? { accountId } : {}),
+      })
+      .eq("id", conn.id);
   } catch (err) {
     syncStatus = "ERROR";
     syncError = err instanceof Error ? err.message : String(err);
     console.error("[cron/ibkr-sync] Error:", syncError);
-  }
 
-  // Update sync timestamps
-  await admin
-    .from("BrokerConnection")
-    .update({
-      lastSyncAt: new Date().toISOString(),
-      lastSyncStatus: syncStatus,
-      lastSyncError: syncError,
-    })
-    .eq("id", conn.id);
+    // Update sync timestamps even on failure
+    await admin
+      .from("BrokerConnection")
+      .update({
+        lastSyncAt: new Date().toISOString(),
+        lastSyncStatus: syncStatus,
+        lastSyncError: syncError,
+      })
+      .eq("id", conn.id);
+    return NextResponse.json({ ok: false, status: syncStatus, error: syncError });
+  }
 
   return NextResponse.json({ ok: true, status: syncStatus, error: syncError });
 }
+
+// Allow POST as well — Render cron may be configured with -X POST
+export const POST = GET;

@@ -75,24 +75,38 @@ export async function POST(req: NextRequest) {
       const token = decryptToken(conn.flexTokenEncrypted);
       const xml = await fetchFlexQuery(token, conn.flexQueryIdActivity);
 
-      await adminBg.from("BrokerEvent").insert({
+      const { data: event } = await adminBg.from("BrokerEvent").insert({
         userId,
         source: "IBKR_FLEX",
         eventType: "FLEX_FETCH",
         rawPayload: { xml: xml.slice(0, 10000) },
         processingStatus: "PENDING",
-      });
+      }).select("id").single();
 
       const executions = parseActivityXml(xml);
       const results = await processExecutions(executions, userId);
 
       const failed = results.filter((r) => r.status === "FAILED");
+      const syncStatus = failed.length > 0 ? "ERROR" : "SUCCESS";
+      const syncError = failed.length > 0
+        ? `${failed.length} execution(s) failed. First: ${failed[0].error}`
+        : null;
+
+      if (event) {
+        await adminBg.from("BrokerEvent").update({
+          processingStatus: syncStatus === "ERROR" ? "ERROR" : "PROCESSED",
+          processedAt: new Date().toISOString(),
+          processingError: syncError,
+        }).eq("id", event.id);
+      }
+
+      const accountId = executions[0]?.brokerClientAccountId ?? null;
+
       await adminBg.from("BrokerConnection").update({
         lastSyncAt: new Date().toISOString(),
-        lastSyncStatus: failed.length > 0 ? "ERROR" : "SUCCESS",
-        lastSyncError: failed.length > 0
-          ? `${failed.length} execution(s) failed. First: ${failed[0].error}`
-          : null,
+        lastSyncStatus: syncStatus,
+        lastSyncError: syncError,
+        ...(accountId ? { accountId } : {}),
       }).eq("userId", userId);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
