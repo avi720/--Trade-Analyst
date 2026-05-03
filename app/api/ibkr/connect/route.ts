@@ -12,7 +12,6 @@ import type { Database } from "@/lib/db/types";
 const schema = z.object({
   flexToken: z.string().min(1, "Flex token is required"),
   flexQueryIdActivity: z.string().min(1, "Activity query ID is required"),
-  pollingIntervalMin: z.number().int().min(1, "Polling interval must be at least 1 minute"),
 });
 
 export async function POST(req: NextRequest) {
@@ -32,7 +31,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
   }
 
-  const { flexToken, flexQueryIdActivity, pollingIntervalMin } = parsed.data;
+  const { flexToken, flexQueryIdActivity } = parsed.data;
 
   let flexTokenEncrypted: string;
   try {
@@ -49,7 +48,6 @@ export async function POST(req: NextRequest) {
       brokerName: "IBKR_FLEX",
       flexTokenEncrypted,
       flexQueryIdActivity,
-      pollingIntervalMin,
       isActive: true,
     },
     { onConflict: "userId" }

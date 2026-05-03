@@ -66,7 +66,6 @@ export type Database = {
           lastSyncAt: string | null
           lastSyncError: string | null
           lastSyncStatus: string | null
-          pollingIntervalMin: number
           pricePollingIntervalMin: number
           userId: string
         }
@@ -82,7 +81,6 @@ export type Database = {
           lastSyncAt?: string | null
           lastSyncError?: string | null
           lastSyncStatus?: string | null
-          pollingIntervalMin?: number
           pricePollingIntervalMin?: number
           userId: string
         }
@@ -98,7 +96,6 @@ export type Database = {
           lastSyncAt?: string | null
           lastSyncError?: string | null
           lastSyncStatus?: string | null
-          pollingIntervalMin?: number
           pricePollingIntervalMin?: number
           userId?: string
         }

@@ -15,7 +15,7 @@ export default async function DashboardPage() {
     supabase
       .from('BrokerConnection')
       .select(
-        'lastSyncAt, lastSyncStatus, pollingIntervalMin, lastPriceSyncAt, lastPriceSyncStatus, pricePollingIntervalMin'
+        'lastSyncAt, lastSyncStatus, lastSyncError, lastPriceSyncAt, lastPriceSyncStatus, pricePollingIntervalMin'
       )
       .maybeSingle(),
   ])

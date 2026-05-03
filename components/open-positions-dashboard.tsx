@@ -34,7 +34,7 @@ export interface OpenTrade {
 export interface ConnectionStatus {
   lastSyncAt: string | null
   lastSyncStatus: string | null
-  pollingIntervalMin: number
+  lastSyncError: string | null
   lastPriceSyncAt: string | null
   lastPriceSyncStatus: string | null
   pricePollingIntervalMin: number
@@ -143,12 +143,8 @@ export function OpenPositionsDashboard({ trades, connection }: Props) {
     return sum + (pnl ?? 0)
   }, 0)
 
-  // IBKR stale check: amber if > 2× polling interval
-  const ibkrStale =
-    connection?.lastSyncAt
-      ? Date.now() - new Date(connection.lastSyncAt).getTime() >
-        2 * (connection.pollingIntervalMin ?? 15) * 60_000
-      : false
+  // Show warning banner if last sync failed
+  const ibkrStale = connection?.lastSyncStatus === "ERROR"
 
   return (
     <div className="flex h-full relative">

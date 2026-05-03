@@ -19,7 +19,7 @@ export async function GET() {
   const { data, error } = await admin
     .from("BrokerConnection")
     .select(
-      "id, flexQueryIdActivity, pollingIntervalMin, pricePollingIntervalMin, lastSyncAt, lastSyncStatus, lastSyncError, lastPriceSyncAt, lastPriceSyncStatus, isActive, accountId"
+      "id, flexQueryIdActivity, pricePollingIntervalMin, lastSyncAt, lastSyncStatus, lastSyncError, lastPriceSyncAt, lastPriceSyncStatus, isActive, accountId"
     )
     .eq("userId", user.id)
     .maybeSingle();

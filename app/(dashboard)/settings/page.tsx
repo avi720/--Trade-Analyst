@@ -16,7 +16,6 @@ const REQUIRED_FIELDS = [
 interface ConnectionStatus {
   id?: string;
   flexQueryIdActivity?: string;
-  pollingIntervalMin?: number;
   pricePollingIntervalMin?: number;
   lastSyncAt?: string | null;
   lastSyncStatus?: string | null;
@@ -135,7 +134,6 @@ export default function SettingsPage() {
   // IBKR form state
   const [flexToken, setFlexToken] = useState("");
   const [queryIdActivity, setQueryIdActivity] = useState("");
-  const [pollingInterval, setPollingInterval] = useState(720);
 
   const loadConnection = useCallback(async () => {
     const res = await fetch("/api/ibkr/connection");
@@ -145,7 +143,6 @@ export default function SettingsPage() {
         const c: ConnectionStatus = json.connection;
         setConn(c);
         setQueryIdActivity(c.flexQueryIdActivity ?? "");
-        setPollingInterval(c.pollingIntervalMin ?? 720);
       }
     }
   }, []);
@@ -184,7 +181,6 @@ export default function SettingsPage() {
           if (json.connection) {
             setConn(json.connection);
             setQueryIdActivity(json.connection.flexQueryIdActivity ?? "");
-            setPollingInterval(json.connection.pollingIntervalMin ?? 720);
           }
           clearInterval(interval);
           return;
@@ -211,7 +207,6 @@ export default function SettingsPage() {
         body: JSON.stringify({
           flexToken,
           flexQueryIdActivity: queryIdActivity,
-          pollingIntervalMin: pollingInterval,
         }),
       });
       const json = await res.json();
