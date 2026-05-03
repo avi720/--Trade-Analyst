@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptToken } from "@/lib/ibkr/encrypt";
-import { fetchFlexQuery } from "@/lib/ibkr/flex-client";
+import { fetchFlexQuery, IbkrTransientError } from "@/lib/ibkr/flex-client";
 import { parseActivityXml } from "@/lib/ibkr/parse-flex-xml";
 import { processExecutions } from "@/lib/ibkr/process-executions";
 
@@ -100,16 +100,18 @@ export async function GET(req: NextRequest) {
     syncError = err instanceof Error ? err.message : String(err);
     console.error("[cron/ibkr-sync] Error:", syncError);
 
-    // Update sync timestamps even on failure
+    // Transient IBKR errors (report not ready yet): don't update lastSyncAt so
+    // the next cron fire retries without waiting the full polling interval.
+    const isTransient = err instanceof IbkrTransientError;
     await admin
       .from("BrokerConnection")
       .update({
-        lastSyncAt: new Date().toISOString(),
+        ...(isTransient ? {} : { lastSyncAt: new Date().toISOString() }),
         lastSyncStatus: syncStatus,
         lastSyncError: syncError,
       })
       .eq("id", conn.id);
-    return NextResponse.json({ ok: false, status: syncStatus, error: syncError });
+    return NextResponse.json({ ok: false, status: syncStatus, error: syncError, transient: isTransient });
   }
 
   return NextResponse.json({ ok: true, status: syncStatus, error: syncError });

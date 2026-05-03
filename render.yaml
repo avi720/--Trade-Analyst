@@ -26,12 +26,14 @@ services:
         sync: false          # random string — used to authenticate cron job requests
 
   # ── Cron Job: IBKR Activity Flex polling ────────────────────────────────────
-  # Fires twice daily at 08:00 & 20:00 UTC (10:00 & 22:00 IST standard time).
-  # Activity report updates once per day at end-of-day, so twice-daily is sufficient.
+  # Fires twice daily at 13:00 & 20:00 UTC (16:00 & 23:00 IST standard time).
+  # 13:00 UTC = 09:00 AM EDT — IBKR Flex data is reliably available by this time.
+  # 20:00 UTC = 16:00 PM EDT — post-market, catches same-day EOD data.
+  # Previous schedule (08:00 UTC = 03:00 AM EDT) caused IBKR error 1001 ("report not ready").
   - type: cron
     name: ibkr-sync
     runtime: image
-    schedule: "0 8,20 * * *"
+    schedule: "0 13,20 * * *"
     image:
       url: docker.io/curlimages/curl:8.7.1
     command: >

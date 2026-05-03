@@ -3,16 +3,20 @@ import { XMLParser } from "fast-xml-parser";
 const FLEX_REQUEST_URL =
   "https://www.interactivebrokers.com/Universal/servlet/FlexStatementService.SendRequest";
 
-// Maps IBKR error codes to human-readable messages
-const IBKR_ERROR_MESSAGES: Record<string, string> = {
-  "1001": "Token is invalid",
-  "1002": "Token has expired",
-  "1003": "No statement found for the query",
-  "1004": "Statement is not available yet",
-  "1005": "Too many requests — wait before retrying",
-  "1006": "Query ID is invalid",
-  "1007": "Service is temporarily unavailable",
-};
+// Transient IBKR errors — report not ready yet, safe to retry later
+const IBKR_TRANSIENT_CODES = new Set(["1001", "1004", "1007"]);
+
+/**
+ * Thrown when IBKR returns a transient "not ready yet" error.
+ * The cron route uses this to skip updating lastSyncAt so the next
+ * scheduled fire retries without waiting the full polling interval.
+ */
+export class IbkrTransientError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "IbkrTransientError";
+  }
+}
 
 interface FlexStep1Response {
   referenceCode: string;
@@ -21,28 +25,36 @@ interface FlexStep1Response {
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "" });
 
+function throwIbkrError(errorCode: string, errorMessage: string): never {
+  const msg = `IBKR Flex (${errorCode}): ${errorMessage}`;
+  if (IBKR_TRANSIENT_CODES.has(errorCode)) {
+    throw new IbkrTransientError(msg);
+  }
+  throw new Error(msg);
+}
+
 function parseStep1Xml(xml: string): FlexStep1Response {
   const doc = parser.parse(xml);
 
-  // IBKR uses FlexStatementResponse for successful Step 1 responses
-  // and FlexStatementOperationMessage for errors
-  const success = doc?.FlexStatementResponse;
-  const error = doc?.FlexStatementOperationMessage;
+  // IBKR uses FlexStatementResponse for Step 1.
+  // On error it still wraps in FlexStatementResponse but sets Status=Fail +
+  // ErrorCode + ErrorMessage instead of ReferenceCode + Url.
+  // Older SDK versions use FlexStatementOperationMessage for errors.
+  const body = doc?.FlexStatementResponse ?? doc?.FlexStatementOperationMessage;
 
-  if (error) {
-    const errorCode = error.ErrorCode ?? error.errorCode;
-    if (errorCode && String(errorCode) !== "0") {
-      const msg = IBKR_ERROR_MESSAGES[String(errorCode)] ?? `IBKR error code ${errorCode}`;
-      throw new Error(`IBKR Flex error: ${msg}`);
-    }
-  }
-
-  if (!success) {
+  if (!body) {
     throw new Error(`Unexpected Flex response format: ${xml.slice(0, 300)}`);
   }
 
-  const referenceCode = success.ReferenceCode ?? success.referenceCode;
-  const url = success.Url ?? success.url;
+  const status = String(body.Status ?? body.status ?? "");
+  if (status === "Fail") {
+    const code = String(body.ErrorCode ?? body.errorCode ?? "unknown");
+    const msg = String(body.ErrorMessage ?? body.errorMessage ?? `error code ${code}`);
+    throwIbkrError(code, msg);
+  }
+
+  const referenceCode = body.ReferenceCode ?? body.referenceCode;
+  const url = body.Url ?? body.url;
   if (!referenceCode || !url) {
     throw new Error(`Missing ReferenceCode or Url in Flex response: ${xml.slice(0, 200)}`);
   }
@@ -89,12 +101,13 @@ export async function fetchFlexQuery(token: string, queryId: string): Promise<st
     // Check for error codes in the step-2 response as well
     if (xml.includes("<ErrorCode>") || xml.includes("FlexStatementOperationMessage")) {
       const doc = parser.parse(xml);
-      const root = doc?.FlexStatementOperationMessage;
+      const root = doc?.FlexStatementOperationMessage ?? doc?.FlexStatementResponse;
       if (root) {
-        const errorCode = root.ErrorCode ?? root.errorCode;
-        if (errorCode && String(errorCode) !== "0") {
-          const msg = IBKR_ERROR_MESSAGES[String(errorCode)] ?? `IBKR error code ${errorCode}`;
-          throw new Error(`IBKR Flex error: ${msg}`);
+        const status = String(root.Status ?? root.status ?? "");
+        const errorCode = String(root.ErrorCode ?? root.errorCode ?? "");
+        const errorMsg = String(root.ErrorMessage ?? root.errorMessage ?? `error code ${errorCode}`);
+        if (errorCode && errorCode !== "0" && status === "Fail") {
+          throwIbkrError(errorCode, errorMsg);
         }
       }
     }
