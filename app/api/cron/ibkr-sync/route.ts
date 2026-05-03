@@ -5,7 +5,7 @@ import { fetchFlexQuery, IbkrTransientError } from "@/lib/ibkr/flex-client";
 import { parseActivityXml } from "@/lib/ibkr/parse-flex-xml";
 import { processExecutions } from "@/lib/ibkr/process-executions";
 
-// Secured with CRON_SECRET header — called by Render Cron Job twice daily (08:00 & 20:00 UTC)
+// Secured with CRON_SECRET header — called by Render Cron Job at 13:00 & 20:00 UTC daily
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("Authorization");
   if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -17,9 +17,7 @@ export async function GET(req: NextRequest) {
   // Load the active BrokerConnection (single-user, get the only active one)
   const { data: conn, error: connErr } = await admin
     .from("BrokerConnection")
-    .select(
-      "id, userId, flexTokenEncrypted, flexQueryIdActivity, pollingIntervalMin, lastSyncAt"
-    )
+    .select("id, userId, flexTokenEncrypted, flexQueryIdActivity")
     .eq("isActive", true)
     .maybeSingle();
 
@@ -29,18 +27,6 @@ export async function GET(req: NextRequest) {
   }
   if (!conn) {
     return NextResponse.json({ skipped: true, reason: "No active connection" });
-  }
-
-  // Skip if not enough time has passed since last sync
-  if (conn.lastSyncAt) {
-    const msSinceSync = Date.now() - new Date(conn.lastSyncAt).getTime();
-    const intervalMs = conn.pollingIntervalMin * 60 * 1000;
-    if (msSinceSync < intervalMs) {
-      return NextResponse.json({
-        skipped: true,
-        reason: `Last sync was ${Math.round(msSinceSync / 60000)}m ago, interval is ${conn.pollingIntervalMin}m`,
-      });
-    }
   }
 
   let syncStatus: "SUCCESS" | "ERROR" = "SUCCESS";
