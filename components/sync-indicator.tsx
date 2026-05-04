@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 // Transient IBKR error codes — the next cron run will likely succeed on its own.
 // All other error codes are treated as fatal (red) and require user action.
+// MUST stay in sync with IBKR_TRANSIENT_CODES in lib/ibkr/flex-client.ts.
 // Source: https://www.ibkrguides.com/clientportal/performanceandstatements/flex3error.htm
 const IBKR_TRANSIENT_CODES = new Set([
   "1001", // Statement could not be generated at this time

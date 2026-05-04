@@ -1,10 +1,28 @@
 import { XMLParser } from "fast-xml-parser";
 
+// Official IBKR Flex Web Service v3 endpoint (documented at ibkrguides.com/clientportal/.../flex3.htm)
 const FLEX_REQUEST_URL =
-  "https://www.interactivebrokers.com/Universal/servlet/FlexStatementService.SendRequest";
+  "https://ndcdyn.interactivebrokers.com/AccountManagement/FlexWebService/SendRequest";
 
-// Transient IBKR errors — report not ready yet, safe to retry later
-const IBKR_TRANSIENT_CODES = new Set(["1001", "1004", "1007"]);
+// Required by IBKR — without this header the request may be rejected
+const FLEX_HEADERS = { "User-Agent": "Java" };
+
+// Transient IBKR errors — next cron run will likely succeed on its own.
+// MUST stay in sync with IBKR_TRANSIENT_CODES in components/sync-indicator.tsx.
+// Source: https://www.ibkrguides.com/clientportal/performanceandstatements/flex3error.htm
+const IBKR_TRANSIENT_CODES = new Set([
+  "1001", // Statement could not be generated at this time
+  "1004", // Statement is incomplete at this time
+  "1005", // Settlement data is not ready
+  "1006", // FIFO P/L data is not ready
+  "1007", // MTM P/L data is not ready
+  "1008", // MTM and FIFO P/L data is not ready
+  "1009", // Server under heavy load
+  "1017", // Reference code is invalid (step-2 code expired; fresh code next run)
+  "1018", // Too many requests (rate limit; next run will be fine)
+  "1019", // Statement generation in progress
+  "1021", // Statement could not be retrieved at this time
+]);
 
 /**
  * Thrown when IBKR returns a transient "not ready yet" error.
@@ -70,7 +88,7 @@ async function sleep(ms: number): Promise<void> {
 export async function fetchFlexQuery(token: string, queryId: string): Promise<string> {
   // Step 1 — request reference code
   const step1Url = `${FLEX_REQUEST_URL}?t=${encodeURIComponent(token)}&q=${encodeURIComponent(queryId)}&v=3`;
-  const step1Res = await fetch(step1Url);
+  const step1Res = await fetch(step1Url, { headers: FLEX_HEADERS });
   if (!step1Res.ok) {
     throw new Error(`Flex step 1 HTTP error ${step1Res.status}`);
   }
@@ -83,7 +101,7 @@ export async function fetchFlexQuery(token: string, queryId: string): Promise<st
   const RETRY_DELAY_MS = 2000;
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    const step2Res = await fetch(step2Url);
+    const step2Res = await fetch(step2Url, { headers: FLEX_HEADERS });
     if (!step2Res.ok) {
       throw new Error(`Flex step 2 HTTP error ${step2Res.status}`);
     }
