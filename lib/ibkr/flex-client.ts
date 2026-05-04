@@ -96,9 +96,10 @@ export async function fetchFlexQuery(token: string, queryId: string): Promise<st
   const { referenceCode, url } = parseStep1Xml(step1Xml);
 
   // Step 2 — download the report (retry if not ready yet)
+  // IBKR can take 30–120 seconds to generate a statement; poll every 10s up to 2 minutes.
   const step2Url = `${url}?q=${encodeURIComponent(referenceCode)}&t=${encodeURIComponent(token)}&v=3`;
-  const MAX_RETRIES = 5;
-  const RETRY_DELAY_MS = 2000;
+  const MAX_RETRIES = 12;
+  const RETRY_DELAY_MS = 10_000;
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     const step2Res = await fetch(step2Url, { headers: FLEX_HEADERS });
@@ -113,7 +114,9 @@ export async function fetchFlexQuery(token: string, queryId: string): Promise<st
         await sleep(RETRY_DELAY_MS);
         continue;
       }
-      throw new Error("Flex statement generation timed out after retries");
+      // Still generating after ~2 minutes — treat as transient so lastSyncAt is not updated
+      // and the next scheduled cron run retries automatically.
+      throw new IbkrTransientError("Flex statement generation timed out after retries");
     }
 
     // Check for error codes in the step-2 response as well
