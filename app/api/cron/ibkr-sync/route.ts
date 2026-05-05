@@ -33,8 +33,11 @@ export async function GET(req: NextRequest) {
   let syncError: string | null = null;
 
   try {
+    console.log(`[cron/ibkr-sync] Starting. queryId=${conn.flexQueryIdActivity}`);
+
     const token = decryptToken(conn.flexTokenEncrypted);
     const xml = await fetchFlexQuery(token, conn.flexQueryIdActivity);
+    console.log(`[cron/ibkr-sync] fetchFlexQuery complete. xml.length=${xml.length}`);
 
     // Audit log — store raw XML (capped)
     const { data: event } = await admin.from("BrokerEvent").insert({
@@ -44,8 +47,11 @@ export async function GET(req: NextRequest) {
       rawPayload: { xml: xml.slice(0, 10000) },
       processingStatus: "PENDING",
     }).select("id").single();
+    console.log(`[cron/ibkr-sync] BrokerEvent inserted: id=${event?.id}`);
 
     const executions = parseActivityXml(xml);
+    console.log(`[cron/ibkr-sync] parseActivityXml: ${executions.length} executions parsed`);
+
     const results = await processExecutions(executions, conn.userId);
 
     const failed = results.filter((r) => r.status === "FAILED");
@@ -67,7 +73,7 @@ export async function GET(req: NextRequest) {
     const accountId = executions[0]?.brokerClientAccountId ?? null;
 
     console.log(
-      `[cron/ibkr-sync] Processed ${executions.length} executions.`,
+      `[cron/ibkr-sync] processExecutions complete: ${results.length - failed.length} success, ${failed.length} failed.`,
       results.reduce((acc, r) => ({ ...acc, [r.status]: (acc[r.status] ?? 0) + 1 }), {} as Record<string, number>)
     );
 
@@ -81,6 +87,8 @@ export async function GET(req: NextRequest) {
         ...(accountId ? { accountId } : {}),
       })
       .eq("id", conn.id);
+
+    console.log(`[cron/ibkr-sync] Done. lastSyncStatus=${syncStatus}`);
   } catch (err) {
     syncStatus = "ERROR";
     syncError = err instanceof Error ? err.message : String(err);

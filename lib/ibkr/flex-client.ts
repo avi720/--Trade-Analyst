@@ -88,35 +88,45 @@ async function sleep(ms: number): Promise<void> {
 export async function fetchFlexQuery(token: string, queryId: string): Promise<string> {
   // Step 1 — request reference code
   const step1Url = `${FLEX_REQUEST_URL}?t=${encodeURIComponent(token)}&q=${encodeURIComponent(queryId)}&v=3`;
+  const step1UrlSafe = `${FLEX_REQUEST_URL}?t=[REDACTED]&q=${encodeURIComponent(queryId)}&v=3`;
+  console.log("[flex] Step1 request:", step1UrlSafe);
+
   const step1Res = await fetch(step1Url, { headers: FLEX_HEADERS });
   if (!step1Res.ok) {
     throw new Error(`Flex step 1 HTTP error ${step1Res.status}`);
   }
   const step1Xml = await step1Res.text();
   const { referenceCode, url } = parseStep1Xml(step1Xml);
+  console.log(`[flex] Step1 response: referenceCode=${referenceCode}, url=${url}`);
 
   // Step 2 — download the report (retry if not ready yet)
-  // IBKR can take 30–120 seconds to generate a statement; poll every 10s up to 2 minutes.
+  // IBKR can take several minutes to generate a statement; poll every 10s up to 5 minutes.
   const step2Url = `${url}?q=${encodeURIComponent(referenceCode)}&t=${encodeURIComponent(token)}&v=3`;
-  const MAX_RETRIES = 12;
+  const step2UrlSafe = `${url}?q=${encodeURIComponent(referenceCode)}&t=[REDACTED]&v=3`;
+  const MAX_RETRIES = 30;
   const RETRY_DELAY_MS = 10_000;
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    console.log(`[flex] Step2 attempt ${attempt + 1}/${MAX_RETRIES}: GET ${step2UrlSafe}`);
+
     const step2Res = await fetch(step2Url, { headers: FLEX_HEADERS });
     if (!step2Res.ok) {
       throw new Error(`Flex step 2 HTTP error ${step2Res.status}`);
     }
     const xml = await step2Res.text();
+    console.log(`[flex] Step2 attempt ${attempt + 1}: HTTP ${step2Res.status}, xml[0..300]=${xml.slice(0, 300)}`);
 
     // IBKR returns a specific message while the statement is being prepared
     if (xml.includes("Statement generation in progress")) {
       if (attempt < MAX_RETRIES - 1) {
+        console.log(`[flex] Step2 attempt ${attempt + 1}: still generating, sleeping ${RETRY_DELAY_MS}ms`);
         await sleep(RETRY_DELAY_MS);
         continue;
       }
-      // Still generating after ~2 minutes — treat as transient so lastSyncAt is not updated
+      // Still generating after 5 minutes — treat as transient so lastSyncAt is not updated
       // and the next scheduled cron run retries automatically.
-      throw new IbkrTransientError("Flex statement generation timed out after retries");
+      console.log(`[flex] Step2 timed out after ${MAX_RETRIES} attempts`);
+      throw new IbkrTransientError("Flex statement generation timed out after 5 minutes");
     }
 
     // Check for error codes in the step-2 response as well
@@ -128,11 +138,13 @@ export async function fetchFlexQuery(token: string, queryId: string): Promise<st
         const errorCode = String(root.ErrorCode ?? root.errorCode ?? "");
         const errorMsg = String(root.ErrorMessage ?? root.errorMessage ?? `error code ${errorCode}`);
         if (errorCode && errorCode !== "0" && status === "Fail") {
+          console.log(`[flex] Step2 attempt ${attempt + 1}: ErrorCode=${errorCode}, Message=${errorMsg}`);
           throwIbkrError(errorCode, errorMsg);
         }
       }
     }
 
+    console.log(`[flex] Step2 attempt ${attempt + 1}: success, xml length=${xml.length}`);
     return xml;
   }
 
