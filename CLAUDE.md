@@ -42,7 +42,7 @@ The dashboard layout (`app/(dashboard)/layout.tsx`) wraps everything in `ChatCon
 - **RLS**: Enabled on every app table. Don't bypass it from request paths — only `lib/supabase/admin.ts` (service-role) skips RLS, and that's reserved for cron jobs and the seed script.
 - **RTL**: `<html dir="rtl" lang="he">` at root layout. User-facing copy is Hebrew; code/identifiers/comments stay in English.
 - **IBKR**: Flex Web Service — 2-step pull (request → download). Token valid ~1 year. Encrypted AES-256-GCM at rest.
-- **Single Flex Query**: Only the **Activity** Flex Query is used (Trade Confirmations was dropped). Activity updates once per end-of-day, so cron runs 2×/day at 08:00 & 20:00 UTC. The `flexQueryIdTrades` column is nullable and unused.
+- **Single Flex Query**: Only the **Activity** Flex Query is used (Trade Confirmations was dropped). Activity updates once per end-of-day, so cron runs 2×/day at 13:00 & 20:00 UTC. The `flexQueryIdTrades` column is nullable and unused.
 - **Massive (formerly Polygon)**: All `lib/polygon` → `lib/massive`, `app/api/polygon` → `app/api/massive`, env var `POLYGON_API_KEY` → `MASSIVE_API_KEY`. **Price sync is currently disabled** (`render.yaml` cron commented out; sync dot removed from `components/sync-indicator.tsx`; settings panel hidden in `app/(dashboard)/settings/page.tsx`). Code paths still exist for re-enabling.
 - **Routing**: `/dashboard` is hidden — all entry points (`app/page.tsx`, `middleware.ts`, login, auth callback) redirect to `/research`. The dashboard component code is kept, not deleted.
 - **Nav tabs**: "תחקור" (`/research`) · "חיפוש" (`/search`) · "ייבוא-ידני" (`/manual-import`).
@@ -95,7 +95,7 @@ The Flex parser also has a dual-root quirk: real Activity XML uses camelCase fie
 ## Backfill / cron behavior
 
 - **Backfill**: async — `POST /api/ibkr/backfill` returns 202; `GET` polls status. Uses `setImmediate`, which works on Render's persistent Node process but **not** on Vercel serverless.
-- **IBKR cron**: Render fires at 08:00 & 20:00 UTC. The endpoint also enforces `pollingIntervalMin` internally and skips early calls.
+- **IBKR cron**: Render fires at 13:00 & 20:00 UTC. Step 2 polls every 10s up to 30 attempts (~5 min); IBKR typically generates the statement within 1–2 attempts.
 - **Massive price cron**: currently disabled (see Massive note above).
 
 ## Env vars
