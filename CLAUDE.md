@@ -67,6 +67,7 @@ Fonts: **IBM Plex Mono** (numbers) + **Assistant** (UI, Hebrew).
 - `Trade` + `Order` — FIFO-based. Each execution = one `Order`. A `Trade` aggregates multiple `Order`s.
 - `Order.brokerExecId` — UNIQUE. Global idempotency key for IBKR dedup.
 - `Order.brokerOrderId` — NOT unique. Groups partial fills.
+- `Order` columns in use: `id`, `tradeId`, `userId`, `side`, `quantity`, `price`, `commission`, `executedAt`, `brokerExecId`, `brokerOrderId`, `brokerClientAccountId`, `currency`, `orderType`, `rawPayload`, `netCash`, `commissionCurrency`, `orderTime`. Removed in cleanup: `tax`, `tradeDate`, `exchange`, `proceeds`, `brokerTradeId`.
 - `BrokerEvent` — raw XML audit log of every IBKR fetch.
 - `BrokerConnection.flexTokenEncrypted` — AES-256-GCM. Never returned in API responses.
 
@@ -87,6 +88,21 @@ Fonts: **IBM Plex Mono** (numbers) + **Assistant** (UI, Hebrew).
 IBKR Flex uses `dd/MM/yyyy;HH:mm:ss TimeZone` (e.g., `23/04/2026;14:30:00 EST`). `new Date()` cannot parse this; `date-fns parse()` won't work either because it builds dates in the local timezone. Use manual component parsing + `Date.UTC()` — see [lib/ibkr/parse-date.ts](lib/ibkr/parse-date.ts). Tests in [__tests__/parse-date.test.ts](__tests__/parse-date.test.ts) cover all US zones (EST/EDT/CST/CDT/PST/PDT) + DST transitions.
 
 The Flex parser also has a dual-root quirk: real Activity XML uses camelCase fields (`ibExecID`, `tradePrice`, …) wrapped in `FlexQueryResponse`, while older fixtures use PascalCase. `lib/ibkr/parse-flex-xml.ts` resolves both via `resolveStatement()` and falls back `PascalCase ?? camelCase` per field.
+
+## Manual entry pipeline
+
+`ManualLeg` (in `lib/trade/manual-entry.ts`) is the input type for both the form (`/manual-import`) and the Excel import. Fields:
+
+- **Required** (8): `ticker`, `date` (YYYY-MM-DD UTC), `time` (HH:MM UTC), `side`, `quantity`, `price`, `commission`, `currency`
+- **Optional order-level** (5): `commissionCurrency`, `orderType`, `orderPlacedDate`, `orderPlacedTime`, `broker`
+- **Optional Trade-level annotations** (7): `setupType`, `emotionalState`, `stopPrice`, `targetPrice`, `notes`, `didRight`, `wouldChange`
+
+Key invariants:
+- `buildExecution()` always sets `rawPayload.ibCommissionCurrency` (falls back to `currency`); also stores `_manualOrderTime` and `broker` when provided.
+- **`_manualOrderTime` pattern**: manual entries pre-parse `orderPlacedDate/Time` into an ISO string and store it as `rawPayload._manualOrderTime`. `buildOrderInsert` detects this key and uses it directly, bypassing IBKR date parsing. Do NOT remove this field from rawPayload.
+- `extractAnnotations()` strips Order-level fields and returns only Trade-level annotation fields ready for a Supabase `.update()` call.
+- The route (`app/api/trades/manual/route.ts`) calls `processExecutions` first (FIFO), then applies annotations to the resulting `tradeId` via the admin client.
+- IBKR imports set `netCash`/`commissionCurrency`/`orderTime` from `rawPayload` in `buildOrderInsert`; camelCase fields take priority over PascalCase (e.g., `raw.netCash ?? raw.NetCash`).
 
 ## Supabase typing workaround
 
@@ -131,4 +147,4 @@ Detailed phase build logs (file-by-file changes, test counts, decisions in fligh
 | 7 | AI chat sidebar "חנן" (Gemini) | [docs/phase-7-handoff.md](docs/phase-7-handoff.md) |
 | 8 | Trade search + soft-field editing + manual / Excel import | [docs/phase-8-handoff.md](docs/phase-8-handoff.md) |
 
-Refactors after Phase 7: Activity-only Flex query + CSV export. Refactor after Phase 8: Polygon→Massive rename + price-sync disabled + `/dashboard` hidden behind `/research` redirects.
+Refactors after Phase 7: Activity-only Flex query + CSV export. Refactor after Phase 8: Polygon→Massive rename + price-sync disabled + `/dashboard` hidden behind `/research` redirects. Post-Phase-8 cleanup: IBKR Order columns trimmed (tax/tradeDate/exchange/proceeds/brokerTradeId removed; netCash/commissionCurrency/orderTime properly extracted from rawPayload); manual import expanded to card-based UI with 20 ManualLeg fields + updated Excel template.
