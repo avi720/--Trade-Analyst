@@ -1,14 +1,31 @@
 import type { NormalizedExecution } from '@/types/trade'
 
 export interface ManualLeg {
+  // ─── Required execution fields ───────────────────────────────────────────
   ticker: string
-  date: string      // YYYY-MM-DD
-  time: string      // HH:MM
+  date: string        // executedAt — YYYY-MM-DD (UTC)
+  time: string        // executedAt — HH:MM (UTC)
   side: 'BUY' | 'SELL'
   quantity: number
   price: number
   commission: number
   currency: string
+
+  // ─── Optional order-detail fields ────────────────────────────────────────
+  commissionCurrency?: string   // מטבע עמלה (defaults to currency)
+  orderType?: string            // LIMIT | MARKET | STOP | STOP LIMIT | MOO | MOC | …
+  orderPlacedDate?: string      // when order was placed — YYYY-MM-DD
+  orderPlacedTime?: string      // when order was placed — HH:MM
+  broker?: string               // ברוקר
+
+  // ─── Personal annotation fields (Trade-level) ────────────────────────────
+  setupType?: string
+  emotionalState?: string
+  stopPrice?: number | null
+  targetPrice?: number | null
+  notes?: string
+  didRight?: string
+  wouldChange?: string
 }
 
 export interface ManualEntryError {
@@ -37,6 +54,17 @@ export function buildExecution(leg: ManualLeg, index: number): NormalizedExecuti
   const executedAt = new Date(`${leg.date}T${leg.time}:00Z`)
   const brokerExecId = `MANUAL-${ticker}-${executedAt.getTime()}-${index}`
 
+  // Compute ISO timestamp for Order.orderTime if the user provided an order placement date.
+  // Stored as _manualOrderTime so buildOrderInsert can bypass IBKR date parsing.
+  let manualOrderTimeISO: string | undefined
+  if (leg.orderPlacedDate && /^\d{4}-\d{2}-\d{2}$/.test(leg.orderPlacedDate)) {
+    const t =
+      leg.orderPlacedTime && /^\d{2}:\d{2}$/.test(leg.orderPlacedTime)
+        ? leg.orderPlacedTime
+        : leg.time // fall back to executedAt time if not provided
+    manualOrderTimeISO = new Date(`${leg.orderPlacedDate}T${t}:00Z`).toISOString()
+  }
+
   return {
     brokerExecId,
     ticker,
@@ -47,11 +75,23 @@ export function buildExecution(leg: ManualLeg, index: number): NormalizedExecuti
     commission: leg.commission,
     executedAt,
     currency: leg.currency.trim().toUpperCase(),
-    rawPayload: {},
+    orderType: leg.orderType?.trim() || undefined,
+    rawPayload: {
+      // Commission currency — picked up by buildOrderInsert as ibCommissionCurrency
+      ibCommissionCurrency:
+        leg.commissionCurrency?.trim().toUpperCase() ||
+        leg.currency.trim().toUpperCase(),
+      // Pre-parsed order-placement time (bypasses IBKR date parser in buildOrderInsert)
+      ...(manualOrderTimeISO ? { _manualOrderTime: manualOrderTimeISO } : {}),
+      // Broker name — informational, stored in rawPayload only
+      ...(leg.broker?.trim() ? { broker: leg.broker.trim() } : {}),
+    },
   }
 }
 
-export function buildExecutions(legs: ManualLeg[]): { executions: NormalizedExecution[]; errors: ManualEntryError[] } {
+export function buildExecutions(
+  legs: ManualLeg[]
+): { executions: NormalizedExecution[]; errors: ManualEntryError[] } {
   const errors: ManualEntryError[] = []
   const executions: NormalizedExecution[] = []
 
@@ -65,4 +105,20 @@ export function buildExecutions(legs: ManualLeg[]): { executions: NormalizedExec
   }
 
   return { executions, errors }
+}
+
+/**
+ * Extracts non-empty Trade-level annotation fields from a ManualLeg.
+ * The result is ready to be passed to a Supabase `.update()` call.
+ */
+export function extractAnnotations(leg: ManualLeg): Record<string, unknown> {
+  const ann: Record<string, unknown> = {}
+  if (leg.setupType?.trim()) ann.setupType = leg.setupType.trim()
+  if (leg.emotionalState?.trim()) ann.emotionalState = leg.emotionalState.trim()
+  if (leg.stopPrice != null && Number.isFinite(leg.stopPrice)) ann.stopPrice = leg.stopPrice
+  if (leg.targetPrice != null && Number.isFinite(leg.targetPrice)) ann.targetPrice = leg.targetPrice
+  if (leg.notes?.trim()) ann.notes = leg.notes.trim()
+  if (leg.didRight?.trim()) ann.didRight = leg.didRight.trim()
+  if (leg.wouldChange?.trim()) ann.wouldChange = leg.wouldChange.trim()
+  return ann
 }

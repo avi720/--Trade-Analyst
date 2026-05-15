@@ -158,23 +158,18 @@ export type Database = {
           brokerClientAccountId: string | null
           brokerExecId: string
           brokerOrderId: string | null
-          brokerTradeId: string | null
           commission: number | null
           commissionCurrency: string | null
           currency: string | null
-          exchange: string | null
           executedAt: string
           id: string
           netCash: number | null
           orderTime: string | null
           orderType: string | null
           price: number
-          proceeds: number | null
           quantity: number
           rawPayload: Json
           side: string
-          tax: number | null
-          tradeDate: string | null
           tradeId: string
           userId: string
         }
@@ -182,23 +177,18 @@ export type Database = {
           brokerClientAccountId?: string | null
           brokerExecId: string
           brokerOrderId?: string | null
-          brokerTradeId?: string | null
           commission?: number | null
           commissionCurrency?: string | null
           currency?: string | null
-          exchange?: string | null
           executedAt: string
           id?: string
           netCash?: number | null
           orderTime?: string | null
           orderType?: string | null
           price: number
-          proceeds?: number | null
           quantity: number
           rawPayload: Json
           side: string
-          tax?: number | null
-          tradeDate?: string | null
           tradeId: string
           userId: string
         }
@@ -206,23 +196,18 @@ export type Database = {
           brokerClientAccountId?: string | null
           brokerExecId?: string
           brokerOrderId?: string | null
-          brokerTradeId?: string | null
           commission?: number | null
           commissionCurrency?: string | null
           currency?: string | null
-          exchange?: string | null
           executedAt?: string
           id?: string
           netCash?: number | null
           orderTime?: string | null
           orderType?: string | null
           price?: number
-          proceeds?: number | null
           quantity?: number
           rawPayload?: Json
           side?: string
-          tax?: number | null
-          tradeDate?: string | null
           tradeId?: string
           userId?: string
         }

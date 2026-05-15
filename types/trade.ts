@@ -21,7 +21,6 @@ export interface ClosedTrade {
 export interface NormalizedExecution {
   brokerExecId: string
   brokerOrderId?: string
-  brokerTradeId?: string
   ticker: string
   assetClass?: string  // e.g. 'STK', 'OPT', 'FUT' — used for STK validation
   side: 'BUY' | 'SELL' | 'SSHORT'
@@ -30,7 +29,6 @@ export interface NormalizedExecution {
   commission: number
   executedAt: Date
   currency?: string
-  exchange?: string
   orderType?: string
   rawPayload: Record<string, unknown>
   brokerClientAccountId?: string
@@ -87,10 +85,8 @@ export interface OrderCreate {
   executedAt: Date
   brokerExecId: string
   brokerOrderId?: string
-  brokerTradeId?: string
   brokerClientAccountId?: string
   currency?: string
-  exchange?: string
   orderType?: string
   rawPayload: Record<string, unknown>
 }

@@ -3,7 +3,6 @@ import type { NormalizedExecution } from "../../types/trade";
 const CSV_HEADERS = [
   "ExecID",
   "OrderID",
-  "TradeID",
   "AccountID",
   "Symbol",
   "AssetClass",
@@ -12,7 +11,6 @@ const CSV_HEADERS = [
   "Price",
   "Commission",
   "Currency",
-  "Exchange",
   "OrderType",
   "ExecutedAt",
 ] as const;
@@ -34,7 +32,6 @@ export function executionsToCsv(executions: NormalizedExecution[]): string {
     const row = [
       exec.brokerExecId,
       exec.brokerOrderId ?? "",
-      exec.brokerTradeId ?? "",
       exec.brokerClientAccountId ?? "",
       exec.ticker,
       exec.assetClass ?? "",
@@ -43,7 +40,6 @@ export function executionsToCsv(executions: NormalizedExecution[]): string {
       exec.price,
       exec.commission,
       exec.currency ?? "",
-      exec.exchange ?? "",
       exec.orderType ?? "",
       exec.executedAt.toISOString(),
     ].map(escapeCsvField);

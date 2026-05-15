@@ -118,8 +118,6 @@ function normalizeNode(node: Record<string, unknown>): NormalizedExecution | nul
     brokerExecId: execId,
     // OrderID: PascalCase → "OrderID", camelCase → "ibOrderID"
     brokerOrderId: toString(node["OrderID"] ?? node["ibOrderID"]),
-    // TradeID: PascalCase → "TradeID", camelCase → "tradeID"
-    brokerTradeId: toString(node["TradeID"] ?? node["tradeID"]),
     // AccountID: PascalCase → "ClientAccountID", camelCase → "accountId"
     brokerClientAccountId: toString(node["ClientAccountID"] ?? node["accountId"]),
     ticker,
@@ -131,7 +129,6 @@ function normalizeNode(node: Record<string, unknown>): NormalizedExecution | nul
     executedAt,
     // Currency: PascalCase → "CurrencyPrimary", camelCase → "currency"
     currency: toString(node["CurrencyPrimary"] ?? node["currency"]),
-    exchange: toString(node["Exchange"] ?? node["exchange"]),
     // OrderType: PascalCase → "OrderType", camelCase → "orderType"
     orderType: toString(node["OrderType"] ?? node["orderType"]),
     rawPayload: node,

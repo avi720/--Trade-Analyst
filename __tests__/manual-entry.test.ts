@@ -80,7 +80,7 @@ describe('buildExecution', () => {
     expect(exec.commission).toBe(1.00)
     expect(exec.currency).toBe('USD')
     expect(exec.assetClass).toBe('STK')
-    expect(exec.rawPayload).toEqual({})
+    expect(exec.rawPayload).toMatchObject({ ibCommissionCurrency: 'USD' })
   })
 
   it('normalizes ticker to uppercase', () => {

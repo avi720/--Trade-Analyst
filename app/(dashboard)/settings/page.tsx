@@ -8,9 +8,9 @@ const TOAST_DURATION = 10;
 // The required IBKR Flex fields for the Activity report
 const REQUIRED_FIELDS = [
   "ClientAccountID", "CurrencyPrimary", "AssetClass", "Symbol",
-  "TradeID", "OrderID", "ExecID", "OrderTime", "Date/Time", "TradeDate",
-  "Exchange", "Buy/Sell", "Quantity", "Price", "Proceeds", "NetCash",
-  "Commission", "CommissionCurrency", "Tax", "OrderType",
+  "OrderID", "ExecID", "OrderTime", "Date/Time",
+  "Buy/Sell", "Quantity", "Price", "NetCash",
+  "Commission", "CommissionCurrency", "OrderType",
 ];
 
 interface ConnectionStatus {
@@ -97,7 +97,7 @@ function SetupGuide({ open, onToggle }: { open: boolean; onToggle: () => void })
           </div>
           <div>
             <p className="text-[#E0E0E0] font-medium mb-2">
-              20 השדות הנדרשים:
+              15 השדות הנדרשים:
             </p>
             <div className="grid grid-cols-2 gap-1">
               {REQUIRED_FIELDS.map((f) => (

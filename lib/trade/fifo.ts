@@ -61,10 +61,8 @@ function buildOrderCreate(exec: NormalizedExecution, side: 'BUY' | 'SELL', commi
     executedAt: exec.executedAt,
     brokerExecId: exec.brokerExecId,
     brokerOrderId: exec.brokerOrderId,
-    brokerTradeId: exec.brokerTradeId,
     brokerClientAccountId: exec.brokerClientAccountId,
     currency: exec.currency,
-    exchange: exec.exchange,
     orderType: exec.orderType,
     rawPayload: exec.rawPayload,
   }

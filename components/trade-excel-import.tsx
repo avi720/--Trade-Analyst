@@ -169,8 +169,11 @@ export function TradeExcelImport() {
                   <th className={thCls}>צד</th>
                   <th className={thCls}>כמות</th>
                   <th className={thCls}>מחיר</th>
-                  <th className={thCls}>עמ׳</th>
+                  <th className={thCls}>עמלה</th>
                   <th className={thCls}>מטבע</th>
+                  <th className={thCls}>סוג פקודה</th>
+                  <th className={thCls}>עצירה</th>
+                  <th className={thCls}>יעד</th>
                 </tr>
               </thead>
               <tbody>
@@ -182,9 +185,12 @@ export function TradeExcelImport() {
                     <td className={tdCls}>{leg.time}</td>
                     <td className={`px-2 py-1 text-xs font-mono ${leg.side === 'BUY' ? 'text-[#2CC84A]' : 'text-[#FF4D4D]'}`}>{leg.side}</td>
                     <td className={tdCls}>{leg.quantity}</td>
-                    <td className={tdCls}>${leg.price.toFixed(2)}</td>
-                    <td className={tdCls}>${leg.commission.toFixed(2)}</td>
+                    <td className={tdCls}>{leg.price.toFixed(2)}</td>
+                    <td className={tdCls}>{leg.commission.toFixed(2)}</td>
                     <td className={tdCls}>{leg.currency}</td>
+                    <td className={tdCls}>{leg.orderType ?? '—'}</td>
+                    <td className={tdCls}>{leg.stopPrice != null ? leg.stopPrice : '—'}</td>
+                    <td className={tdCls}>{leg.targetPrice != null ? leg.targetPrice : '—'}</td>
                   </tr>
                 ))}
               </tbody>

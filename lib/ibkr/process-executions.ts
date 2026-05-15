@@ -7,6 +7,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { matchExecution } from "@/lib/trade/fifo";
 import { validateStk } from "@/lib/ibkr/parse-flex-xml";
+import { parseIbkrDate } from "@/lib/ibkr/parse-date";
 import type {
   NormalizedExecution,
   OpenTradeSnapshot,
@@ -25,6 +26,8 @@ export interface ExecutionResult {
   brokerExecId: string;
   status: ProcessingStatus;
   error?: string;
+  /** Populated for PROCESSED status — the Trade that was created or updated. */
+  tradeId?: string;
 }
 
 // Builds a DB-ready Order insert object (adds userId, tradeId, converts dates)
@@ -33,6 +36,7 @@ function buildOrderInsert(
   tradeId: string,
   userId: string
 ): Record<string, unknown> {
+  const raw = order.rawPayload as Record<string, unknown>;
   return {
     id: crypto.randomUUID(),
     tradeId,
@@ -44,26 +48,27 @@ function buildOrderInsert(
     executedAt: order.executedAt.toISOString(),
     brokerExecId: order.brokerExecId,
     brokerOrderId: order.brokerOrderId ?? null,
-    brokerTradeId: order.brokerTradeId ?? null,
     brokerClientAccountId: order.brokerClientAccountId ?? null,
     currency: order.currency ?? null,
-    exchange: order.exchange ?? null,
     orderType: order.orderType ?? null,
     rawPayload: order.rawPayload,
-    // Nullable financial fields extracted from rawPayload
-    proceeds: (order.rawPayload as Record<string, unknown>)?.Proceeds
-      ? Number((order.rawPayload as Record<string, unknown>).Proceeds)
-      : null,
-    netCash: (order.rawPayload as Record<string, unknown>)?.NetCash
-      ? Number((order.rawPayload as Record<string, unknown>).NetCash)
-      : null,
-    tax: (order.rawPayload as Record<string, unknown>)?.Tax
-      ? Number((order.rawPayload as Record<string, unknown>).Tax)
-      : null,
-    commissionCurrency:
-      (order.rawPayload as Record<string, unknown>)?.CommissionCurrency ?? null,
-    orderTime: null,   // parsed separately if needed in future
-    tradeDate: null,
+    // camelCase (real IBKR) takes priority; PascalCase as fallback for test fixtures
+    netCash: raw.netCash != null
+      ? Number(raw.netCash)
+      : raw.NetCash != null
+        ? Number(raw.NetCash)
+        : null,
+    commissionCurrency: (raw.ibCommissionCurrency ?? raw.CommissionCurrency) as string | null ?? null,
+    // orderTime: manual entries store a pre-parsed ISO string under _manualOrderTime
+    // to bypass IBKR date parsing. IBKR entries use camelCase "orderTime" / PascalCase
+    // "OrderTime" in "dd/MM/yyyy;HH:mm:ss TZ" format and must go through parseIbkrDate.
+    orderTime: (() => {
+      if (typeof raw._manualOrderTime === "string") return raw._manualOrderTime;
+      const raw_ot = raw.orderTime ?? raw.OrderTime;
+      if (typeof raw_ot !== "string") return null;
+      const parsed = parseIbkrDate(raw_ot);
+      return parsed ? parsed.toISOString() : null;
+    })(),
   };
 }
 
@@ -165,9 +170,9 @@ export async function processExecutions(
       const action: FifoAction = matchExecution(exec, openTrade);
 
       // 5. Persist based on action type
-      await persistAction(action, userId, admin);
+      const tradeId = await persistAction(action, userId, admin);
 
-      results.push({ brokerExecId: exec.brokerExecId, status: "PROCESSED" });
+      results.push({ brokerExecId: exec.brokerExecId, status: "PROCESSED", tradeId });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`[process-executions] Failed for execId=${exec.brokerExecId}:`, msg);
@@ -178,8 +183,10 @@ export async function processExecutions(
   return results;
 }
 
+// Returns the tradeId of the Trade that was created or updated.
+// For REVERSAL, returns the newly-opened Trade's id (the active position after the flip).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function persistAction(action: FifoAction, userId: string, admin: any): Promise<void> {
+async function persistAction(action: FifoAction, userId: string, admin: any): Promise<string> {
   switch (action.type) {
     case "OPEN": {
       const tradeInsert = buildTradeInsert(action.tradeCreate, userId);
@@ -193,7 +200,7 @@ async function persistAction(action: FifoAction, userId: string, admin: any): Pr
       );
       const { error: orderErr } = await admin.from("Order").insert(orderInsert);
       if (orderErr) throw new Error(`Order insert failed: ${orderErr.message}`);
-      break;
+      return tradeInsert.id as string;
     }
 
     case "SCALE_IN": {
@@ -211,7 +218,7 @@ async function persistAction(action: FifoAction, userId: string, admin: any): Pr
       const orderInsert = buildOrderInsert(action.orderCreate, action.tradeId, userId);
       const { error: orderErr } = await admin.from("Order").insert(orderInsert);
       if (orderErr) throw new Error(`Order insert (SCALE_IN) failed: ${orderErr.message}`);
-      break;
+      return action.tradeId;
     }
 
     case "REDUCE": {
@@ -228,7 +235,7 @@ async function persistAction(action: FifoAction, userId: string, admin: any): Pr
       const orderInsert = buildOrderInsert(action.orderCreate, action.tradeId, userId);
       const { error: orderErr } = await admin.from("Order").insert(orderInsert);
       if (orderErr) throw new Error(`Order insert (REDUCE) failed: ${orderErr.message}`);
-      break;
+      return action.tradeId;
     }
 
     case "CLOSE": {
@@ -251,7 +258,7 @@ async function persistAction(action: FifoAction, userId: string, admin: any): Pr
       const orderInsert = buildOrderInsert(action.orderCreate, action.tradeId, userId);
       const { error: orderErr } = await admin.from("Order").insert(orderInsert);
       if (orderErr) throw new Error(`Order insert (CLOSE) failed: ${orderErr.message}`);
-      break;
+      return action.tradeId;
     }
 
     case "REVERSAL": {
@@ -291,7 +298,8 @@ async function persistAction(action: FifoAction, userId: string, admin: any): Pr
         p_new_order: openOrder,
       });
       if (rpcErr) throw new Error(`reverse_position RPC failed: ${rpcErr.message}`);
-      break;
+      // Return the newly-opened trade (the active position after the reversal)
+      return newTradeId;
     }
   }
 }
