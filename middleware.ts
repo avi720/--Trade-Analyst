@@ -25,19 +25,37 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  const isLoginPage = request.nextUrl.pathname === '/login'
-  const isAuthCallback = request.nextUrl.pathname.startsWith('/auth/')
+  const pathname = request.nextUrl.pathname
+  const isLoginPage    = pathname === '/login'
+  const isSignupPage   = pathname === '/signup' || pathname.startsWith('/signup/')
+  const isAuthCallback = pathname.startsWith('/auth/')
 
-  if (!user && !isLoginPage && !isAuthCallback) {
+  // Unauthenticated: allow login and signup pages only
+  if (!user && !isLoginPage && !isSignupPage && !isAuthCallback) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
+  // Authenticated on login: redirect to app
   if (user && isLoginPage) {
     const url = request.nextUrl.clone()
     url.pathname = '/research'
     return NextResponse.redirect(url)
+  }
+
+  // Authenticated on signup: allow only if profile is incomplete (firstName not set)
+  if (user && isSignupPage) {
+    const { data: profile } = await supabase
+      .from('User')
+      .select('firstName')
+      .eq('id', user.id)
+      .maybeSingle()
+    if (profile?.firstName) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/research'
+      return NextResponse.redirect(url)
+    }
   }
 
   return supabaseResponse

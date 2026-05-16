@@ -73,6 +73,12 @@ export async function PATCH(req: NextRequest) {
     };
   }
 
+  // Ensure the User row exists for new signups that haven't visited /research yet
+  await admin.from("User").upsert(
+    { id: user.id, email: user.email! },
+    { onConflict: "id", ignoreDuplicates: true }
+  );
+
   if (Object.keys(profileUpdate).length === 0) {
     return NextResponse.json({ ok: true });
   }

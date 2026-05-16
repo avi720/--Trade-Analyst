@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -80,6 +81,13 @@ export default function LoginPage() {
             {loading ? 'מתחבר...' : 'כניסה'}
           </button>
         </form>
+
+        <p className="text-center text-sm text-[#888888] mt-6">
+          עדיין אין לך חשבון?{' '}
+          <Link href="/signup" className="text-[#FFB800] hover:underline">
+            הירשם כאן
+          </Link>
+        </p>
       </div>
     </div>
   )
