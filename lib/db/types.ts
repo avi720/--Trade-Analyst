@@ -334,24 +334,42 @@ export type Database = {
       }
       User: {
         Row: {
+          addressCity: string | null
+          addressCountry: string | null
+          addressStreet: string | null
           createdAt: string
           email: string
+          firstName: string | null
           id: string
+          lastName: string | null
           name: string | null
+          phone: string | null
           settings: Json
         }
         Insert: {
+          addressCity?: string | null
+          addressCountry?: string | null
+          addressStreet?: string | null
           createdAt?: string
           email: string
+          firstName?: string | null
           id?: string
+          lastName?: string | null
           name?: string | null
+          phone?: string | null
           settings?: Json
         }
         Update: {
+          addressCity?: string | null
+          addressCountry?: string | null
+          addressStreet?: string | null
           createdAt?: string
           email?: string
+          firstName?: string | null
           id?: string
+          lastName?: string | null
           name?: string | null
+          phone?: string | null
           settings?: Json
         }
         Relationships: []

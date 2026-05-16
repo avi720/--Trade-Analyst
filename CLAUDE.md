@@ -46,6 +46,7 @@ The dashboard layout (`app/(dashboard)/layout.tsx`) wraps everything in `ChatCon
 - **Massive (formerly Polygon)**: All `lib/polygon` → `lib/massive`, `app/api/polygon` → `app/api/massive`, env var `POLYGON_API_KEY` → `MASSIVE_API_KEY`. **Price sync is currently disabled** (`render.yaml` cron commented out; sync dot removed from `components/sync-indicator.tsx`; settings panel hidden in `app/(dashboard)/settings/page.tsx`). Code paths still exist for re-enabling.
 - **Routing**: `/dashboard` is hidden — all entry points (`app/page.tsx`, `middleware.ts`, login, auth callback) redirect to `/research`. The dashboard component code is kept, not deleted.
 - **Nav tabs**: "תחקור" (`/research`) · "חיפוש" (`/search`) · "ייבוא-ידני" (`/manual-import`).
+- **Profile/Settings**: unified at `/profile` with sidebar tabs — חשבון / אבטחה / תצוגה / ברוקר. `/settings` redirects to `/profile?tab=broker`.
 
 ### Theme
 
@@ -68,6 +69,7 @@ Fonts: **IBM Plex Mono** (numbers) + **Assistant** (UI, Hebrew).
 - `Order.brokerExecId` — UNIQUE. Global idempotency key for IBKR dedup.
 - `Order.brokerOrderId` — NOT unique. Groups partial fills.
 - `Order` columns in use: `id`, `tradeId`, `userId`, `side`, `quantity`, `price`, `commission`, `executedAt`, `brokerExecId`, `brokerOrderId`, `brokerClientAccountId`, `currency`, `orderType`, `rawPayload`, `netCash`, `commissionCurrency`, `orderTime`. Removed in cleanup: `tax`, `tradeDate`, `exchange`, `proceeds`, `brokerTradeId`.
+- `User` columns: `id`, `email`, `name` (display name = firstName + lastName), `firstName`, `lastName`, `phone`, `addressStreet`, `addressCity`, `addressCountry`, `settings` (Json), `createdAt`. Display preferences (currency, dateFormat, numberFormat, timezone) live in `settings.display` JSON — no dedicated columns. API: `GET/PATCH /api/profile`.
 - `BrokerEvent` — raw XML audit log of every IBKR fetch.
 - `BrokerConnection.flexTokenEncrypted` — AES-256-GCM. Never returned in API responses.
 

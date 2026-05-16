@@ -97,14 +97,7 @@ export function Header({ userEmail }: HeaderProps) {
                   className="block px-3 py-2 text-sm text-[#E0E0E0] hover:bg-[#1A1A1A]"
                   onClick={() => setDropdownOpen(false)}
                 >
-                  פרופיל
-                </Link>
-                <Link
-                  href="/settings"
-                  className="block px-3 py-2 text-sm text-[#E0E0E0] hover:bg-[#1A1A1A]"
-                  onClick={() => setDropdownOpen(false)}
-                >
-                  הגדרות
+                  פרופיל והגדרות
                 </Link>
                 <div className="border-t border-[#222222] mt-1 pt-1">
                   <button

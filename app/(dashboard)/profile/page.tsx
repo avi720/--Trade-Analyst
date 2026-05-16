@@ -1,26 +1,43 @@
-import { createClient } from '@/lib/supabase/server'
+import { Suspense } from "react";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { ProfileLayout } from "@/components/profile/profile-layout";
 
 export default async function ProfilePage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const admin = createAdminClient();
+  const { data: userRow } = await admin
+    .from("User")
+    .select("name, firstName, lastName, phone, addressStreet, addressCity, addressCountry, settings")
+    .eq("id", user.id)
+    .single();
+
+  const display = ((userRow?.settings as Record<string, unknown>)?.display ?? {}) as {
+    currency?: "USD" | "ILS";
+    dateFormat?: "DD/MM/YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD";
+    numberFormat?: "en" | "eu";
+    timezone?: string;
+  };
 
   return (
-    <div className="p-6 max-w-2xl">
-      <h1 className="text-xl font-semibold text-[#E0E0E0] mb-6">פרופיל</h1>
-
-      <div className="panel p-6 space-y-4">
-        <div>
-          <label className="block text-sm text-[#888888] mb-1">אימייל</label>
-          <p className="text-[#E0E0E0] font-mono text-sm">{user?.email}</p>
-        </div>
-        <div>
-          <label className="block text-sm text-[#888888] mb-1">ID</label>
-          <p className="text-[#888888] font-mono text-xs">{user?.id}</p>
-        </div>
-        <div className="pt-4 border-t border-[#222222]">
-          <p className="text-[#888888] text-sm">סטטיסטיקות וניהול חשבון — Phase 8</p>
-        </div>
-      </div>
-    </div>
-  )
+    <Suspense fallback={<div className="flex-1 flex items-center justify-center text-[#555555] text-sm">טוען...</div>}>
+      <ProfileLayout
+        userEmail={user.email ?? ""}
+        userName={userRow?.name ?? null}
+        userProfile={{
+          firstName: userRow?.firstName ?? null,
+          lastName: userRow?.lastName ?? null,
+          phone: userRow?.phone ?? null,
+          addressStreet: userRow?.addressStreet ?? null,
+          addressCity: userRow?.addressCity ?? null,
+          addressCountry: userRow?.addressCountry ?? null,
+        }}
+        userDisplay={display}
+      />
+    </Suspense>
+  );
 }
