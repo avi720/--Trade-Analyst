@@ -43,6 +43,17 @@ export async function POST(req: NextRequest) {
   const { firstName, lastName, phone, addressCountry, addressCity, addressStreet, display } = parsed.data
 
   const admin = createAdminClient()
+
+  // Read existing settings to preserve any other top-level keys
+  const { data: existing } = await admin
+    .from('User')
+    .select('settings')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  const existingSettings = (existing?.settings as Record<string, unknown>) ?? {}
+  const mergedSettings = { ...existingSettings, display }
+
   const { error } = await admin.from('User').upsert(
     {
       id:             user.id,
@@ -54,7 +65,7 @@ export async function POST(req: NextRequest) {
       addressCountry,
       addressCity:    addressCity ?? null,
       addressStreet:  addressStreet ?? null,
-      settings:       { display },
+      settings:       mergedSettings,
     },
     { onConflict: 'id' }
   )
