@@ -24,6 +24,8 @@ services:
         sync: false
       - key: CRON_SECRET
         sync: false          # random string — used to authenticate cron job requests
+      - key: SITE_URL
+        sync: false          # e.g. https://trade-analyst.onrender.com — used by getBaseUrl() for server-side redirects
 
   # ── Cron Job: IBKR Activity Flex polling ────────────────────────────────────
   # Fires twice daily at 13:00 & 20:00 UTC (16:00 & 23:00 IST standard time).

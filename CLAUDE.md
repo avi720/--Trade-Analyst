@@ -47,6 +47,7 @@ The dashboard layout (`app/(dashboard)/layout.tsx`) wraps everything in `ChatCon
 - **Routing**: `/dashboard` is hidden — all entry points (`app/page.tsx`, `middleware.ts`, login, auth callback) redirect to `/research`. The dashboard component code is kept, not deleted.
 - **Nav tabs**: "תחקור" (`/research`) · "חיפוש" (`/search`) · "ייבוא-ידני" (`/manual-import`).
 - **Profile/Settings**: unified at `/profile` with sidebar tabs — חשבון / אבטחה / תצוגה / ברוקר. `/settings` redirects to `/profile?tab=broker`.
+- **Base URL / Render proxy**: Render runs Next.js behind a reverse proxy on port 10000. `request.url` in server-side handlers resolves to `http://localhost:10000/...`, not the real external URL. **Never use `new URL(request.url).origin` to build redirect or callback URLs.** Instead call `getBaseUrl()` from `lib/utils.ts`, which returns `SITE_URL` (set in the Render dashboard) or `http://localhost:3000` locally. `SITE_URL` is intentionally a server-only env var (no `NEXT_PUBLIC_` prefix) — `getBaseUrl()` is never called from client code. This rule applies anywhere the server needs to produce a fully-qualified external URL: auth callbacks, password-reset links, OAuth redirects, webhook return URLs, payment processor callbacks, etc. Also: always validate that a `next`/redirect path parameter starts with `/` before appending it to `getBaseUrl()` to prevent open-redirect abuse.
 
 ### Theme
 
@@ -130,7 +131,7 @@ The required names are listed in `.env.example` (do not commit values). Brief pu
 | `MASSIVE_API_KEY` | Massive API key (price data; sync currently disabled) |
 | `GEMINI_API_KEY` | Google Gemini API key for the chat assistant |
 | `CRON_SECRET` | Bearer token expected by cron endpoints (`/api/cron/*`) |
-| `NEXTAUTH_URL` | Production base URL (Render). Not needed for local dev. |
+| `SITE_URL` | Canonical external URL of the app; used by `getBaseUrl()` (`lib/utils.ts`) to build server-side redirects and callbacks — avoids Render proxy localhost issue. Server-only (no `NEXT_PUBLIC_` prefix). Not needed locally. |
 
 If you add a new env var, add the **name** to `.env.example` and document its purpose here.
 
