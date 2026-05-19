@@ -24,7 +24,7 @@ export default async function DashboardLayout({
   }
   const { error } = await supabase
     .from('User')
-    .upsert(userRow, { onConflict: 'id', ignoreDuplicates: false })
+    .upsert(userRow, { onConflict: 'id', ignoreDuplicates: true })
 
   if (error) {
     console.error('[layout] User upsert failed:', error)
