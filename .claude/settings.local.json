@@ -80,7 +80,23 @@
       "WebFetch(domain:www.ibkrguides.com)",
       "Bash(cd \"D:\\\\avipa\\\\Documents\\\\Programming\\\\‏‏Trade Analyst\" && npm run test:run 2>&1)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/)",
-      "mcp__Claude_in_Chrome__read_page"
+      "mcp__Claude_in_Chrome__read_page",
+      "Bash(grep -r \"NEXTAUTH_URL\" . --include=\"*.ts\" --include=\"*.tsx\" --include=\"*.js\" --include=\"*.json\" --include=\"*.yaml\" --include=\"*.yml\")",
+      "Bash(echo \"EXIT:$?\")",
+      "mcp__Claude_in_Chrome__list_connected_browsers",
+      "mcp__Claude_in_Chrome__select_browser",
+      "mcp__Claude_in_Chrome__form_input",
+      "Bash(netstat -ano)",
+      "Bash(taskkill /F /PID 13244 /T)",
+      "Bash(taskkill /F /PID 10136 /T)",
+      "PowerShell(Stop-Process -Id 13244 -Force)",
+      "PowerShell(Stop-Process -Id 10136 -Force)",
+      "PowerShell(Get-NetTCPConnection -LocalPort 3000,3001 -ErrorAction SilentlyContinue)",
+      "Bash(node -e \"console.log\\('react', require\\('react/package.json'\\).version\\); console.log\\('react-dom', require\\('react-dom/package.json'\\).version\\); console.log\\('next', require\\('next/package.json'\\).version\\)\")",
+      "Bash(node -e \"const r=require\\('react'\\); console.log\\('useOptimistic:', typeof r.useOptimistic\\); console.log\\('useTransition:', typeof r.useTransition\\)\")",
+      "Bash(powershell.exe -Command \"Stop-Process -Id 4924 -Force\")",
+      "Bash(echo \"---tsc exit: $?---\")",
+      "WebSearch"
     ]
   }
 }

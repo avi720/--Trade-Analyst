@@ -43,7 +43,6 @@ describe('unrealizedPnl', () => {
   })
 
   it('returns null when lastKnownPrice is undefined', () => {
-    // @ts-expect-error testing runtime undefined
     expect(unrealizedPnl(trade({ lastKnownPrice: undefined }))).toBeNull()
   })
 

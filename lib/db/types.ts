@@ -235,6 +235,7 @@ export type Database = {
           avgEntryPrice: number
           avgExitPrice: number | null
           closedAt: string | null
+          closeReason: string | null
           didRight: string | null
           direction: string
           emotionalState: string | null
@@ -250,6 +251,7 @@ export type Database = {
           result: string | null
           rMultipleEntry: number | null
           setupType: string | null
+          source: string
           status: string
           stopPrice: number | null
           targetPrice: number | null
@@ -266,6 +268,7 @@ export type Database = {
           avgEntryPrice: number
           avgExitPrice?: number | null
           closedAt?: string | null
+          closeReason?: string | null
           didRight?: string | null
           direction: string
           emotionalState?: string | null
@@ -281,6 +284,7 @@ export type Database = {
           result?: string | null
           rMultipleEntry?: number | null
           setupType?: string | null
+          source?: string
           status: string
           stopPrice?: number | null
           targetPrice?: number | null
@@ -297,6 +301,7 @@ export type Database = {
           avgEntryPrice?: number
           avgExitPrice?: number | null
           closedAt?: string | null
+          closeReason?: string | null
           didRight?: string | null
           direction?: string
           emotionalState?: string | null
@@ -312,6 +317,7 @@ export type Database = {
           result?: string | null
           rMultipleEntry?: number | null
           setupType?: string | null
+          source?: string
           status?: string
           stopPrice?: number | null
           targetPrice?: number | null

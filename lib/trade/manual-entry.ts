@@ -1,4 +1,10 @@
 import type { NormalizedExecution } from '@/types/trade'
+import {
+  CURRENCIES,
+  BROKERS,
+  validateSetupType,
+  validateEmotionalState,
+} from '@/lib/constants/trade-options'
 
 export interface ManualLeg {
   // ─── Required execution fields ───────────────────────────────────────────
@@ -16,22 +22,26 @@ export interface ManualLeg {
   orderType?: string            // LIMIT | MARKET | STOP | STOP LIMIT | MOO | MOC | …
   orderPlacedDate?: string      // when order was placed — YYYY-MM-DD
   orderPlacedTime?: string      // when order was placed — HH:MM
-  broker?: string               // ברוקר
+  broker?: string               // ברוקר (one of BROKERS)
 
   // ─── Personal annotation fields (Trade-level) ────────────────────────────
+  // NOTE: wouldChange was removed from open-trade entry — it only makes sense
+  // at close time and is set via the manual-close flow.
   setupType?: string
   emotionalState?: string
   stopPrice?: number | null
   targetPrice?: number | null
   notes?: string
   didRight?: string
-  wouldChange?: string
 }
 
 export interface ManualEntryError {
   field: string
   message: string
 }
+
+const CURRENCY_SET = new Set<string>(CURRENCIES as readonly string[])
+const BROKER_SET = new Set<string>(BROKERS as readonly string[])
 
 export function validateLeg(leg: ManualLeg, index: number): ManualEntryError[] {
   const errors: ManualEntryError[] = []
@@ -44,7 +54,26 @@ export function validateLeg(leg: ManualLeg, index: number): ManualEntryError[] {
   if (!Number.isFinite(leg.quantity) || leg.quantity <= 0) errors.push({ field: `${p}.quantity`, message: 'Quantity must be positive' })
   if (!Number.isFinite(leg.price) || leg.price <= 0) errors.push({ field: `${p}.price`, message: 'Price must be positive' })
   if (!Number.isFinite(leg.commission) || leg.commission < 0) errors.push({ field: `${p}.commission`, message: 'Commission must be non-negative' })
-  if (!leg.currency.trim()) errors.push({ field: `${p}.currency`, message: 'Currency required' })
+
+  const currency = leg.currency?.trim().toUpperCase() ?? ''
+  if (!currency) errors.push({ field: `${p}.currency`, message: 'Currency required' })
+  else if (!CURRENCY_SET.has(currency)) errors.push({ field: `${p}.currency`, message: `Currency must be one of ${CURRENCIES.join(', ')}` })
+
+  if (leg.commissionCurrency) {
+    const cc = leg.commissionCurrency.trim().toUpperCase()
+    if (!CURRENCY_SET.has(cc)) errors.push({ field: `${p}.commissionCurrency`, message: `commissionCurrency must be one of ${CURRENCIES.join(', ')}` })
+  }
+
+  if (leg.broker) {
+    const b = leg.broker.trim()
+    if (!BROKER_SET.has(b)) errors.push({ field: `${p}.broker`, message: `broker must be one of ${BROKERS.join(', ')}` })
+  }
+
+  const setupErr = validateSetupType(leg.setupType)
+  if (setupErr) errors.push({ field: `${p}.setupType`, message: setupErr })
+
+  const emotionErr = validateEmotionalState(leg.emotionalState)
+  if (emotionErr) errors.push({ field: `${p}.emotionalState`, message: emotionErr })
 
   return errors
 }
@@ -119,6 +148,5 @@ export function extractAnnotations(leg: ManualLeg): Record<string, unknown> {
   if (leg.targetPrice != null && Number.isFinite(leg.targetPrice)) ann.targetPrice = leg.targetPrice
   if (leg.notes?.trim()) ann.notes = leg.notes.trim()
   if (leg.didRight?.trim()) ann.didRight = leg.didRight.trim()
-  if (leg.wouldChange?.trim()) ann.wouldChange = leg.wouldChange.trim()
   return ann
 }

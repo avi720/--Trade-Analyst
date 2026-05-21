@@ -2,6 +2,9 @@
 
 import { useState } from 'react'
 import type { ManualLeg } from '@/lib/trade/manual-entry'
+import { CURRENCIES, BROKERS } from '@/lib/constants/trade-options'
+import { SetupTypeInput } from './inputs/setup-type-input'
+import { EmotionalStateInput } from './inputs/emotional-state-input'
 
 const ORDER_TYPES = ['LIMIT', 'MARKET', 'STOP', 'STOP LIMIT', 'MOO', 'MOC']
 
@@ -14,6 +17,8 @@ const EMPTY_LEG = (): ManualLeg => ({
   price: 0,
   commission: 0,
   currency: 'USD',
+  commissionCurrency: 'USD',
+  broker: 'IBKR',
 })
 
 interface Result {
@@ -80,7 +85,9 @@ function LegCard({ leg, index, canRemove, onChange, onRemove }: LegCardProps) {
             <input
               type="text"
               value={leg.ticker}
-              onChange={e => onChange({ ticker: e.target.value.toUpperCase() })}
+              onChange={e =>
+                onChange({ ticker: e.target.value.toUpperCase().replace(/[^A-Z.]/g, '') })
+              }
               className={inputCls}
               placeholder="AAPL"
             />
@@ -152,14 +159,21 @@ function LegCard({ leg, index, canRemove, onChange, onRemove }: LegCardProps) {
           </div>
           <div>
             <label className={labelCls}>מטבע</label>
-            <input
-              type="text"
+            <select
               value={leg.currency}
-              onChange={e => onChange({ currency: e.target.value.toUpperCase() })}
-              className={inputCls}
-              placeholder="USD"
-              maxLength={3}
-            />
+              onChange={e => {
+                const c = e.target.value
+                const patch: Partial<ManualLeg> = { currency: c }
+                // Mirror to commissionCurrency if it tracked the currency before.
+                if (!leg.commissionCurrency || leg.commissionCurrency === leg.currency) {
+                  patch.commissionCurrency = c
+                }
+                onChange(patch)
+              }}
+              className={selectCls}
+            >
+              {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
           </div>
         </div>
 
@@ -177,16 +191,13 @@ function LegCard({ leg, index, canRemove, onChange, onRemove }: LegCardProps) {
             <div className="px-3 pb-3 pt-3 grid grid-cols-2 sm:grid-cols-3 gap-3 border-t border-[#1A1A1A]">
               <div>
                 <label className={labelCls}>מטבע עמלה</label>
-                <input
-                  type="text"
-                  value={leg.commissionCurrency ?? ''}
-                  onChange={e =>
-                    onChange({ commissionCurrency: e.target.value.toUpperCase() || undefined })
-                  }
-                  className={inputCls}
-                  placeholder="USD"
-                  maxLength={3}
-                />
+                <select
+                  value={leg.commissionCurrency ?? leg.currency}
+                  onChange={e => onChange({ commissionCurrency: e.target.value })}
+                  className={selectCls}
+                >
+                  {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
               </div>
               <div>
                 <label className={labelCls}>סוג פקודה</label>
@@ -221,13 +232,13 @@ function LegCard({ leg, index, canRemove, onChange, onRemove }: LegCardProps) {
               </div>
               <div className="col-span-2">
                 <label className={labelCls}>ברוקר</label>
-                <input
-                  type="text"
-                  value={leg.broker ?? ''}
-                  onChange={e => onChange({ broker: e.target.value || undefined })}
-                  className={inputCls}
-                  placeholder="IBKR, Schwab, …"
-                />
+                <select
+                  value={leg.broker ?? BROKERS[0]}
+                  onChange={e => onChange({ broker: e.target.value })}
+                  className={selectCls}
+                >
+                  {BROKERS.map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
               </div>
             </div>
           )}
@@ -245,27 +256,21 @@ function LegCard({ leg, index, canRemove, onChange, onRemove }: LegCardProps) {
           </button>
           {showAnnotations && (
             <div className="px-3 pb-3 pt-3 flex flex-col gap-3 border-t border-[#1A1A1A]">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div>
-                  <label className={labelCls}>סגנון מסחר</label>
-                  <input
-                    type="text"
-                    value={leg.setupType ?? ''}
-                    onChange={e => onChange({ setupType: e.target.value || undefined })}
-                    className={inputCls}
-                    placeholder="Breakout, Pullback, …"
-                  />
-                </div>
-                <div>
-                  <label className={labelCls}>מצב רגשי</label>
-                  <input
-                    type="text"
-                    value={leg.emotionalState ?? ''}
-                    onChange={e => onChange({ emotionalState: e.target.value || undefined })}
-                    className={inputCls}
-                    placeholder="Calm, Anxious, …"
-                  />
-                </div>
+              <SetupTypeInput
+                value={leg.setupType}
+                onChange={v => onChange({ setupType: v })}
+                inputCls={inputCls}
+                selectCls={selectCls}
+                labelCls={labelCls}
+              />
+              <EmotionalStateInput
+                value={leg.emotionalState}
+                onChange={v => onChange({ emotionalState: v })}
+                inputCls={inputCls}
+                selectCls={selectCls}
+                labelCls={labelCls}
+              />
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>מחיר עצירה</label>
                   <input
@@ -310,16 +315,6 @@ function LegCard({ leg, index, canRemove, onChange, onRemove }: LegCardProps) {
                 <textarea
                   value={leg.didRight ?? ''}
                   onChange={e => onChange({ didRight: e.target.value || undefined })}
-                  className={inputCls + ' resize-none'}
-                  rows={2}
-                  placeholder="…"
-                />
-              </div>
-              <div>
-                <label className={labelCls}>מה הייתי משנה</label>
-                <textarea
-                  value={leg.wouldChange ?? ''}
-                  onChange={e => onChange({ wouldChange: e.target.value || undefined })}
                   className={inputCls + ' resize-none'}
                   rows={2}
                   placeholder="…"

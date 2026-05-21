@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import type { ChatMessage } from '@/lib/chat/gemini-client'
 
 const mockSendMessage = vi.fn()
 const mockStartChat = vi.fn(() => ({ sendMessage: mockSendMessage }))
@@ -72,7 +73,7 @@ describe('callGemini', () => {
 
   it('passes history to startChat', async () => {
     mockSendMessage.mockResolvedValueOnce({ response: { text: () => 'ok' } })
-    const history = [{ role: 'user' as const, parts: [{ text: 'שאלה קודמת' }] }]
+    const history: ChatMessage[] = [{ role: 'user', parts: [{ text: 'שאלה קודמת' }] }]
     await callGemini(history, 'שאלה חדשה', systemPrompt, model, 5, noDelay)
     expect(mockStartChat).toHaveBeenCalledWith({ history })
   })

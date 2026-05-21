@@ -118,12 +118,36 @@ describe('Long trade', () => {
     expect(result.tradeUpdate.result).toBe('Win')
   })
 
-  it('full close with stopPrice=null → actualR is null', () => {
+  it('full close with stopPrice=null → actualR is null, result falls back to money (Win)', () => {
     const trade = openLong({ avgEntryPrice: 140, stopPrice: null })
+    // sell at 150 → pnl = (150-140)*100 - 1 = 999 (profit) but no stop → no R
     const result = matchExecution(exec({ side: 'SELL', quantity: 100, price: 150, commission: 1 }), trade)
     expect(result.type).toBe('CLOSE')
     if (result.type !== 'CLOSE') return
     expect(result.tradeUpdate.actualR).toBeNull()
+    // result must still classify via realizedPnl
+    expect(result.tradeUpdate.result).toBe('Win')
+  })
+
+  it('full close with stopPrice=null at a loss → result falls back to Loss', () => {
+    const trade = openLong({ avgEntryPrice: 140, stopPrice: null })
+    // sell at 135 → pnl = (135-140)*100 - 1 = -501 (loss), no stop
+    const result = matchExecution(exec({ side: 'SELL', quantity: 100, price: 135, commission: 1 }), trade)
+    expect(result.type).toBe('CLOSE')
+    if (result.type !== 'CLOSE') return
+    expect(result.tradeUpdate.actualR).toBeNull()
+    expect(result.tradeUpdate.result).toBe('Loss')
+  })
+
+  it('full close with stopPrice=null at exactly zero pnl → result=Breakeven', () => {
+    // entry 150, exit 150, zero commission → pnl exactly 0, no stop
+    const trade = openLong({ avgEntryPrice: 150, stopPrice: null, totalCommission: 0, realizedPnl: 0 })
+    const result = matchExecution(exec({ side: 'SELL', quantity: 100, price: 150, commission: 0 }), trade)
+    expect(result.type).toBe('CLOSE')
+    if (result.type !== 'CLOSE') return
+    expect(result.tradeUpdate.actualR).toBeNull()
+    expect(result.tradeUpdate.realizedPnl).toBeCloseTo(0, 6)
+    expect(result.tradeUpdate.result).toBe('Breakeven')
   })
 
   it('full close at a loss → result=Loss', () => {

@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { TradeDetailModal } from './trade-detail-modal'
+import { TradeDetailModal, type TradeModalMode } from './trade-detail-modal'
+import { ManualCloseModal } from './manual-close-modal'
 import { cn } from '@/lib/utils/cn'
 import { formatUsd } from '@/lib/utils/position-calc'
 
@@ -13,6 +14,8 @@ export interface RawTrade {
   ticker: string
   direction: string
   status: string
+  source: string
+  closeReason: string | null
   setupType: string | null
   openedAt: string
   closedAt: string | null
@@ -30,6 +33,7 @@ export interface RawTrade {
   avgEntryPrice: number
   avgExitPrice: number | null
   totalQuantityOpened: number
+  totalQuantity: number
 }
 
 type SortCol = 'ticker' | 'direction' | 'setupType' | 'openedAt' | 'closedAt' | 'actualR' | 'realizedPnl'
@@ -95,11 +99,50 @@ export function TradeSearch({ trades, initialParams }: Props) {
   const [sortCol, setSortCol] = useState<SortCol>((initialParams.sort as SortCol) ?? 'closedAt')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>((initialParams.sortDir as 'asc' | 'desc') ?? 'desc')
   const [page, setPage] = useState(Number(initialParams.page ?? '0'))
-  const [selected, setSelected] = useState<RawTrade | null>(null)
+  const [selected, setSelected] = useState<{ trade: RawTrade; mode: TradeModalMode } | null>(null)
+  const [closing, setClosing] = useState<RawTrade | null>(null)
+
+  // Optimistic-update layer (manual equivalent of React 19's useOptimistic, which
+  // isn't available in React 18.3). We keep a map of pending field-patches keyed by
+  // trade id, merge them onto the server `trades` at render time, and clear each
+  // patch only once the server data has actually caught up. This is race-safe: a
+  // stale router.refresh() response can't revert a newer optimistic change, because
+  // the patch survives until the incoming server row genuinely reflects it.
+  const [pendingPatches, setPendingPatches] = useState<Record<string, Partial<RawTrade>>>({})
+
+  useEffect(() => {
+    setPendingPatches(prev => {
+      const ids = Object.keys(prev)
+      if (ids.length === 0) return prev
+      let changed = false
+      const next: Record<string, Partial<RawTrade>> = {}
+      for (const id of ids) {
+        const server = trades.find(t => t.id === id)
+        if (!server) { changed = true; continue } // trade no longer exists → drop patch
+        const patch = prev[id]
+        const reflected = (Object.keys(patch) as (keyof RawTrade)[]).every(
+          k => server[k] === patch[k]
+        )
+        if (reflected) changed = true
+        else next[id] = patch
+      }
+      return changed ? next : prev
+    })
+  }, [trades])
+
+  function patchTrade(id: string, patch: Partial<RawTrade>) {
+    setPendingPatches(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }))
+    router.refresh()
+  }
+
+  const effectiveTrades = useMemo(() => {
+    if (Object.keys(pendingPatches).length === 0) return trades
+    return trades.map(t => (pendingPatches[t.id] ? { ...t, ...pendingPatches[t.id] } : t))
+  }, [trades, pendingPatches])
 
   const setups = useMemo(
-    () => [...new Set(trades.map(t => t.setupType).filter((s): s is string => s !== null))].sort(),
-    [trades]
+    () => [...new Set(effectiveTrades.map(t => t.setupType).filter((s): s is string => s !== null))].sort(),
+    [effectiveTrades]
   )
 
   function bump(fn: () => void) {
@@ -127,7 +170,7 @@ export function TradeSearch({ trades, initialParams }: Props) {
   const hasFilters = q || from || to || direction || filterResult || setup || rMin || rMax || status !== 'Closed'
 
   const filtered = useMemo(() => {
-    return trades.filter(t => {
+    return effectiveTrades.filter(t => {
       if (status === 'Closed' && t.status !== 'Closed') return false
       if (status === 'Open' && t.status !== 'Open') return false
 
@@ -150,7 +193,7 @@ export function TradeSearch({ trades, initialParams }: Props) {
 
       return true
     })
-  }, [trades, status, q, from, to, direction, filterResult, setup, rMin, rMax])
+  }, [effectiveTrades, status, q, from, to, direction, filterResult, setup, rMin, rMax])
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -231,7 +274,7 @@ export function TradeSearch({ trades, initialParams }: Props) {
               </button>
             )}
             <span className="text-xs text-[#555555] mr-auto font-mono">
-              {filtered.length} / {trades.length} טריידים
+              {filtered.length} / {effectiveTrades.length} טריידים
             </span>
           </div>
         </div>
@@ -250,49 +293,86 @@ export function TradeSearch({ trades, initialParams }: Props) {
                 <SortTh col="realizedPnl" label="P&L"  current={sortCol} dir={sortDir} onSort={handleSort} />
                 <th className="px-3 py-2 text-right text-xs font-mono text-[#888888]">עמ׳</th>
                 <th className="px-3 py-2 text-right text-xs font-mono text-[#888888]">תוצאה</th>
+                <th className="px-3 py-2 text-right text-xs font-mono text-[#888888]">פעולות</th>
               </tr>
             </thead>
             <tbody>
               {pageItems.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-3 py-8 text-center text-[#555555] text-sm">
+                  <td colSpan={10} className="px-3 py-8 text-center text-[#555555] text-sm">
                     לא נמצאו טריידים
                   </td>
                 </tr>
               )}
-              {pageItems.map(t => (
-                <tr
-                  key={t.id}
-                  onClick={() => setSelected(t)}
-                  className="border-b border-[#1A1A1A] hover:bg-[#141414] cursor-pointer transition-colors"
-                >
-                  <td className="px-3 py-2 font-mono font-semibold text-[#E0E0E0] whitespace-nowrap">{t.ticker}</td>
-                  <td className={cn('px-3 py-2 font-mono text-xs', t.direction === 'Long' ? 'text-[#2CC84A]' : 'text-[#FF4D4D]')}>
-                    {t.direction}
-                  </td>
-                  <td className="px-3 py-2 text-[#888888] text-xs">{t.setupType ?? '—'}</td>
-                  <td className="px-3 py-2 font-mono text-xs text-[#888888] whitespace-nowrap">{fmtDate(t.openedAt)}</td>
-                  <td className="px-3 py-2 font-mono text-xs text-[#888888] whitespace-nowrap">{fmtDate(t.closedAt)}</td>
-                  <td className={cn('px-3 py-2 font-mono text-xs whitespace-nowrap',
-                    t.actualR != null && t.actualR > 0 ? 'text-[#2CC84A]' :
-                    t.actualR != null && t.actualR < 0 ? 'text-[#FF4D4D]' : 'text-[#888888]'
-                  )}>
-                    {fmtR(t.actualR)}
-                  </td>
-                  <td className={cn('px-3 py-2 font-mono text-xs whitespace-nowrap',
-                    t.realizedPnl != null && t.realizedPnl > 0 ? 'text-[#2CC84A]' :
-                    t.realizedPnl != null && t.realizedPnl < 0 ? 'text-[#FF4D4D]' : 'text-[#888888]'
-                  )}>
-                    {t.realizedPnl != null ? formatUsd(t.realizedPnl) : '—'}
-                  </td>
-                  <td className="px-3 py-2 font-mono text-xs text-[#888888]">
-                    {t.totalCommission != null ? formatUsd(-Math.abs(t.totalCommission)) : '—'}
-                  </td>
-                  <td className={cn('px-3 py-2 text-xs font-mono', resultColor(t.result, t.status))}>
-                    {resultLabel(t.result, t.status)}
-                  </td>
-                </tr>
-              ))}
+              {pageItems.map(t => {
+                const canManualClose = t.source === 'manual' && t.status === 'Open'
+                return (
+                  <tr
+                    key={t.id}
+                    onClick={() => setSelected({ trade: t, mode: 'view' })}
+                    className="border-b border-[#1A1A1A] hover:bg-[#141414] cursor-pointer transition-colors"
+                  >
+                    <td className="px-3 py-2 font-mono font-semibold text-[#E0E0E0] whitespace-nowrap">
+                      {t.ticker}
+                      {t.source === 'manual' && <span className="text-[#FFB800] text-[10px] mr-1">●</span>}
+                    </td>
+                    <td className={cn('px-3 py-2 font-mono text-xs', t.direction === 'Long' ? 'text-[#2CC84A]' : 'text-[#FF4D4D]')}>
+                      {t.direction}
+                    </td>
+                    <td className="px-3 py-2 text-[#888888] text-xs">{t.setupType ?? '—'}</td>
+                    <td className="px-3 py-2 font-mono text-xs text-[#888888] whitespace-nowrap">{fmtDate(t.openedAt)}</td>
+                    <td className="px-3 py-2 font-mono text-xs text-[#888888] whitespace-nowrap">{fmtDate(t.closedAt)}</td>
+                    <td className={cn('px-3 py-2 font-mono text-xs whitespace-nowrap',
+                      t.actualR != null && t.actualR > 0 ? 'text-[#2CC84A]' :
+                      t.actualR != null && t.actualR < 0 ? 'text-[#FF4D4D]' : 'text-[#888888]'
+                    )}>
+                      {fmtR(t.actualR)}
+                    </td>
+                    <td className={cn('px-3 py-2 font-mono text-xs whitespace-nowrap',
+                      t.realizedPnl != null && t.realizedPnl > 0 ? 'text-[#2CC84A]' :
+                      t.realizedPnl != null && t.realizedPnl < 0 ? 'text-[#FF4D4D]' : 'text-[#888888]'
+                    )}>
+                      {t.realizedPnl != null ? formatUsd(t.realizedPnl) : '—'}
+                    </td>
+                    <td className="px-3 py-2 font-mono text-xs text-[#888888]">
+                      {t.totalCommission != null ? formatUsd(-Math.abs(t.totalCommission)) : '—'}
+                    </td>
+                    <td className={cn('px-3 py-2 text-xs font-mono', resultColor(t.result, t.status))}>
+                      {resultLabel(t.result, t.status)}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setSelected({ trade: t, mode: 'edit' })}
+                          title="עריכת הערות"
+                          className="text-[#888888] hover:text-[#FFB800] transition-colors p-1 border border-[#222222] rounded"
+                        >
+                          {/* pencil icon */}
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                          </svg>
+                        </button>
+                        {canManualClose && (
+                          <button
+                            type="button"
+                            onClick={() => setClosing(t)}
+                            title="סגירת טרייד"
+                            className="text-[#888888] hover:text-[#2CC84A] transition-colors p-1 border border-[#222222] rounded"
+                          >
+                            {/* dollar/close icon */}
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <line x1="12" y1="1" x2="12" y2="23" />
+                              <path d="M17 5H9.5a3.5 3.5 0 1 0 0 7h5a3.5 3.5 0 1 1 0 7H6" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -323,10 +403,37 @@ export function TradeSearch({ trades, initialParams }: Props) {
 
       {selected && (
         <TradeDetailModal
-          trade={selected}
+          trade={selected.trade}
+          mode={selected.mode}
           onClose={() => setSelected(null)}
           onSaved={(updated) => {
-            setSelected(updated)
+            setSelected({ trade: updated, mode: selected.mode })
+            // Patch only the soft fields that the edit modal can change, so a
+            // lingering patch can never mask future server updates to other fields.
+            patchTrade(updated.id, {
+              notes: updated.notes,
+              setupType: updated.setupType,
+              emotionalState: updated.emotionalState,
+              executionQuality: updated.executionQuality,
+              stopPrice: updated.stopPrice,
+              targetPrice: updated.targetPrice,
+              didRight: updated.didRight,
+              wouldChange: updated.wouldChange,
+            })
+          }}
+        />
+      )}
+
+      {closing && (
+        <ManualCloseModal
+          trade={closing}
+          onClose={() => setClosing(null)}
+          onClosed={(closedId) => {
+            // Optimistically mark the trade Closed so its row leaves the
+            // "Open only" filter immediately; patchTrade also triggers the
+            // server refresh that will clear the patch once data catches up.
+            patchTrade(closedId, { status: 'Closed' })
+            setClosing(null)
           }}
         />
       )}

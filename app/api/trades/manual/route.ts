@@ -35,10 +35,10 @@ export async function POST(req: NextRequest) {
 
   const results = await processExecutions(executions, user.id)
 
-  // Apply Trade-level annotation fields for each successfully processed leg.
-  // Uses service-role client (admin) so RLS doesn't interfere with the update,
-  // but we still filter by userId to ensure we only touch this user's trades.
+  // Apply Trade-level annotation fields for each successfully processed leg,
+  // and tag any Trade whose first Order is a MANUAL- exec with source='manual'.
   const admin = createAdminClient()
+  const tradeIds = new Set<string>()
   for (let i = 0; i < legs.length; i++) {
     const leg = legs[i]
     const ticker = leg.ticker.trim().toUpperCase()
@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
     const execId = `MANUAL-${ticker}-${executedAt.getTime()}-${i}`
     const result = results.find(r => r.brokerExecId === execId && r.status === 'PROCESSED')
     if (!result?.tradeId) continue
+    tradeIds.add(result.tradeId)
 
     const annotations = extractAnnotations(leg)
     if (Object.keys(annotations).length === 0) continue
@@ -56,6 +57,27 @@ export async function POST(req: NextRequest) {
       .update(annotations as any)
       .eq('id', result.tradeId)
       .eq('userId', user.id)
+  }
+
+  // Tag manual-source trades. We only flip a Trade to source='manual' if its
+  // earliest Order has a MANUAL-* brokerExecId (so manual closes of broker
+  // trades don't overwrite the origin tag).
+  for (const tradeId of tradeIds) {
+    const { data: firstOrder } = await admin
+      .from('Order')
+      .select('brokerExecId')
+      .eq('tradeId', tradeId)
+      .order('executedAt', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+    if (firstOrder?.brokerExecId?.startsWith('MANUAL-')) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await admin
+        .from('Trade')
+        .update({ source: 'manual' } as any)
+        .eq('id', tradeId)
+        .eq('userId', user.id)
+    }
   }
 
   const processed = results.filter(r => r.status === 'PROCESSED').length

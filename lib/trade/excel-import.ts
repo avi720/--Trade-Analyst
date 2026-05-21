@@ -46,11 +46,13 @@ const COL_ALIASES: Record<string, keyof ManualLeg> = {
   ברוקר:                   'broker',
 
   // ── Personal annotation fields (Trade-level) ──
+  // wouldChange intentionally removed — it's a close-time field now.
   setup:                    'setupType',
   setup_type:               'setupType',
   setuptype:                'setupType',
   סגנון:                   'setupType',
   סגנון_מסחר:              'setupType',
+  סיבת_קנייה:              'setupType',
   emotional_state:          'emotionalState',
   emotionalstate:           'emotionalState',
   emotion:                  'emotionalState',
@@ -70,9 +72,6 @@ const COL_ALIASES: Record<string, keyof ManualLeg> = {
   did_right:                'didRight',
   didright:                 'didRight',
   מה_עשיתי_נכון:           'didRight',
-  would_change:             'wouldChange',
-  wouldchange:              'wouldChange',
-  מה_הייתי_משנה:           'wouldChange',
 }
 
 function normalizeHeader(h: string): keyof ManualLeg | null {
@@ -170,7 +169,7 @@ export function parseExcelBuffer(buffer: ArrayBuffer): ParseResult {
       return col ? row[col] : ''
     }
 
-    const rawTicker = String(get('ticker') ?? '').trim().toUpperCase()
+    const rawTicker = String(get('ticker') ?? '').trim().toUpperCase().replace(/[^A-Z.]/g, '')
     if (!rawTicker) {
       errors.push(`Row ${i + 2}: ticker is empty — skipped`)
       continue
@@ -209,7 +208,7 @@ export function parseExcelBuffer(buffer: ArrayBuffer): ParseResult {
       commission,
       currency: String(get('currency') ?? 'USD').trim().toUpperCase() || 'USD',
       // Optional order-level
-      commissionCurrency: str('commissionCurrency'),
+      commissionCurrency: str('commissionCurrency')?.toUpperCase(),
       orderType: str('orderType'),
       orderPlacedDate: rawOrderDate ? normalizeDate(rawOrderDate) : undefined,
       orderPlacedTime: rawOrderTime ? normalizeTime(rawOrderTime) : undefined,
@@ -221,7 +220,6 @@ export function parseExcelBuffer(buffer: ArrayBuffer): ParseResult {
       targetPrice: isNaN(targetParsed) ? undefined : targetParsed,
       notes: str('notes'),
       didRight: str('didRight'),
-      wouldChange: str('wouldChange'),
     })
   }
 
@@ -236,16 +234,16 @@ export function generateTemplate(): ArrayBuffer {
     'date', 'time', 'ticker', 'side', 'quantity', 'price', 'commission', 'currency',
     // Order details
     'commission_currency', 'order_type', 'order_date', 'order_time', 'broker',
-    // Annotations
-    'setup_type', 'emotional_state', 'stop_price', 'target_price', 'notes', 'did_right', 'would_change',
+    // Annotations (open-time only — "would_change" is captured at close, not here)
+    'setup_type', 'emotional_state', 'stop_price', 'target_price', 'notes', 'did_right',
   ]
 
   const example = [
     '2026-01-15', '09:30', 'AAPL', 'BUY', 100, 150.00, 1.00, 'USD',
     // Order details (all optional)
     'USD', 'LIMIT', '2026-01-15', '09:29', 'IBKR',
-    // Annotations (all optional)
-    'Breakout', 'Calm', 145.00, 165.00, 'Strong volume', 'Waited for confirmation', 'Enter earlier',
+    // Annotations (all optional). Examples use the canonical Hebrew values:
+    'פריצת תבנית - דגל שורי', 'רגוע', 145.00, 165.00, 'Strong volume', 'Waited for confirmation',
   ]
 
   const ws = XLSX.utils.aoa_to_sheet([header, example])

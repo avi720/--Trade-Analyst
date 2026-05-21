@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { RawTrade } from './trade-search'
+import { SetupTypeInput } from './inputs/setup-type-input'
+import { EmotionalStateInput } from './inputs/emotional-state-input'
 
 interface Order {
   id: string
@@ -15,8 +16,11 @@ interface Order {
   currency: string | null
 }
 
+export type TradeModalMode = 'view' | 'edit'
+
 interface Props {
   trade: RawTrade
+  mode?: TradeModalMode
   onClose: () => void
   onSaved: (updated: RawTrade) => void
 }
@@ -31,19 +35,18 @@ function fmtUsd(n: number | null) {
   return (n >= 0 ? '+$' : '-$') + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-const SOFT_FIELDS = ['notes', 'setupType', 'emotionalState', 'executionQuality', 'stopPrice', 'targetPrice', 'didRight', 'wouldChange'] as const
-
-export function TradeDetailModal({ trade, onClose, onSaved }: Props) {
-  const router = useRouter()
+export function TradeDetailModal({ trade, mode = 'edit', onClose, onSaved }: Props) {
   const [orders, setOrders] = useState<Order[]>([])
   const [loadingOrders, setLoadingOrders] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
 
+  const readOnly = mode === 'view'
+
   // Soft field form state
   const [notes, setNotes] = useState(trade.notes ?? '')
-  const [setupType, setSetupType] = useState(trade.setupType ?? '')
-  const [emotionalState, setEmotionalState] = useState(trade.emotionalState ?? '')
+  const [setupType, setSetupType] = useState<string | undefined>(trade.setupType ?? undefined)
+  const [emotionalState, setEmotionalState] = useState<string | undefined>(trade.emotionalState ?? undefined)
   const [executionQuality, setExecutionQuality] = useState(trade.executionQuality?.toString() ?? '')
   const [stopPrice, setStopPrice] = useState(trade.stopPrice?.toString() ?? '')
   const [targetPrice, setTargetPrice] = useState(trade.targetPrice?.toString() ?? '')
@@ -101,26 +104,27 @@ export function TradeDetailModal({ trade, onClose, onSaved }: Props) {
         didRight: body.didRight as string | null,
         wouldChange: body.wouldChange as string | null,
       }
+      // Parent (TradeSearch) applies the optimistic patch AND triggers the
+      // server refresh via patchTrade — so we don't refresh here.
       onSaved(updated)
-      router.refresh()
     } finally {
       setSaving(false)
     }
   }
 
-  const inputCls = 'w-full bg-[#080808] border border-[#222222] rounded px-2 py-1.5 text-sm text-[#E0E0E0] placeholder-[#444444] focus:outline-none focus:border-[#444444]'
+  const inputCls = 'w-full bg-[#080808] border border-[#222222] rounded px-2 py-1.5 text-sm text-[#E0E0E0] placeholder-[#444444] focus:outline-none focus:border-[#444444]' + (readOnly ? ' opacity-70 cursor-not-allowed' : '')
+  const selectCls = inputCls + (readOnly ? '' : ' cursor-pointer')
+  const labelCls = 'text-xs text-[#555555] font-mono block mb-1'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
 
-      {/* Modal */}
       <div className="relative bg-[#111111] border border-[#222222] rounded-lg w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#222222]">
           <span className="text-xs text-[#888888] font-mono">
-            {trade.status === 'Open' ? 'פתוח' : 'סגור'}
+            {trade.status === 'Open' ? 'פתוח' : 'סגור'} · {readOnly ? 'צפייה' : 'עריכה'}
+            {trade.source === 'manual' && <span className="text-[#FFB800]"> · ידני</span>}
           </span>
           <h2 className="font-mono font-bold text-[#FFB800] text-lg">
             {trade.ticker} — {trade.direction}
@@ -129,7 +133,6 @@ export function TradeDetailModal({ trade, onClose, onSaved }: Props) {
         </div>
 
         <div className="p-5 flex flex-col gap-5">
-          {/* Trade summary */}
           <div className="grid grid-cols-3 gap-3 text-sm">
             {[
               ['פתיחה', fmtDate(trade.openedAt)],
@@ -149,7 +152,6 @@ export function TradeDetailModal({ trade, onClose, onSaved }: Props) {
             ))}
           </div>
 
-          {/* Orders sub-table */}
           <div>
             <h3 className="text-xs font-mono text-[#888888] mb-2">ביצועים (Orders)</h3>
             {loadingOrders ? (
@@ -186,46 +188,50 @@ export function TradeDetailModal({ trade, onClose, onSaved }: Props) {
             )}
           </div>
 
-          {/* Soft fields form */}
           <div>
-            <h3 className="text-xs font-mono text-[#888888] mb-3">עריכה</h3>
-            <div className="flex flex-col gap-3">
+            <h3 className="text-xs font-mono text-[#888888] mb-3">{readOnly ? 'הערות אישיות' : 'עריכה'}</h3>
+            <fieldset disabled={readOnly} className="flex flex-col gap-3">
+              <SetupTypeInput
+                value={setupType}
+                onChange={v => setSetupType(v)}
+                inputCls={inputCls} selectCls={selectCls} labelCls={labelCls}
+              />
+              <EmotionalStateInput
+                value={emotionalState}
+                onChange={v => setEmotionalState(v)}
+                inputCls={inputCls} selectCls={selectCls} labelCls={labelCls}
+              />
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-[#555555] font-mono block mb-1">סטאפ</label>
-                  <input type="text" value={setupType} onChange={e => setSetupType(e.target.value)} className={inputCls} placeholder="breakout, pullback…" />
-                </div>
-                <div>
-                  <label className="text-xs text-[#555555] font-mono block mb-1">מצב רגשי</label>
-                  <input type="text" value={emotionalState} onChange={e => setEmotionalState(e.target.value)} className={inputCls} placeholder="רגוע, לחוץ…" />
-                </div>
-                <div>
-                  <label className="text-xs text-[#555555] font-mono block mb-1">Stop</label>
+                  <label className={labelCls}>Stop</label>
                   <input type="number" step="0.01" value={stopPrice} onChange={e => setStopPrice(e.target.value)} className={inputCls} placeholder="0.00" />
                 </div>
                 <div>
-                  <label className="text-xs text-[#555555] font-mono block mb-1">Target</label>
+                  <label className={labelCls}>Target</label>
                   <input type="number" step="0.01" value={targetPrice} onChange={e => setTargetPrice(e.target.value)} className={inputCls} placeholder="0.00" />
                 </div>
                 <div>
-                  <label className="text-xs text-[#555555] font-mono block mb-1">איכות ביצוע (1–5)</label>
-                  <input type="number" min="1" max="5" step="1" value={executionQuality} onChange={e => setExecutionQuality(e.target.value)} className={inputCls} placeholder="—" />
+                  <label className={labelCls}>איכות ביצוע (1–10)</label>
+                  <select value={executionQuality} onChange={e => setExecutionQuality(e.target.value)} className={selectCls}>
+                    <option value="">—</option>
+                    {[1,2,3,4,5,6,7,8,9,10].map(n => <option key={n} value={String(n)}>{n}</option>)}
+                  </select>
                 </div>
               </div>
 
               <div>
-                <label className="text-xs text-[#555555] font-mono block mb-1">הערות</label>
+                <label className={labelCls}>הערות</label>
                 <textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} className={inputCls + ' resize-none'} placeholder="הערות חופשיות…" />
               </div>
               <div>
-                <label className="text-xs text-[#555555] font-mono block mb-1">מה עשיתי נכון</label>
+                <label className={labelCls}>מה עשיתי נכון</label>
                 <textarea rows={2} value={didRight} onChange={e => setDidRight(e.target.value)} className={inputCls + ' resize-none'} placeholder="…" />
               </div>
               <div>
-                <label className="text-xs text-[#555555] font-mono block mb-1">מה הייתי משנה</label>
+                <label className={labelCls}>מה הייתי משנה</label>
                 <textarea rows={2} value={wouldChange} onChange={e => setWouldChange(e.target.value)} className={inputCls + ' resize-none'} placeholder="…" />
               </div>
-            </div>
+            </fieldset>
           </div>
 
           {saveError && (
@@ -233,18 +239,20 @@ export function TradeDetailModal({ trade, onClose, onSaved }: Props) {
           )}
 
           <div className="flex gap-2 justify-start">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-4 py-2 bg-[#FFB800] text-black text-sm font-mono font-semibold rounded hover:bg-[#e0a200] disabled:opacity-50 transition-colors"
-            >
-              {saving ? 'שומר…' : 'שמור'}
-            </button>
+            {!readOnly && (
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="px-4 py-2 bg-[#FFB800] text-black text-sm font-mono font-semibold rounded hover:bg-[#e0a200] disabled:opacity-50 transition-colors"
+              >
+                {saving ? 'שומר…' : 'שמור'}
+              </button>
+            )}
             <button
               onClick={onClose}
               className="px-4 py-2 border border-[#222222] text-[#888888] text-sm font-mono rounded hover:text-[#E0E0E0] hover:border-[#444444] transition-colors"
             >
-              ביטול
+              {readOnly ? 'סגור' : 'ביטול'}
             </button>
           </div>
         </div>

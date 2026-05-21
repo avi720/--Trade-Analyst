@@ -22,7 +22,7 @@ function makeActivityXml(trades: string[]): string {
 
 describe("parseActivityXml", () => {
   // Activity XML uses <Trades><Trade .../></Trades> instead of <TradeConfirms>
-  function makeTrade(overrides: Record<string, string> = ""): string {
+  function makeTrade(overrides: Record<string, string> = {}): string {
     return `<Trade
       ClientAccountID="U1234567"
       CurrencyPrimary="USD"

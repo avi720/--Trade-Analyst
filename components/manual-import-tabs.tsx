@@ -2,10 +2,11 @@
 
 import { useState } from 'react'
 import { TradeEntryForm } from './trade-entry-form'
+import { ClosedTradeEntryForm } from './closed-trade-entry-form'
 import { TradeExcelImport } from './trade-excel-import'
 import { cn } from '@/lib/utils/cn'
 
-type Tab = 'manual' | 'excel'
+type Tab = 'manual' | 'closed' | 'excel'
 
 export function ManualImportTabs() {
   const [tab, setTab] = useState<Tab>('manual')
@@ -16,7 +17,8 @@ export function ManualImportTabs() {
       <div className="flex gap-1 border-b border-[#222222] pb-0">
         {([
           { id: 'manual' as Tab, label: 'הזנה ידנית' },
-          { id: 'excel' as Tab, label: 'ייבוא Excel' },
+          { id: 'closed' as Tab, label: 'טרייד סגור' },
+          { id: 'excel' as Tab,  label: 'ייבוא Excel' },
         ]).map(t => (
           <button
             key={t.id}
@@ -33,7 +35,9 @@ export function ManualImportTabs() {
         ))}
       </div>
 
-      {tab === 'manual' ? <TradeEntryForm /> : <TradeExcelImport />}
+      {tab === 'manual' && <TradeEntryForm />}
+      {tab === 'closed' && <ClosedTradeEntryForm />}
+      {tab === 'excel'  && <TradeExcelImport />}
     </div>
   )
 }

@@ -99,6 +99,10 @@ function buildTradeInsert(
     avgExitPrice: null,
     closedAt: null,
     result: "Open",
+    // Origin tag. Defaults to 'broker' here; the manual-entry route overrides
+    // this to 'manual' afterward for any trade opened from a MANUAL-* exec.
+    // Set explicitly (not via DB default) so the origin is owned by the code.
+    source: "broker",
     setupType: null,
     executionQuality: null,
     emotionalState: null,

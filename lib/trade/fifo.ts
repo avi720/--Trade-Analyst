@@ -45,10 +45,13 @@ function calcActualR(
   return totalRealizedPnl / (riskPerShare * totalQuantityOpened)
 }
 
-function resultFromR(actualR: number | null): 'Win' | 'Loss' | 'Breakeven' | null {
-  if (actualR === null) return null
-  if (actualR > 0) return 'Win'
-  if (actualR < 0) return 'Loss'
+function resultFromR(actualR: number | null, realizedPnl: number): 'Win' | 'Loss' | 'Breakeven' {
+  // Prefer R-based classification (when a stop exists); otherwise fall back to
+  // money-based classification so every closed trade is still classified.
+  // `actualR ?? realizedPnl` keeps a valid actualR of 0 (?? only fires on null).
+  const basis = actualR ?? realizedPnl
+  if (basis > 0) return 'Win'
+  if (basis < 0) return 'Loss'
   return 'Breakeven'
 }
 
@@ -160,7 +163,7 @@ export function matchExecution(
         status: 'Closed',
         closedAt: exec.executedAt,
         actualR,
-        result: resultFromR(actualR),
+        result: resultFromR(actualR, newRealizedPnl),
       }
       return { type: 'CLOSE', tradeId: openTrade.id, tradeUpdate: update, orderCreate: buildOrderCreate(exec, 'SELL', exec.commission) }
     }
@@ -182,7 +185,7 @@ export function matchExecution(
       status: 'Closed',
       closedAt: exec.executedAt,
       actualR,
-      result: resultFromR(actualR),
+      result: resultFromR(actualR, closedRealizedPnl),
     }
     return {
       type: 'REVERSAL',
@@ -231,7 +234,7 @@ export function matchExecution(
       status: 'Closed',
       closedAt: exec.executedAt,
       actualR,
-      result: resultFromR(actualR),
+      result: resultFromR(actualR, newRealizedPnl),
     }
     return { type: 'CLOSE', tradeId: openTrade.id, tradeUpdate: update, orderCreate: buildOrderCreate(exec, 'BUY', exec.commission) }
   }
@@ -253,7 +256,7 @@ export function matchExecution(
     status: 'Closed',
     closedAt: exec.executedAt,
     actualR,
-    result: resultFromR(actualR),
+    result: resultFromR(actualR, closedRealizedPnl),
   }
   return {
     type: 'REVERSAL',
