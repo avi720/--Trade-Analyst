@@ -68,7 +68,7 @@ export async function POST(request: Request) {
   }
 
   const systemPrompt = buildSystemPrompt(contextString)
-  const model = contextMode === 'full' ? 'gemini-2.0-pro' : 'gemini-2.0-flash'
+  const model = contextMode === 'full' ? 'gemini-2.5-pro' : 'gemini-2.5-flash'
 
   // Load or create conversation
   const convId = conversationId ?? crypto.randomUUID()

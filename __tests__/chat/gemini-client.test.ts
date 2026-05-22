@@ -2,11 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { ChatMessage } from '@/lib/chat/gemini-client'
 
 const mockSendMessage = vi.fn()
-const mockStartChat = vi.fn(() => ({ sendMessage: mockSendMessage }))
-const mockGetGenerativeModel = vi.fn(() => ({ startChat: mockStartChat }))
+const mockCreate = vi.fn(() => ({ sendMessage: mockSendMessage }))
 
-vi.mock('@google/generative-ai', () => ({
-  GoogleGenerativeAI: vi.fn(() => ({ getGenerativeModel: mockGetGenerativeModel })),
+vi.mock('@google/genai', () => ({
+  GoogleGenAI: vi.fn(() => ({ chats: { create: mockCreate } })),
 }))
 
 // Import after mock setup
@@ -14,7 +13,7 @@ const { callGemini } = await import('@/lib/chat/gemini-client')
 
 const noDelay = async () => {}
 const systemPrompt = 'אתה חנן'
-const model = 'gemini-2.0-flash' as const
+const model = 'gemini-2.5-flash' as const
 
 describe('callGemini', () => {
   beforeEach(() => {
@@ -23,7 +22,7 @@ describe('callGemini', () => {
   })
 
   it('returns response text on success', async () => {
-    mockSendMessage.mockResolvedValueOnce({ response: { text: () => 'שלום' } })
+    mockSendMessage.mockResolvedValueOnce({ text: 'שלום' })
     const result = await callGemini([], 'שאלה', systemPrompt, model, 5, noDelay)
     expect(result).toBe('שלום')
   })
@@ -32,7 +31,7 @@ describe('callGemini', () => {
     const err = Object.assign(new Error('429 Too Many Requests'), { status: 429 })
     mockSendMessage
       .mockRejectedValueOnce(err)
-      .mockResolvedValueOnce({ response: { text: () => 'תשובה' } })
+      .mockResolvedValueOnce({ text: 'תשובה' })
     const result = await callGemini([], 'שאלה', systemPrompt, model, 1, noDelay)
     expect(result).toBe('תשובה')
     expect(mockSendMessage).toHaveBeenCalledTimes(2)
@@ -54,11 +53,11 @@ describe('callGemini', () => {
     expect(mockSendMessage).toHaveBeenCalledTimes(1)
   })
 
-  it('passes correct model name to getGenerativeModel', async () => {
-    mockSendMessage.mockResolvedValueOnce({ response: { text: () => 'ok' } })
-    await callGemini([], 'שאלה', systemPrompt, 'gemini-2.0-pro', 5, noDelay)
-    expect(mockGetGenerativeModel).toHaveBeenCalledWith(
-      expect.objectContaining({ model: 'gemini-2.0-pro' })
+  it('passes correct model name to chats.create', async () => {
+    mockSendMessage.mockResolvedValueOnce({ text: 'ok' })
+    await callGemini([], 'שאלה', systemPrompt, 'gemini-2.5-pro', 5, noDelay)
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ model: 'gemini-2.5-pro' })
     )
   })
 
@@ -66,15 +65,18 @@ describe('callGemini', () => {
     const err = Object.assign(new Error('500 Internal Server Error'), { status: 500 })
     mockSendMessage
       .mockRejectedValueOnce(err)
-      .mockResolvedValueOnce({ response: { text: () => 'בסדר' } })
+      .mockResolvedValueOnce({ text: 'בסדר' })
     const result = await callGemini([], 'שאלה', systemPrompt, model, 1, noDelay)
     expect(result).toBe('בסדר')
   })
 
-  it('passes history to startChat', async () => {
-    mockSendMessage.mockResolvedValueOnce({ response: { text: () => 'ok' } })
+  it('passes history and systemInstruction to chats.create', async () => {
+    mockSendMessage.mockResolvedValueOnce({ text: 'ok' })
     const history: ChatMessage[] = [{ role: 'user', parts: [{ text: 'שאלה קודמת' }] }]
     await callGemini(history, 'שאלה חדשה', systemPrompt, model, 5, noDelay)
-    expect(mockStartChat).toHaveBeenCalledWith({ history })
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ history, config: { systemInstruction: systemPrompt } })
+    )
+    expect(mockSendMessage).toHaveBeenCalledWith({ message: 'שאלה חדשה' })
   })
 })

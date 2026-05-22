@@ -13,7 +13,7 @@
     "db:types": "echo 'Run via Supabase MCP generate_typescript_types or: npx supabase gen types typescript --project-id nwvswntqrqqtwzrhzpmi > lib/db/types.ts'"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.24.0",
+    "@google/genai": "^2.5.0",
     "@hookform/resolvers": "^5.2.2",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.104.1",

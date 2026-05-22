@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenAI } from '@google/genai'
 
 export type ChatMessage = { role: 'user' | 'model'; parts: [{ text: string }] }
 
@@ -22,18 +22,21 @@ export async function callGemini(
   history: ChatMessage[],
   newMessage: string,
   systemPrompt: string,
-  model: 'gemini-2.0-flash' | 'gemini-2.0-pro',
+  model: 'gemini-2.5-flash' | 'gemini-2.5-pro',
   retries = 5,
   delayFn: (ms: number) => Promise<void> = ms => new Promise(r => setTimeout(r, ms)),
 ): Promise<string> {
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-  const genModel = genAI.getGenerativeModel({ model, systemInstruction: systemPrompt })
+  const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const chat = genModel.startChat({ history })
-      const result = await chat.sendMessage(newMessage)
-      return result.response.text()
+      const chat = genAI.chats.create({
+        model,
+        history,
+        config: { systemInstruction: systemPrompt },
+      })
+      const result = await chat.sendMessage({ message: newMessage })
+      return result.text ?? ''
     } catch (error) {
       console.error(`[gemini] attempt ${attempt + 1} failed:`, error)
       if (attempt === retries || !isRetryable(error)) {
