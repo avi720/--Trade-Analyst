@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { buildExecutions, extractAnnotations } from '@/lib/trade/manual-entry'
 import { processExecutions } from '@/lib/ibkr/process-executions'
+import { recomputeActualR } from '@/lib/trade/recompute-actual-r'
 import type { ManualLeg } from '@/lib/trade/manual-entry'
 import { CLOSE_REASON_KEYS, type CloseReasonKey } from '@/lib/constants/trade-options'
 
@@ -125,6 +126,11 @@ export async function POST(req: NextRequest) {
   if (updErr) {
     return NextResponse.json({ error: updErr.message }, { status: 500 })
   }
+
+  // The stopPrice is only persisted above (after the FIFO close already ran),
+  // so the CLOSE action computed actualR = null. Recompute it now that the stop
+  // is on the Trade, so the research-tab R metrics populate.
+  await recomputeActualR(admin, tradeId, user.id)
 
   return NextResponse.json({
     ok: true,

@@ -59,6 +59,8 @@ describe('OPEN new position', () => {
     expect(result.tradeCreate.avgEntryPrice).toBe(150)
     expect(result.tradeCreate.totalQuantity).toBe(100)
     expect(result.tradeCreate.totalCommission).toBe(1)
+    // Opening commission is realized immediately (negative until the position closes)
+    expect(result.tradeCreate.realizedPnl).toBeCloseTo(-1, 6)
     expect(result.orderCreate.side).toBe('BUY')
   })
 
@@ -308,6 +310,38 @@ describe('Commission', () => {
     expect(result.type).toBe('CLOSE')
     if (result.type !== 'CLOSE') return
     expect(result.tradeUpdate.realizedPnl).toBeCloseTo(998, 6)
+  })
+
+  it('opening commission is included in realizedPnl over a full open→close', () => {
+    // OPEN BUY 100 @ 100, commission 1 → trade.realizedPnl = -1
+    const open = matchExecution(exec({ side: 'BUY', quantity: 100, price: 100, commission: 1 }), null)
+    expect(open.type).toBe('OPEN')
+    if (open.type !== 'OPEN') return
+    expect(open.tradeCreate.realizedPnl).toBeCloseTo(-1, 6)
+
+    // CLOSE SELL 100 @ 110, commission 1, from a snapshot carrying the -1 open commission
+    const snap: OpenTradeSnapshot = {
+      id: 'T', direction: 'Long', avgEntryPrice: 100, totalQuantity: 100,
+      totalQuantityOpened: 100, totalCommission: 1, realizedPnl: open.tradeCreate.realizedPnl,
+      openedAt: NOW, stopPrice: 90,
+    }
+    const close = matchExecution(exec({ side: 'SELL', quantity: 100, price: 110, commission: 1, brokerExecId: 'E2' }), snap)
+    expect(close.type).toBe('CLOSE')
+    if (close.type !== 'CLOSE') return
+    // gross 1000 − openComm 1 − closeComm 1 = 998
+    expect(close.tradeUpdate.realizedPnl).toBeCloseTo(998, 6)
+    // actualR uses the net realizedPnl: 998 / (10 * 100)
+    expect(close.tradeUpdate.actualR).toBeCloseTo(998 / (10 * 100), 6)
+  })
+
+  it('scale-in commission is deducted from realizedPnl', () => {
+    const trade = openLong({ avgEntryPrice: 100, totalQuantity: 100, totalQuantityOpened: 100, totalCommission: 1, realizedPnl: -1 })
+    const result = matchExecution(exec({ side: 'BUY', quantity: 50, price: 110, commission: 1.5, brokerExecId: 'EXEC-002' }), trade)
+    expect(result.type).toBe('SCALE_IN')
+    if (result.type !== 'SCALE_IN') return
+    // prior realizedPnl (-1) minus the scale-in commission (1.5) = -2.5
+    expect(result.tradeUpdate.realizedPnl).toBeCloseTo(-2.5, 6)
+    expect(result.tradeUpdate.totalCommission).toBeCloseTo(2.5, 6)
   })
 })
 

@@ -215,6 +215,7 @@ async function persistAction(action: FifoAction, userId: string, admin: any): Pr
           totalQuantity: action.tradeUpdate.totalQuantity,
           totalQuantityOpened: action.tradeUpdate.totalQuantityOpened,
           totalCommission: action.tradeUpdate.totalCommission,
+          realizedPnl: action.tradeUpdate.realizedPnl,
         })
         .eq("id", action.tradeId);
       if (tradeErr) throw new Error(`Trade update (SCALE_IN) failed: ${tradeErr.message}`);

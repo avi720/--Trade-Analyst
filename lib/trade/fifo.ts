@@ -33,7 +33,7 @@ function calcPnl(direction: 'Long' | 'Short', avgEntry: number, exitPrice: numbe
     : (avgEntry - exitPrice) * qty
 }
 
-function calcActualR(
+export function calcActualR(
   totalRealizedPnl: number,
   avgEntryPrice: number,
   stopPrice: number | null,
@@ -45,7 +45,7 @@ function calcActualR(
   return totalRealizedPnl / (riskPerShare * totalQuantityOpened)
 }
 
-function resultFromR(actualR: number | null, realizedPnl: number): 'Win' | 'Loss' | 'Breakeven' {
+export function resultFromR(actualR: number | null, realizedPnl: number): 'Win' | 'Loss' | 'Breakeven' {
   // Prefer R-based classification (when a stop exists); otherwise fall back to
   // money-based classification so every closed trade is still classified.
   // `actualR ?? realizedPnl` keeps a valid actualR of 0 (?? only fires on null).
@@ -88,7 +88,10 @@ function buildTradeCreate(
     totalQuantityOpened: quantity,
     multiplier: 1,
     totalCommission: commission,
-    realizedPnl: 0,
+    // The opening commission is realized immediately so that a fully-closed
+    // trade's realizedPnl = grossPnl − (opening + closing commissions).
+    // Closing/REDUCE actions accumulate onto this base.
+    realizedPnl: -commission,
     stopPrice: null,
   }
 }
@@ -133,6 +136,8 @@ export function matchExecution(
         totalQuantity: totalQuantity + exec.quantity,
         totalQuantityOpened: totalQuantityOpened + exec.quantity,
         totalCommission: totalCommission + exec.commission,
+        // Realize the scale-in commission immediately (consistent with OPEN).
+        realizedPnl: realizedPnl - exec.commission,
       }
       return { type: 'SCALE_IN', tradeId: openTrade.id, tradeUpdate: update, orderCreate: buildOrderCreate(exec, 'BUY', exec.commission) }
     }
@@ -206,6 +211,8 @@ export function matchExecution(
       totalQuantity: totalQuantity + exec.quantity,
       totalQuantityOpened: totalQuantityOpened + exec.quantity,
       totalCommission: totalCommission + exec.commission,
+      // Realize the scale-in commission immediately (consistent with OPEN).
+      realizedPnl: realizedPnl - exec.commission,
     }
     return { type: 'SCALE_IN', tradeId: openTrade.id, tradeUpdate: update, orderCreate: buildOrderCreate(exec, 'SELL', exec.commission) }
   }
