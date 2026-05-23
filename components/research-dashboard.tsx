@@ -37,7 +37,7 @@ interface Props {
 
 // Convert raw Supabase row → ClosedTrade; returns null when required fields are missing
 function toClosedTrade(t: RawClosedTrade): ClosedTrade | null {
-  if (t.actualR == null || t.realizedPnl == null || !t.closedAt) return null
+  if (t.realizedPnl == null || !t.closedAt) return null
   return {
     id: t.id,
     ticker: t.ticker,
@@ -342,8 +342,8 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
           />
           <MetricCard
             label="R ממוצע"
-            value={stats.totalTrades === 0 ? '—' : `${stats.avgR >= 0 ? '+' : ''}${stats.avgR.toFixed(2)}R`}
-            color={stats.totalTrades === 0 ? undefined : stats.avgR > 0 ? 'text-[#2CC84A]' : stats.avgR < 0 ? 'text-[#FF4D4D]' : 'text-[#E0E0E0]'}
+            value={stats.rTradeCount === 0 ? '—' : `${stats.avgR >= 0 ? '+' : ''}${stats.avgR.toFixed(2)}R`}
+            color={stats.rTradeCount === 0 ? undefined : stats.avgR > 0 ? 'text-[#2CC84A]' : stats.avgR < 0 ? 'text-[#FF4D4D]' : 'text-[#E0E0E0]'}
           />
           <MetricCard
             label="Profit Factor"
@@ -352,12 +352,12 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
           />
           <MetricCard
             label="Expectancy"
-            value={stats.totalTrades === 0 ? '—' : `${stats.expectancy >= 0 ? '+' : ''}${stats.expectancy.toFixed(2)}R`}
-            color={stats.totalTrades === 0 ? undefined : stats.expectancy > 0 ? 'text-[#2CC84A]' : 'text-[#FF4D4D]'}
+            value={stats.rTradeCount === 0 ? '—' : `${stats.expectancy >= 0 ? '+' : ''}${stats.expectancy.toFixed(2)}R`}
+            color={stats.rTradeCount === 0 ? undefined : stats.expectancy > 0 ? 'text-[#2CC84A]' : 'text-[#FF4D4D]'}
           />
           <MetricCard
             label="Max Drawdown"
-            value={stats.totalTrades === 0 ? '—' : `${stats.maxDrawdown.toFixed(2)}R`}
+            value={stats.totalTrades === 0 ? '—' : formatUsd(stats.maxDrawdown)}
             color={stats.maxDrawdown < 0 ? 'text-[#FF4D4D]' : 'text-[#E0E0E0]'}
           />
           <MetricCard
@@ -371,9 +371,9 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
               <p className="text-[#E0E0E0] text-xl font-mono font-bold">—</p>
             ) : (
               <p className="text-sm font-mono font-bold mt-1">
-                <span className="text-[#2CC84A]">+{stats.avgWin.toFixed(2)}R</span>
+                <span className="text-[#2CC84A]">{formatUsd(stats.avgWin)}</span>
                 <span className="text-[#888888] mx-1">/</span>
-                <span className="text-[#FF4D4D]">{stats.avgLoss.toFixed(2)}R</span>
+                <span className="text-[#FF4D4D]">{formatUsd(stats.avgLoss)}</span>
               </p>
             )}
           </div>

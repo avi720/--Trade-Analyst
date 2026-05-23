@@ -7,7 +7,7 @@ export interface ClosedTrade {
   setupType: string | null
   openedAt: Date
   closedAt: Date
-  actualR: number
+  actualR: number | null
   realizedPnl: number
   avgEntryPrice: number
   avgExitPrice: number | null

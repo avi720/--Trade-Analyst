@@ -71,7 +71,7 @@ describe('calcStats', () => {
     expect(s.profitFactor).toBeCloseTo(3 / 1, 6)
   })
 
-  it('maxDrawdown: [+1, +1, -3, +1] → peak=2, trough=-1 → dd=-3', () => {
+  it('maxDrawdown: $ cumulative [+100, +100, -300, +100] → peak=200, trough=-100 → dd=-300', () => {
     const base = new Date('2026-01-01')
     const trades = [
       makeTrade({ actualR: 1, realizedPnl: 100, closedAt: new Date(base.getTime() + 0) }),
@@ -80,8 +80,23 @@ describe('calcStats', () => {
       makeTrade({ actualR: 1, realizedPnl: 100, closedAt: new Date(base.getTime() + 3) }),
     ]
     const s = calcStats(trades)
-    // peak at 2R, then drops to -1R → maxDrawdown = -3
-    expect(s.maxDrawdown).toBeCloseTo(-3, 6)
+    // $-based: peak at $200, then drops to -$100 → maxDrawdown = -300
+    expect(s.maxDrawdown).toBeCloseTo(-300, 6)
+  })
+
+  it('null actualR (no stop): counts in $-metrics, skipped in R-metrics', () => {
+    const trades = [
+      makeTrade({ actualR: null as unknown as number, realizedPnl: 50 }),
+      makeTrade({ actualR: null as unknown as number, realizedPnl: 25 }),
+      makeTrade({ actualR: 2, realizedPnl: 200 }),
+    ]
+    const s = calcStats(trades)
+    expect(s.totalTrades).toBe(3)
+    expect(s.rTradeCount).toBe(1)
+    expect(s.totalPnl).toBeCloseTo(275, 6)
+    expect(s.winRate).toBe(1)              // all three profitable by $
+    expect(s.avgR).toBeCloseTo(2, 6)       // only the R trade
+    expect(s.avgWin).toBeCloseTo(275 / 3, 6)
   })
 
   it('single breakeven trade', () => {
