@@ -151,3 +151,7 @@ Detailed phase build logs (file-by-file changes, test counts, decisions in fligh
 | 8 | Trade search + soft-field editing + manual / Excel import | [docs/phase-8-handoff.md](docs/phase-8-handoff.md) |
 
 Refactors after Phase 7: Activity-only Flex query + CSV export. Refactor after Phase 8: Polygon→Massive rename + price-sync disabled + `/dashboard` hidden behind `/research` redirects. Post-Phase-8 cleanup: IBKR Order columns trimmed (tax/tradeDate/exchange/proceeds/brokerTradeId removed; netCash/commissionCurrency/orderTime properly extracted from rawPayload); manual import expanded to card-based UI with 20 ManualLeg fields + updated Excel template.
+
+## QA / testing
+
+[docs/qa-test-user.md](docs/qa-test-user.md) — tracks the dedicated **QA test user** (`yadefam806@ameady.com`) used for pre-launch manual-QA of the manual-entry + research-analytics flows. Documents the test user identity, the current entered dataset + expected research KPIs (regression baseline), bugs found & fixed during QA, operational gotchas (Render cold-start/swap request pile-ups, `brokerExecId` dedup), and ready-to-run reset/verification SQL. Read it before running further experiments on that user.
