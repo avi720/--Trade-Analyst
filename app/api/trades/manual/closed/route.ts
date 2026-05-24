@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
     currency: open.currency,
     commissionCurrency: open.commissionCurrency,
     broker: open.broker,
+    timezone: open.timezone,
     // No annotations on the close leg itself; close-time annotations apply to
     // the Trade (handled below).
   }

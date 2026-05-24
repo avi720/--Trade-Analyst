@@ -12,5 +12,10 @@ export default async function ResearchPage() {
     .eq('status', 'Closed')
     .order('closedAt', { ascending: true })
 
-  return <ResearchDashboard trades={(rawTrades ?? []) as Parameters<typeof ResearchDashboard>[0]['trades']} />
+  return (
+    <>
+      <h1 className="sr-only">תחקור</h1>
+      <ResearchDashboard trades={(rawTrades ?? []) as Parameters<typeof ResearchDashboard>[0]['trades']} />
+    </>
+  )
 }

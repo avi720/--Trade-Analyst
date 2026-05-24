@@ -15,5 +15,10 @@ export default async function SearchPage({
     )
     .order('openedAt', { ascending: false })
 
-  return <TradeSearch trades={trades ?? []} initialParams={searchParams} />
+  return (
+    <>
+      <h1 className="sr-only">חיפוש</h1>
+      <TradeSearch trades={trades ?? []} initialParams={searchParams} />
+    </>
+  )
 }

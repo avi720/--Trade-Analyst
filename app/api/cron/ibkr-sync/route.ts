@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 
   const admin = createAdminClient();
 
-  // Load the active BrokerConnection (single-user, get the only active one)
+  // Load the active BrokerConnection for this cron run (currently syncs one connection per run)
   const { data: conn, error: connErr } = await admin
     .from("BrokerConnection")
     .select("id, userId, flexTokenEncrypted, flexQueryIdActivity")

@@ -44,26 +44,30 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm text-[#888888] mb-1">אימייל</label>
+            <label htmlFor="email" className="block text-sm text-[#888888] mb-1">אימייל</label>
             <input
+              id="email"
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              className="input-base w-full px-3 py-2 text-sm"
+              className="input-base w-full px-3 py-2 text-base"
               placeholder="your@email.com"
+              autoComplete="email"
               required
               dir="ltr"
             />
           </div>
 
           <div>
-            <label className="block text-sm text-[#888888] mb-1">סיסמה</label>
+            <label htmlFor="password" className="block text-sm text-[#888888] mb-1">סיסמה</label>
             <input
+              id="password"
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              className="input-base w-full px-3 py-2 text-sm"
+              className="input-base w-full px-3 py-2 text-base"
               placeholder="••••••••"
+              autoComplete="current-password"
               required
               dir="ltr"
             />

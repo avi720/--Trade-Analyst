@@ -22,7 +22,7 @@ DB schema changes go through the Supabase MCP `apply_migration` tool. To regener
 
 **Trade Analysis** is a Hebrew RTL trading journal with AI assistant ("חנן"), built on Next.js 14 App Router + Supabase.
 
-Currently deployed as single-user (no signup UI — account is created manually in the Supabase dashboard). **The future plan is SaaS with public signup**, so the architecture is already multi-user ready at the DB level: every app table has a `userId` FK and RLS policies of the form `auth.uid() = "userId"` (or `= "id"` on `User`). Do not add single-user shortcuts that would break a multi-user rollout.
+Multi-user SaaS — public signup via `/signup`. Architecture is multi-user at the DB level: every app table has a `userId` FK and RLS policies of the form `auth.uid() = "userId"` (or `= "id"` on `User`). Do not add single-user shortcuts.
 
 ### Data flow
 
@@ -36,7 +36,7 @@ The dashboard layout (`app/(dashboard)/layout.tsx`) wraps everything in `ChatCon
 
 ### Key design decisions
 
-- **Auth**: Supabase email+password. Login page only — no signup. Manual account provisioning in Supabase dashboard.
+- **Auth**: Supabase email+password with public signup via `/signup`. Post-email-confirmation, the signup page collects profile details before redirecting to `/research`.
 - **DB access**: Supabase JS client (`@supabase/ssr` server, `@supabase/supabase-js` browser/scripts). **No ORM**. Type safety via the generated `Database` type in `lib/db/types.ts`. The `_prisma_migrations` table is a leftover from initial bootstrap — kept as an audit row, not used by tooling.
 - **Migrations**: Apply via Supabase MCP `apply_migration`.
 - **RLS**: Enabled on every app table. Don't bypass it from request paths — only `lib/supabase/admin.ts` (service-role) skips RLS, and that's reserved for cron jobs and the seed script.

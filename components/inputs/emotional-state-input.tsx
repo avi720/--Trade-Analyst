@@ -9,6 +9,7 @@ interface Props {
   inputCls: string
   selectCls: string
   labelCls: string
+  idPrefix?: string
 }
 
 const KNOWN = EMOTIONAL_STATES as readonly string[]
@@ -22,7 +23,7 @@ function deriveMode(value: string | null | undefined): { select: string; custom:
   return { select: EMOTIONAL_CUSTOM_LABEL, custom: v }
 }
 
-export function EmotionalStateInput({ value, onChange, inputCls, selectCls, labelCls }: Props) {
+export function EmotionalStateInput({ value, onChange, inputCls, selectCls, labelCls, idPrefix = '' }: Props) {
   // Local state so choosing "אחר" (custom) shows the text field even before any
   // text is typed — a fully-controlled value prop can't represent that.
   const [select, setSelect] = useState<string>(() => deriveMode(value).select)
@@ -53,8 +54,9 @@ export function EmotionalStateInput({ value, onChange, inputCls, selectCls, labe
   return (
     <div className="grid grid-cols-2 gap-2">
       <div>
-        <label className={labelCls}>מצב רגשי</label>
+        <label htmlFor={`${idPrefix}emotion`} className={labelCls}>מצב רגשי</label>
         <select
+          id={`${idPrefix}emotion`}
           value={select}
           onChange={e => commit(e.target.value, '')}
           className={selectCls}
@@ -66,8 +68,9 @@ export function EmotionalStateInput({ value, onChange, inputCls, selectCls, labe
       </div>
       {select === EMOTIONAL_CUSTOM_LABEL && (
         <div>
-          <label className={labelCls}>תיאור (עד 20 תווים)</label>
+          <label htmlFor={`${idPrefix}emotion-desc`} className={labelCls}>תיאור (עד 20 תווים)</label>
           <input
+            id={`${idPrefix}emotion-desc`}
             type="text"
             value={custom}
             maxLength={20}

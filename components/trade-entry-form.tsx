@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import type { ManualLeg } from '@/lib/trade/manual-entry'
 import { CURRENCIES, BROKERS } from '@/lib/constants/trade-options'
+import { TRADE_TIMEZONES, DEFAULT_TIMEZONE, toUtcPreview } from '@/lib/trade/tz'
 import { SetupTypeInput } from './inputs/setup-type-input'
 import { EmotionalStateInput } from './inputs/emotional-state-input'
 
@@ -37,11 +38,12 @@ interface LegCardProps {
   leg: ManualLeg
   index: number
   canRemove: boolean
+  timezone: string
   onChange: (patch: Partial<ManualLeg>) => void
   onRemove: () => void
 }
 
-function LegCard({ leg, index, canRemove, onChange, onRemove }: LegCardProps) {
+function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCardProps) {
   const [showOrderDetails, setShowOrderDetails] = useState(false)
   const [showAnnotations, setShowAnnotations] = useState(false)
 
@@ -81,8 +83,9 @@ function LegCard({ leg, index, canRemove, onChange, onRemove }: LegCardProps) {
         {/* ── Section 1: ביצוע (always visible) ── */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <div>
-            <label className={labelCls}>טיקר</label>
+            <label htmlFor={`leg-${index}-ticker`} className={labelCls}>טיקר <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
             <input
+              id={`leg-${index}-ticker`}
               type="text"
               value={leg.ticker}
               onChange={e =>
@@ -90,40 +93,53 @@ function LegCard({ leg, index, canRemove, onChange, onRemove }: LegCardProps) {
               }
               className={inputCls}
               placeholder="AAPL"
+              aria-required="true"
             />
           </div>
           <div>
-            <label className={labelCls}>צד</label>
+            <label htmlFor={`leg-${index}-side`} className={labelCls}>צד <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
             <select
+              id={`leg-${index}-side`}
               value={leg.side}
               onChange={e => onChange({ side: e.target.value as 'BUY' | 'SELL' })}
               className={selectCls}
+              aria-required="true"
             >
               <option value="BUY">BUY</option>
               <option value="SELL">SELL</option>
             </select>
           </div>
           <div>
-            <label className={labelCls}>תאריך ביצוע</label>
+            <label htmlFor={`leg-${index}-date`} className={labelCls}>תאריך ביצוע <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
             <input
+              id={`leg-${index}-date`}
               type="date"
               value={leg.date}
               onChange={e => onChange({ date: e.target.value })}
               className={inputCls}
+              aria-required="true"
             />
           </div>
           <div>
-            <label className={labelCls}>שעת ביצוע (UTC)</label>
+            <label htmlFor={`leg-${index}-time`} className={labelCls}>שעת ביצוע <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
             <input
+              id={`leg-${index}-time`}
               type="time"
               value={leg.time}
               onChange={e => onChange({ time: e.target.value })}
               className={inputCls}
+              aria-required="true"
             />
+            {toUtcPreview(leg.date, leg.time, timezone) && (
+              <span className="text-[10px] font-mono text-[#555555] mt-0.5 block">
+                = {toUtcPreview(leg.date, leg.time, timezone)}
+              </span>
+            )}
           </div>
           <div>
-            <label className={labelCls}>כמות</label>
+            <label htmlFor={`leg-${index}-quantity`} className={labelCls}>כמות <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
             <input
+              id={`leg-${index}-quantity`}
               type="number"
               min="0"
               step="1"
@@ -131,11 +147,13 @@ function LegCard({ leg, index, canRemove, onChange, onRemove }: LegCardProps) {
               onChange={e => onChange({ quantity: parseFloat(e.target.value) || 0 })}
               className={inputCls}
               placeholder="100"
+              aria-required="true"
             />
           </div>
           <div>
-            <label className={labelCls}>מחיר</label>
+            <label htmlFor={`leg-${index}-price`} className={labelCls}>מחיר <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
             <input
+              id={`leg-${index}-price`}
               type="number"
               min="0"
               step="0.01"
@@ -143,11 +161,13 @@ function LegCard({ leg, index, canRemove, onChange, onRemove }: LegCardProps) {
               onChange={e => onChange({ price: parseFloat(e.target.value) || 0 })}
               className={inputCls}
               placeholder="150.00"
+              aria-required="true"
             />
           </div>
           <div>
-            <label className={labelCls}>עמלה</label>
+            <label htmlFor={`leg-${index}-commission`} className={labelCls}>עמלה <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
             <input
+              id={`leg-${index}-commission`}
               type="number"
               min="0"
               step="0.01"
@@ -155,11 +175,13 @@ function LegCard({ leg, index, canRemove, onChange, onRemove }: LegCardProps) {
               onChange={e => onChange({ commission: parseFloat(e.target.value) || 0 })}
               className={inputCls}
               placeholder="1.00"
+              aria-required="true"
             />
           </div>
           <div>
-            <label className={labelCls}>מטבע</label>
+            <label htmlFor={`leg-${index}-currency`} className={labelCls}>מטבע <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
             <select
+              id={`leg-${index}-currency`}
               value={leg.currency}
               onChange={e => {
                 const c = e.target.value
@@ -171,6 +193,7 @@ function LegCard({ leg, index, canRemove, onChange, onRemove }: LegCardProps) {
                 onChange(patch)
               }}
               className={selectCls}
+              aria-required="true"
             >
               {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
@@ -190,8 +213,9 @@ function LegCard({ leg, index, canRemove, onChange, onRemove }: LegCardProps) {
           {showOrderDetails && (
             <div className="px-3 pb-3 pt-3 grid grid-cols-2 sm:grid-cols-3 gap-3 border-t border-[#1A1A1A]">
               <div>
-                <label className={labelCls}>מטבע עמלה</label>
+                <label htmlFor={`leg-${index}-commission-currency`} className={labelCls}>מטבע עמלה</label>
                 <select
+                  id={`leg-${index}-commission-currency`}
                   value={leg.commissionCurrency ?? leg.currency}
                   onChange={e => onChange({ commissionCurrency: e.target.value })}
                   className={selectCls}
@@ -200,8 +224,9 @@ function LegCard({ leg, index, canRemove, onChange, onRemove }: LegCardProps) {
                 </select>
               </div>
               <div>
-                <label className={labelCls}>סוג פקודה</label>
+                <label htmlFor={`leg-${index}-order-type`} className={labelCls}>סוג פקודה</label>
                 <select
+                  id={`leg-${index}-order-type`}
                   value={leg.orderType ?? ''}
                   onChange={e => onChange({ orderType: e.target.value || undefined })}
                   className={selectCls}
@@ -213,8 +238,9 @@ function LegCard({ leg, index, canRemove, onChange, onRemove }: LegCardProps) {
                 </select>
               </div>
               <div>
-                <label className={labelCls}>תאריך הגשת פקודה</label>
+                <label htmlFor={`leg-${index}-order-placed-date`} className={labelCls}>תאריך הגשת פקודה</label>
                 <input
+                  id={`leg-${index}-order-placed-date`}
                   type="date"
                   value={leg.orderPlacedDate ?? ''}
                   onChange={e => onChange({ orderPlacedDate: e.target.value || undefined })}
@@ -222,17 +248,24 @@ function LegCard({ leg, index, canRemove, onChange, onRemove }: LegCardProps) {
                 />
               </div>
               <div>
-                <label className={labelCls}>שעת הגשת פקודה (UTC)</label>
+                <label htmlFor={`leg-${index}-order-placed-time`} className={labelCls}>שעת הגשת פקודה</label>
                 <input
+                  id={`leg-${index}-order-placed-time`}
                   type="time"
                   value={leg.orderPlacedTime ?? ''}
                   onChange={e => onChange({ orderPlacedTime: e.target.value || undefined })}
                   className={inputCls}
                 />
+                {leg.orderPlacedDate && toUtcPreview(leg.orderPlacedDate, leg.orderPlacedTime ?? '', timezone) && (
+                  <span className="text-[10px] font-mono text-[#555555] mt-0.5 block">
+                    = {toUtcPreview(leg.orderPlacedDate, leg.orderPlacedTime ?? '', timezone)}
+                  </span>
+                )}
               </div>
               <div className="col-span-2">
-                <label className={labelCls}>ברוקר</label>
+                <label htmlFor={`leg-${index}-broker`} className={labelCls}>ברוקר</label>
                 <select
+                  id={`leg-${index}-broker`}
                   value={leg.broker ?? BROKERS[0]}
                   onChange={e => onChange({ broker: e.target.value })}
                   className={selectCls}
@@ -262,6 +295,7 @@ function LegCard({ leg, index, canRemove, onChange, onRemove }: LegCardProps) {
                 inputCls={inputCls}
                 selectCls={selectCls}
                 labelCls={labelCls}
+                idPrefix={`leg-${index}-`}
               />
               <EmotionalStateInput
                 value={leg.emotionalState}
@@ -269,11 +303,13 @@ function LegCard({ leg, index, canRemove, onChange, onRemove }: LegCardProps) {
                 inputCls={inputCls}
                 selectCls={selectCls}
                 labelCls={labelCls}
+                idPrefix={`leg-${index}-`}
               />
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={labelCls}>מחיר עצירה</label>
+                  <label htmlFor={`leg-${index}-stop-price`} className={labelCls}>מחיר עצירה</label>
                   <input
+                    id={`leg-${index}-stop-price`}
                     type="number"
                     step="0.01"
                     value={leg.stopPrice ?? ''}
@@ -286,8 +322,9 @@ function LegCard({ leg, index, canRemove, onChange, onRemove }: LegCardProps) {
                   />
                 </div>
                 <div>
-                  <label className={labelCls}>מחיר יעד</label>
+                  <label htmlFor={`leg-${index}-target-price`} className={labelCls}>מחיר יעד</label>
                   <input
+                    id={`leg-${index}-target-price`}
                     type="number"
                     step="0.01"
                     value={leg.targetPrice ?? ''}
@@ -301,8 +338,9 @@ function LegCard({ leg, index, canRemove, onChange, onRemove }: LegCardProps) {
                 </div>
               </div>
               <div>
-                <label className={labelCls}>הערות</label>
+                <label htmlFor={`leg-${index}-notes`} className={labelCls}>הערות</label>
                 <textarea
+                  id={`leg-${index}-notes`}
                   value={leg.notes ?? ''}
                   onChange={e => onChange({ notes: e.target.value || undefined })}
                   className={inputCls + ' resize-none'}
@@ -311,8 +349,9 @@ function LegCard({ leg, index, canRemove, onChange, onRemove }: LegCardProps) {
                 />
               </div>
               <div>
-                <label className={labelCls}>מה עשיתי נכון</label>
+                <label htmlFor={`leg-${index}-did-right`} className={labelCls}>מה עשיתי נכון</label>
                 <textarea
+                  id={`leg-${index}-did-right`}
                   value={leg.didRight ?? ''}
                   onChange={e => onChange({ didRight: e.target.value || undefined })}
                   className={inputCls + ' resize-none'}
@@ -330,6 +369,7 @@ function LegCard({ leg, index, canRemove, onChange, onRemove }: LegCardProps) {
 
 export function TradeEntryForm() {
   const [legs, setLegs] = useState<ManualLeg[]>([EMPTY_LEG()])
+  const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE)
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<Result | null>(null)
   const [error, setError] = useState('')
@@ -357,7 +397,7 @@ export function TradeEntryForm() {
       const res = await fetch('/api/trades/manual', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ legs }),
+        body: JSON.stringify({ legs: legs.map(l => ({ ...l, timezone })) }),
       })
       const json = await res.json()
       if (!res.ok) {
@@ -382,6 +422,19 @@ export function TradeEntryForm() {
         <span className="text-xs text-[#555555] font-mono">כל כרטיס = ביצוע אחד (leg)</span>
       </div>
 
+      <div className="flex items-center gap-2 text-xs font-mono text-[#555555]">
+        <span>אזור זמן:</span>
+        <select
+          value={timezone}
+          onChange={e => setTimezone(e.target.value)}
+          className="bg-[#080808] border border-[#222222] rounded px-2 py-1 text-xs text-[#E0E0E0] cursor-pointer"
+        >
+          {TRADE_TIMEZONES.map(tz => (
+            <option key={tz.value} value={tz.value}>{tz.label}</option>
+          ))}
+        </select>
+      </div>
+
       <div className="flex flex-col gap-3">
         {legs.map((leg, i) => (
           <LegCard
@@ -389,6 +442,7 @@ export function TradeEntryForm() {
             leg={leg}
             index={i}
             canRemove={legs.length > 1}
+            timezone={timezone}
             onChange={patch => updateLeg(i, patch)}
             onRemove={() => removeLeg(i)}
           />

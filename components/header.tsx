@@ -46,11 +46,12 @@ export function Header({ userEmail }: HeaderProps) {
           <Link
             key={tab.href}
             href={tab.href}
+            aria-current={pathname === tab.href || pathname.startsWith(tab.href + '/') ? 'page' : undefined}
             className={cn(
-              'px-4 py-2 rounded-md text-sm font-medium transition-colors',
+              'px-4 py-2 rounded-md text-sm font-medium transition-colors border-b-2',
               pathname === tab.href || pathname.startsWith(tab.href + '/')
-                ? 'bg-[#1A1A1A] text-[#E0E0E0]'
-                : 'text-[#888888] hover:text-[#E0E0E0] hover:bg-[#1A1A1A]'
+                ? 'bg-[#1A1A1A] text-[#E0E0E0] border-[#FFB800]'
+                : 'text-[#888888] hover:text-[#E0E0E0] hover:bg-[#1A1A1A] border-transparent'
             )}
           >
             {tab.label}

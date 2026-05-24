@@ -5,6 +5,7 @@ import {
   validateSetupType,
   validateEmotionalState,
 } from '@/lib/constants/trade-options'
+import { localToUtcIso } from './tz'
 
 export interface ManualLeg {
   // ─── Required execution fields ───────────────────────────────────────────
@@ -23,6 +24,7 @@ export interface ManualLeg {
   orderPlacedDate?: string      // when order was placed — YYYY-MM-DD
   orderPlacedTime?: string      // when order was placed — HH:MM
   broker?: string               // ברוקר (one of BROKERS)
+  timezone?: string             // IANA tz of date/time fields (defaults to UTC for backward compat)
 
   // ─── Personal annotation fields (Trade-level) ────────────────────────────
   // NOTE: wouldChange was removed from open-trade entry — it only makes sense
@@ -80,7 +82,10 @@ export function validateLeg(leg: ManualLeg, index: number): ManualEntryError[] {
 
 export function buildExecution(leg: ManualLeg, index: number): NormalizedExecution {
   const ticker = leg.ticker.trim().toUpperCase()
-  const executedAt = new Date(`${leg.date}T${leg.time}:00Z`)
+  const tz = leg.timezone && leg.timezone !== 'UTC' ? leg.timezone : null
+  const executedAt = new Date(
+    tz ? localToUtcIso(leg.date, leg.time, tz) : `${leg.date}T${leg.time}:00Z`
+  )
   const brokerExecId = `MANUAL-${ticker}-${executedAt.getTime()}-${index}`
 
   // Compute ISO timestamp for Order.orderTime if the user provided an order placement date.
@@ -91,7 +96,9 @@ export function buildExecution(leg: ManualLeg, index: number): NormalizedExecuti
       leg.orderPlacedTime && /^\d{2}:\d{2}$/.test(leg.orderPlacedTime)
         ? leg.orderPlacedTime
         : leg.time // fall back to executedAt time if not provided
-    manualOrderTimeISO = new Date(`${leg.orderPlacedDate}T${t}:00Z`).toISOString()
+    manualOrderTimeISO = tz
+      ? localToUtcIso(leg.orderPlacedDate, t, tz)
+      : new Date(`${leg.orderPlacedDate}T${t}:00Z`).toISOString()
   }
 
   return {

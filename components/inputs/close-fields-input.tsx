@@ -1,6 +1,7 @@
 'use client'
 
 import { CLOSE_REASONS, type CloseReasonKey } from '@/lib/constants/trade-options'
+import { toUtcPreview } from '@/lib/trade/tz'
 
 export interface CloseFieldsValue {
   closePrice: number | null
@@ -32,20 +33,23 @@ interface Props {
   onChange: (patch: Partial<CloseFieldsValue>) => void
   hasStop: boolean
   hasTarget: boolean
+  timezone?: string
   inputCls: string
   selectCls: string
   labelCls: string
+  idPrefix?: string
 }
 
 export function CloseFieldsInput({
-  value, onChange, hasStop, hasTarget, inputCls, selectCls, labelCls,
+  value, onChange, hasStop, hasTarget, timezone = 'UTC', inputCls, selectCls, labelCls, idPrefix = 'close-',
 }: Props) {
   return (
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div>
-          <label className={labelCls}>מחיר סגירה *</label>
+          <label htmlFor={`${idPrefix}price`} className={labelCls}>מחיר סגירה <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
           <input
+            id={`${idPrefix}price`}
             type="number" step="0.01" min="0"
             value={value.closePrice ?? ''}
             onChange={e => {
@@ -57,8 +61,9 @@ export function CloseFieldsInput({
           />
         </div>
         <div>
-          <label className={labelCls}>תאריך סגירה *</label>
+          <label htmlFor={`${idPrefix}date`} className={labelCls}>תאריך סגירה <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
           <input
+            id={`${idPrefix}date`}
             type="date"
             value={value.closeDate}
             onChange={e => onChange({ closeDate: e.target.value })}
@@ -66,17 +71,24 @@ export function CloseFieldsInput({
           />
         </div>
         <div>
-          <label className={labelCls}>שעת סגירה (UTC) *</label>
+          <label htmlFor={`${idPrefix}time`} className={labelCls}>שעת סגירה <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
           <input
+            id={`${idPrefix}time`}
             type="time"
             value={value.closeTime}
             onChange={e => onChange({ closeTime: e.target.value })}
             className={inputCls}
           />
+          {toUtcPreview(value.closeDate, value.closeTime, timezone) && (
+            <span className="text-[10px] font-mono text-[#555555] mt-0.5 block">
+              = {toUtcPreview(value.closeDate, value.closeTime, timezone)}
+            </span>
+          )}
         </div>
         <div>
-          <label className={labelCls}>עמלת סגירה</label>
+          <label htmlFor={`${idPrefix}commission`} className={labelCls}>עמלת סגירה</label>
           <input
+            id={`${idPrefix}commission`}
             type="number" step="0.01" min="0"
             value={value.closeCommission || ''}
             onChange={e => onChange({ closeCommission: parseFloat(e.target.value) || 0 })}
@@ -85,8 +97,9 @@ export function CloseFieldsInput({
           />
         </div>
         <div>
-          <label className={labelCls}>איכות ביצוע (1–10)</label>
+          <label htmlFor={`${idPrefix}exec-quality`} className={labelCls}>איכות ביצוע (1–10)</label>
           <select
+            id={`${idPrefix}exec-quality`}
             value={value.executionQuality}
             onChange={e => onChange({ executionQuality: e.target.value })}
             className={selectCls}
@@ -99,7 +112,7 @@ export function CloseFieldsInput({
 
       {/* Close reason radio group */}
       <div className="flex flex-col gap-2">
-        <span className={labelCls}>איך הטרייד נסגר *</span>
+        <span className={labelCls}>איך הטרייד נסגר <span className="text-[#FFB800]" aria-hidden="true">*</span></span>
         <div className="flex flex-col gap-1.5">
           {CLOSE_REASONS.map(r => {
             const disabled =
@@ -108,6 +121,7 @@ export function CloseFieldsInput({
             return (
               <label key={r.key} className={`flex items-center gap-2 text-sm font-mono ${disabled ? 'text-[#444444] cursor-not-allowed' : 'text-[#E0E0E0] cursor-pointer'}`}>
                 <input
+                  id={`${idPrefix}reason-${r.key}`}
                   type="radio"
                   name="closeReason"
                   value={r.key}
@@ -125,8 +139,9 @@ export function CloseFieldsInput({
         </div>
         {value.closeReason === 'modified_stop' && (
           <div className="pl-6 mt-1">
-            <label className={labelCls}>מחיר סטופ שונה *</label>
+            <label htmlFor={`${idPrefix}modified-stop`} className={labelCls}>מחיר סטופ שונה <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
             <input
+              id={`${idPrefix}modified-stop`}
               type="number" step="0.01" min="0"
               value={value.modifiedStopPrice ?? ''}
               onChange={e => {
@@ -141,8 +156,9 @@ export function CloseFieldsInput({
       </div>
 
       <div>
-        <label className={labelCls}>מה הייתי משנה</label>
+        <label htmlFor={`${idPrefix}would-change`} className={labelCls}>מה הייתי משנה</label>
         <textarea
+          id={`${idPrefix}would-change`}
           rows={2}
           value={value.wouldChange}
           onChange={e => onChange({ wouldChange: e.target.value })}

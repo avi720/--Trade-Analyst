@@ -225,30 +225,31 @@ export function TradeSearch({ trades, initialParams }: Props) {
             <input
               type="text"
               placeholder="חיפוש טיקר / הערות…"
+              aria-label="חיפוש טיקר או הערות"
               value={q}
               onChange={e => bump(() => setQ(e.target.value))}
               className={inputCls + ' w-44'}
             />
             <div className="flex items-center gap-1">
               <span className="text-xs text-[#888888]">מ׳</span>
-              <input type="date" value={from} onChange={e => bump(() => setFrom(e.target.value))} className={inputCls} />
+              <input type="date" aria-label="מתאריך" value={from} onChange={e => bump(() => setFrom(e.target.value))} className={inputCls} />
             </div>
             <div className="flex items-center gap-1">
               <span className="text-xs text-[#888888]">עד</span>
-              <input type="date" value={to} onChange={e => bump(() => setTo(e.target.value))} className={inputCls} />
+              <input type="date" aria-label="עד תאריך" value={to} onChange={e => bump(() => setTo(e.target.value))} className={inputCls} />
             </div>
-            <select value={direction} onChange={e => bump(() => setDirection(e.target.value))} className={selectCls}>
+            <select value={direction} aria-label="כיוון" onChange={e => bump(() => setDirection(e.target.value))} className={selectCls}>
               <option value="">כל כיוון</option>
               <option value="Long">Long</option>
               <option value="Short">Short</option>
             </select>
-            <select value={filterResult} onChange={e => bump(() => setFilterResult(e.target.value))} className={selectCls}>
+            <select value={filterResult} aria-label="תוצאה" onChange={e => bump(() => setFilterResult(e.target.value))} className={selectCls}>
               <option value="">כל תוצאה</option>
               <option value="Win">Win</option>
               <option value="Loss">Loss</option>
               <option value="Breakeven">Breakeven</option>
             </select>
-            <select value={setup} onChange={e => bump(() => setSetup(e.target.value))} className={selectCls}>
+            <select value={setup} aria-label="סטאפ" onChange={e => bump(() => setSetup(e.target.value))} className={selectCls}>
               <option value="">כל סטאפ</option>
               {setups.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
@@ -257,13 +258,13 @@ export function TradeSearch({ trades, initialParams }: Props) {
           <div className="flex flex-wrap gap-2 items-center">
             <div className="flex items-center gap-1">
               <span className="text-xs text-[#888888]">R מ׳</span>
-              <input type="number" step="0.1" value={rMin} onChange={e => bump(() => setRMin(e.target.value))} className={inputCls + ' w-20'} placeholder="—" />
+              <input type="number" step="0.1" aria-label="R מינימלי" value={rMin} onChange={e => bump(() => setRMin(e.target.value))} className={inputCls + ' w-20'} placeholder="—" />
             </div>
             <div className="flex items-center gap-1">
               <span className="text-xs text-[#888888]">R עד</span>
-              <input type="number" step="0.1" value={rMax} onChange={e => bump(() => setRMax(e.target.value))} className={inputCls + ' w-20'} placeholder="—" />
+              <input type="number" step="0.1" aria-label="R מקסימלי" value={rMax} onChange={e => bump(() => setRMax(e.target.value))} className={inputCls + ' w-20'} placeholder="—" />
             </div>
-            <select value={status} onChange={e => bump(() => setStatus(e.target.value))} className={selectCls}>
+            <select value={status} aria-label="סטטוס" onChange={e => bump(() => setStatus(e.target.value))} className={selectCls}>
               <option value="Closed">סגורים בלבד</option>
               <option value="Open">פתוחים בלבד</option>
               <option value="All">הכל</option>
@@ -322,10 +323,13 @@ export function TradeSearch({ trades, initialParams }: Props) {
                     <td className="px-3 py-2 text-[#888888] text-xs">{t.setupType ?? '—'}</td>
                     <td className="px-3 py-2 font-mono text-xs text-[#888888] whitespace-nowrap">{fmtDate(t.openedAt)}</td>
                     <td className="px-3 py-2 font-mono text-xs text-[#888888] whitespace-nowrap">{fmtDate(t.closedAt)}</td>
-                    <td className={cn('px-3 py-2 font-mono text-xs whitespace-nowrap',
-                      t.actualR != null && t.actualR > 0 ? 'text-[#2CC84A]' :
-                      t.actualR != null && t.actualR < 0 ? 'text-[#FF4D4D]' : 'text-[#888888]'
-                    )}>
+                    <td
+                      title={t.actualR == null ? 'אין stop price מוגדר' : undefined}
+                      className={cn('px-3 py-2 font-mono text-xs whitespace-nowrap',
+                        t.actualR != null && t.actualR > 0 ? 'text-[#2CC84A]' :
+                        t.actualR != null && t.actualR < 0 ? 'text-[#FF4D4D]' : 'text-[#888888]'
+                      )}
+                    >
                       {fmtR(t.actualR)}
                     </td>
                     <td className={cn('px-3 py-2 font-mono text-xs whitespace-nowrap',

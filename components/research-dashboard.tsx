@@ -102,7 +102,7 @@ const AXIS_STROKE = '#333333'
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="panel p-4 flex flex-col gap-3">
-      <p className="text-[#888888] text-xs font-sans">{title}</p>
+      <h2 className="text-[#888888] text-xs font-sans">{title}</h2>
       {children}
     </div>
   )
@@ -436,7 +436,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
                       formatter={(v: number) => [`${v >= 0 ? '+' : ''}${v.toFixed(2)}R`, 'R מצטבר']}
                     />
                     <ReferenceLine y={0} stroke="#444444" strokeDasharray="4 4" />
-                    <Line type="monotone" dataKey="cumulativeR" stroke="#FFB800" dot={false} strokeWidth={2} />
+                    <Line type="monotone" dataKey="cumulativeR" stroke="#FFB800" dot={false} strokeWidth={2} isAnimationActive={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </ChartCard>
@@ -451,7 +451,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
                     <XAxis dataKey="label" stroke={AXIS_STROKE} tick={AXIS_TICK} />
                     <YAxis stroke={AXIS_STROKE} tick={AXIS_TICK} allowDecimals={false} />
                     <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [v, 'טריידים']} />
-                    <Bar dataKey="count" radius={[3, 3, 0, 0]}>
+                    <Bar dataKey="count" radius={[3, 3, 0, 0]} isAnimationActive={false}>
                       {chartData.rdist.map((entry, i) => (
                         <Cell
                           key={i}
@@ -495,8 +495,8 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
                         </span>
                       )}
                     />
-                    <Bar yAxisId="r"  dataKey="avgR"     fill="#FFB800" name="avgR"    radius={[3, 3, 0, 0]} />
-                    <Bar yAxisId="wr" dataKey="winRate"  fill="#2CC84A" name="winRate" radius={[3, 3, 0, 0]} opacity={0.75} />
+                    <Bar yAxisId="r"  dataKey="avgR"     fill="#FFB800" name="avgR"    radius={[3, 3, 0, 0]} isAnimationActive={false} />
+                    <Bar yAxisId="wr" dataKey="winRate"  fill="#2CC84A" name="winRate" radius={[3, 3, 0, 0]} opacity={0.75} isAnimationActive={false} />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartCard>
@@ -519,7 +519,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
                     <YAxis type="category" dataKey="ticker" stroke={AXIS_STROKE} tick={AXIS_TICK} width={55} />
                     <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [formatUsd(v), 'P&L']} />
                     <ReferenceLine x={0} stroke="#444444" strokeDasharray="4 4" />
-                    <Bar dataKey="totalPnl" radius={[0, 3, 3, 0]}>
+                    <Bar dataKey="totalPnl" radius={[0, 3, 3, 0]} isAnimationActive={false}>
                       {chartData.ticker.map((entry, i) => (
                         <Cell key={i} fill={entry.totalPnl >= 0 ? '#2CC84A' : '#FF4D4D'} />
                       ))}
@@ -578,10 +578,10 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
                         <span style={{ color: '#888888', fontSize: 11 }}>{v}</span>
                       )}
                     />
-                    <Scatter name="Win"  data={chartData.holdWins}  fill="#2CC84A" opacity={0.8} />
-                    <Scatter name="Loss" data={chartData.holdLoss}  fill="#FF4D4D" opacity={0.8} />
+                    <Scatter name="Win"  data={chartData.holdWins}  fill="#2CC84A" opacity={0.8} isAnimationActive={false} />
+                    <Scatter name="Loss" data={chartData.holdLoss}  fill="#FF4D4D" opacity={0.8} isAnimationActive={false} />
                     {chartData.holdOther.length > 0 && (
-                      <Scatter name="אחר" data={chartData.holdOther} fill="#888888" opacity={0.8} />
+                      <Scatter name="אחר" data={chartData.holdOther} fill="#888888" opacity={0.8} isAnimationActive={false} />
                     )}
                   </ScatterChart>
                 </ResponsiveContainer>
@@ -594,14 +594,14 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
                 <div className="flex flex-col gap-4">
 
                   <div>
-                    <p className="text-[#888888] text-xs font-sans mb-1">לפי יום שבוע</p>
+                    <h3 className="text-[#888888] text-xs font-sans mb-1">לפי יום שבוע</h3>
                     <ResponsiveContainer width="100%" height={100}>
                       <BarChart data={chartData.dayofweek} margin={{ top: 0, right: 5, bottom: 0, left: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
                         <XAxis dataKey="day" stroke={AXIS_STROKE} tick={{ ...AXIS_TICK, fontSize: 10 }} />
                         <YAxis stroke={AXIS_STROKE} tick={{ ...AXIS_TICK, fontSize: 10 }} tickFormatter={v => `$${v}`} width={40} />
                         <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [formatUsd(v), 'P&L']} />
-                        <Bar dataKey="totalPnl" radius={[3, 3, 0, 0]}>
+                        <Bar dataKey="totalPnl" radius={[3, 3, 0, 0]} isAnimationActive={false}>
                           {chartData.dayofweek.map((entry, i) => (
                             <Cell key={i} fill={entry.totalPnl >= 0 ? '#2CC84A' : '#FF4D4D'} />
                           ))}
@@ -612,7 +612,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
 
                   {chartData.hour.length > 0 && (
                     <div>
-                      <p className="text-[#888888] text-xs font-sans mb-1">לפי שעה</p>
+                      <h3 className="text-[#888888] text-xs font-sans mb-1">לפי שעה</h3>
                       <ResponsiveContainer width="100%" height={100}>
                         <BarChart data={chartData.hour} margin={{ top: 0, right: 5, bottom: 0, left: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
@@ -628,7 +628,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
                             labelFormatter={v => `${String(v).padStart(2, '0')}:00`}
                             formatter={(v: number) => [formatUsd(v), 'P&L']}
                           />
-                          <Bar dataKey="totalPnl" radius={[3, 3, 0, 0]}>
+                          <Bar dataKey="totalPnl" radius={[3, 3, 0, 0]} isAnimationActive={false}>
                             {chartData.hour.map((entry, i) => (
                               <Cell key={i} fill={entry.totalPnl >= 0 ? '#2CC84A' : '#FF4D4D'} />
                             ))}

@@ -15,6 +15,7 @@ interface Props {
   inputCls: string
   selectCls: string
   labelCls: string
+  idPrefix?: string
 }
 
 type GroupValue = SetupGroupKey | typeof SETUP_CUSTOM_LABEL | ''
@@ -48,7 +49,7 @@ function serialize(group: GroupValue, sub: string, custom: string): string | und
   return sub ? `${group} - ${sub}` : undefined
 }
 
-export function SetupTypeInput({ value, onChange, inputCls, selectCls, labelCls }: Props) {
+export function SetupTypeInput({ value, onChange, inputCls, selectCls, labelCls, idPrefix = '' }: Props) {
   // Local state so a partial selection (group chosen, sub not yet) persists in
   // the UI even though it serializes to `undefined`. A fully-controlled value
   // prop can't represent that intermediate state.
@@ -83,8 +84,9 @@ export function SetupTypeInput({ value, onChange, inputCls, selectCls, labelCls 
   return (
     <div className="grid grid-cols-2 gap-2">
       <div>
-        <label className={labelCls}>סיבת קנייה</label>
+        <label htmlFor={`${idPrefix}setup-type`} className={labelCls}>סיבת קנייה</label>
         <select
+          id={`${idPrefix}setup-type`}
           value={group}
           onChange={e => commit(e.target.value as GroupValue, '', '')}
           className={selectCls}
@@ -96,8 +98,9 @@ export function SetupTypeInput({ value, onChange, inputCls, selectCls, labelCls 
       </div>
       {group && group !== SETUP_CUSTOM_LABEL && (
         <div>
-          <label className={labelCls}>תת-סיבה</label>
+          <label htmlFor={`${idPrefix}setup-sub`} className={labelCls}>תת-סיבה</label>
           <select
+            id={`${idPrefix}setup-sub`}
             value={sub}
             onChange={e => commit(group, e.target.value, '')}
             className={selectCls}
@@ -111,8 +114,9 @@ export function SetupTypeInput({ value, onChange, inputCls, selectCls, labelCls 
       )}
       {group === SETUP_CUSTOM_LABEL && (
         <div>
-          <label className={labelCls}>סיבה (עד 15 תווים)</label>
+          <label htmlFor={`${idPrefix}setup-custom`} className={labelCls}>סיבה (עד 15 תווים)</label>
           <input
+            id={`${idPrefix}setup-custom`}
             type="text"
             value={custom}
             onChange={e => {

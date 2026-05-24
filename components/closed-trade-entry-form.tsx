@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import type { ManualLeg } from '@/lib/trade/manual-entry'
 import { CURRENCIES, BROKERS } from '@/lib/constants/trade-options'
+import { TRADE_TIMEZONES, DEFAULT_TIMEZONE, toUtcPreview } from '@/lib/trade/tz'
 import { SetupTypeInput } from './inputs/setup-type-input'
 import { EmotionalStateInput } from './inputs/emotional-state-input'
 import { CloseFieldsInput, emptyCloseFields, type CloseFieldsValue } from './inputs/close-fields-input'
@@ -30,6 +31,7 @@ const labelCls = 'block text-xs font-mono text-[#555555] mb-1'
 export function ClosedTradeEntryForm() {
   const [open, setOpen] = useState<ManualLeg>(EMPTY_OPEN())
   const [close, setClose] = useState<CloseFieldsValue>(emptyCloseFields())
+  const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE)
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
   const [showOrderDetails, setShowOrderDetails] = useState(false)
@@ -57,7 +59,7 @@ export function ClosedTradeEntryForm() {
       }
 
       const payload = {
-        open,
+        open: { ...open, timezone },
         close: {
           closePrice: close.closePrice,
           closeDate: close.closeDate,
@@ -99,6 +101,19 @@ export function ClosedTradeEntryForm() {
         <span className="text-xs text-[#555555] font-mono">פתיחה + סגירה בטופס אחד</span>
       </div>
 
+      <div className="flex items-center gap-2 text-xs font-mono text-[#555555]">
+        <span>אזור זמן:</span>
+        <select
+          value={timezone}
+          onChange={e => setTimezone(e.target.value)}
+          className="bg-[#080808] border border-[#222222] rounded px-2 py-1 text-xs text-[#E0E0E0] cursor-pointer"
+        >
+          {TRADE_TIMEZONES.map(tz => (
+            <option key={tz.value} value={tz.value}>{tz.label}</option>
+          ))}
+        </select>
+      </div>
+
       {/* ── Open section ─────────────────────────────────────────────── */}
       <div className="bg-[#111111] border border-[#222222] rounded-lg overflow-hidden">
         <div className="px-4 py-2 bg-[#0D0D0D] border-b border-[#1A1A1A] text-xs font-mono text-[#FFB800]">
@@ -107,48 +122,53 @@ export function ClosedTradeEntryForm() {
         <div className="p-4 flex flex-col gap-3">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
-              <label className={labelCls}>טיקר</label>
-              <input type="text"
+              <label htmlFor="open-ticker" className={labelCls}>טיקר <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+              <input id="open-ticker" type="text"
                 value={open.ticker}
                 onChange={e => patchOpen({ ticker: e.target.value.toUpperCase().replace(/[^A-Z.]/g, '') })}
-                className={inputCls} placeholder="AAPL" />
+                className={inputCls} placeholder="AAPL" aria-required="true" />
             </div>
             <div>
-              <label className={labelCls}>צד</label>
-              <select value={open.side} onChange={e => patchOpen({ side: e.target.value as 'BUY' | 'SELL' })} className={selectCls}>
+              <label htmlFor="open-side" className={labelCls}>צד <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+              <select id="open-side" value={open.side} onChange={e => patchOpen({ side: e.target.value as 'BUY' | 'SELL' })} className={selectCls} aria-required="true">
                 <option value="BUY">BUY</option>
                 <option value="SELL">SELL</option>
               </select>
             </div>
             <div>
-              <label className={labelCls}>תאריך</label>
-              <input type="date" value={open.date} onChange={e => patchOpen({ date: e.target.value })} className={inputCls} />
+              <label htmlFor="open-date" className={labelCls}>תאריך <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+              <input id="open-date" type="date" value={open.date} onChange={e => patchOpen({ date: e.target.value })} className={inputCls} aria-required="true" />
             </div>
             <div>
-              <label className={labelCls}>שעה (UTC)</label>
-              <input type="time" value={open.time} onChange={e => patchOpen({ time: e.target.value })} className={inputCls} />
+              <label htmlFor="open-time" className={labelCls}>שעה <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+              <input id="open-time" type="time" value={open.time} onChange={e => patchOpen({ time: e.target.value })} className={inputCls} aria-required="true" />
+              {toUtcPreview(open.date, open.time, timezone) && (
+                <span className="text-[10px] font-mono text-[#555555] mt-0.5 block">
+                  = {toUtcPreview(open.date, open.time, timezone)}
+                </span>
+              )}
             </div>
             <div>
-              <label className={labelCls}>כמות</label>
-              <input type="number" min="0" step="1" value={open.quantity || ''}
+              <label htmlFor="open-quantity" className={labelCls}>כמות <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+              <input id="open-quantity" type="number" min="0" step="1" value={open.quantity || ''}
                 onChange={e => patchOpen({ quantity: parseFloat(e.target.value) || 0 })}
-                className={inputCls} placeholder="100" />
+                className={inputCls} placeholder="100" aria-required="true" />
             </div>
             <div>
-              <label className={labelCls}>מחיר</label>
-              <input type="number" min="0" step="0.01" value={open.price || ''}
+              <label htmlFor="open-price" className={labelCls}>מחיר <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+              <input id="open-price" type="number" min="0" step="0.01" value={open.price || ''}
                 onChange={e => patchOpen({ price: parseFloat(e.target.value) || 0 })}
-                className={inputCls} placeholder="150.00" />
+                className={inputCls} placeholder="150.00" aria-required="true" />
             </div>
             <div>
-              <label className={labelCls}>עמלה</label>
-              <input type="number" min="0" step="0.01" value={open.commission || ''}
+              <label htmlFor="open-commission" className={labelCls}>עמלה <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+              <input id="open-commission" type="number" min="0" step="0.01" value={open.commission || ''}
                 onChange={e => patchOpen({ commission: parseFloat(e.target.value) || 0 })}
-                className={inputCls} placeholder="1.00" />
+                className={inputCls} placeholder="1.00" aria-required="true" />
             </div>
             <div>
-              <label className={labelCls}>מטבע</label>
-              <select value={open.currency}
+              <label htmlFor="open-currency" className={labelCls}>מטבע <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+              <select id="open-currency" value={open.currency}
                 onChange={e => {
                   const c = e.target.value
                   const patch: Partial<ManualLeg> = { currency: c }
@@ -157,7 +177,7 @@ export function ClosedTradeEntryForm() {
                   }
                   patchOpen(patch)
                 }}
-                className={selectCls}>
+                className={selectCls} aria-required="true">
                 {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
@@ -173,16 +193,16 @@ export function ClosedTradeEntryForm() {
             {showOrderDetails && (
               <div className="px-3 pb-3 pt-3 grid grid-cols-2 sm:grid-cols-3 gap-3 border-t border-[#1A1A1A]">
                 <div>
-                  <label className={labelCls}>מטבע עמלה</label>
-                  <select value={open.commissionCurrency ?? open.currency}
+                  <label htmlFor="open-commission-currency" className={labelCls}>מטבע עמלה</label>
+                  <select id="open-commission-currency" value={open.commissionCurrency ?? open.currency}
                     onChange={e => patchOpen({ commissionCurrency: e.target.value })}
                     className={selectCls}>
                     {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className={labelCls}>סוג פקודה</label>
-                  <select value={open.orderType ?? ''}
+                  <label htmlFor="open-order-type" className={labelCls}>סוג פקודה</label>
+                  <select id="open-order-type" value={open.orderType ?? ''}
                     onChange={e => patchOpen({ orderType: e.target.value || undefined })}
                     className={selectCls}>
                     <option value="">— בחר —</option>
@@ -190,20 +210,25 @@ export function ClosedTradeEntryForm() {
                   </select>
                 </div>
                 <div>
-                  <label className={labelCls}>תאריך הגשת פקודה</label>
-                  <input type="date" value={open.orderPlacedDate ?? ''}
+                  <label htmlFor="open-order-placed-date" className={labelCls}>תאריך הגשת פקודה</label>
+                  <input id="open-order-placed-date" type="date" value={open.orderPlacedDate ?? ''}
                     onChange={e => patchOpen({ orderPlacedDate: e.target.value || undefined })}
                     className={inputCls} />
                 </div>
                 <div>
-                  <label className={labelCls}>שעת הגשת פקודה (UTC)</label>
-                  <input type="time" value={open.orderPlacedTime ?? ''}
+                  <label htmlFor="open-order-placed-time" className={labelCls}>שעת הגשת פקודה</label>
+                  <input id="open-order-placed-time" type="time" value={open.orderPlacedTime ?? ''}
                     onChange={e => patchOpen({ orderPlacedTime: e.target.value || undefined })}
                     className={inputCls} />
+                  {open.orderPlacedDate && toUtcPreview(open.orderPlacedDate, open.orderPlacedTime ?? '', timezone) && (
+                    <span className="text-[10px] font-mono text-[#555555] mt-0.5 block">
+                      = {toUtcPreview(open.orderPlacedDate, open.orderPlacedTime ?? '', timezone)}
+                    </span>
+                  )}
                 </div>
                 <div className="col-span-2">
-                  <label className={labelCls}>ברוקר</label>
-                  <select value={open.broker ?? BROKERS[0]}
+                  <label htmlFor="open-broker" className={labelCls}>ברוקר</label>
+                  <select id="open-broker" value={open.broker ?? BROKERS[0]}
                     onChange={e => patchOpen({ broker: e.target.value })}
                     className={selectCls}>
                     {BROKERS.map(b => <option key={b} value={b}>{b}</option>)}
@@ -226,16 +251,18 @@ export function ClosedTradeEntryForm() {
                   value={open.setupType}
                   onChange={v => patchOpen({ setupType: v })}
                   inputCls={inputCls} selectCls={selectCls} labelCls={labelCls}
+                  idPrefix="open-"
                 />
                 <EmotionalStateInput
                   value={open.emotionalState}
                   onChange={v => patchOpen({ emotionalState: v })}
                   inputCls={inputCls} selectCls={selectCls} labelCls={labelCls}
+                  idPrefix="open-"
                 />
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className={labelCls}>מחיר עצירה</label>
-                    <input type="number" step="0.01" value={open.stopPrice ?? ''}
+                    <label htmlFor="open-stop-price" className={labelCls}>מחיר עצירה</label>
+                    <input id="open-stop-price" type="number" step="0.01" value={open.stopPrice ?? ''}
                       onChange={e => {
                         const v = parseFloat(e.target.value)
                         patchOpen({ stopPrice: isNaN(v) ? null : v })
@@ -243,8 +270,8 @@ export function ClosedTradeEntryForm() {
                       className={inputCls} placeholder="—" />
                   </div>
                   <div>
-                    <label className={labelCls}>מחיר יעד</label>
-                    <input type="number" step="0.01" value={open.targetPrice ?? ''}
+                    <label htmlFor="open-target-price" className={labelCls}>מחיר יעד</label>
+                    <input id="open-target-price" type="number" step="0.01" value={open.targetPrice ?? ''}
                       onChange={e => {
                         const v = parseFloat(e.target.value)
                         patchOpen({ targetPrice: isNaN(v) ? null : v })
@@ -253,14 +280,14 @@ export function ClosedTradeEntryForm() {
                   </div>
                 </div>
                 <div>
-                  <label className={labelCls}>הערות</label>
-                  <textarea rows={2} value={open.notes ?? ''}
+                  <label htmlFor="open-notes" className={labelCls}>הערות</label>
+                  <textarea id="open-notes" rows={2} value={open.notes ?? ''}
                     onChange={e => patchOpen({ notes: e.target.value || undefined })}
                     className={inputCls + ' resize-none'} placeholder="…" />
                 </div>
                 <div>
-                  <label className={labelCls}>מה עשיתי נכון</label>
-                  <textarea rows={2} value={open.didRight ?? ''}
+                  <label htmlFor="open-did-right" className={labelCls}>מה עשיתי נכון</label>
+                  <textarea id="open-did-right" rows={2} value={open.didRight ?? ''}
                     onChange={e => patchOpen({ didRight: e.target.value || undefined })}
                     className={inputCls + ' resize-none'} placeholder="…" />
                 </div>
@@ -281,6 +308,7 @@ export function ClosedTradeEntryForm() {
             onChange={patchClose}
             hasStop={hasStop}
             hasTarget={hasTarget}
+            timezone={timezone}
             inputCls={inputCls} selectCls={selectCls} labelCls={labelCls}
           />
         </div>
