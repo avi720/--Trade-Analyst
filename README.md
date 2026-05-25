@@ -34,20 +34,23 @@ npm run dev   # http://localhost:3000
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-## Deploy ל-Render
+## Deploy ל-Vercel
 
 ### Web Service
 
-1. חבר את ה-GitHub repo ל-Render
-2. Build Command: `npm install && npm run build`
-3. Start Command: `npm run start`
-4. הוסף את כל ה-env vars מ-`.env.example`
-5. Environment: `Node`
+1. חבר את ה-GitHub repo ל-[Vercel](https://vercel.com)
+2. Build/Output Settings — ברירות המחדל של Next.js, אין לשנות
+3. הוסף את כל ה-env vars מ-`.env.example` + `SITE_URL=https://<your-domain>.vercel.app`
+4. בסיום הדיפלוי — עדכן ב-Supabase: Authentication → URL Configuration → Site URL + Redirect URLs
 
-### Cron Jobs (Phase 3+)
+### Cron Jobs
 
-1. **IBKR Polling** — `https://your-app.onrender.com/api/cron/ibkr-sync`
-2. **Polygon Prices** — `https://your-app.onrender.com/api/cron/price-update`
+מופעלים דרך **GitHub Actions** (`.github/workflows/ibkr-sync.yml`) — חינמי, ללא צורך ב-Vercel Pro.
+
+1. הוסף Secrets ב-GitHub repo (Settings → Secrets → Actions):
+   - `SITE_URL` = Vercel URL
+   - `CRON_SECRET` = אותו ערך שב-Vercel env vars
+2. **IBKR Sync** — רץ אוטומטית ב-13:00 ו-20:00 UTC בכל יום
 
 ## שלבי פיתוח
 

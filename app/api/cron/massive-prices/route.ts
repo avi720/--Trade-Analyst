@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runPriceSync } from "@/lib/massive/sync";
 
-// Secured with CRON_SECRET header — called by Render Cron Job.
+// Secured with CRON_SECRET header — called by GitHub Actions (currently disabled).
 // Skips internally if pricePollingIntervalMin hasn't elapsed since lastPriceSyncAt.
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("Authorization");

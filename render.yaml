@@ -1,3 +1,7 @@
+# DEPRECATED — app is now deployed to Vercel + GitHub Actions.
+# This file is kept for reference only and is no longer used.
+# See: vercel.json, .github/workflows/ibkr-sync.yml
+
 services:
   # ── Next.js Web Service ──────────────────────────────────────────────────────
   - type: web

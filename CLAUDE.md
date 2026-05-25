@@ -43,11 +43,11 @@ The dashboard layout (`app/(dashboard)/layout.tsx`) wraps everything in `ChatCon
 - **RTL**: `<html dir="rtl" lang="he">` at root layout. User-facing copy is Hebrew; code/identifiers/comments stay in English.
 - **IBKR**: Flex Web Service — 2-step pull (request → download). Token valid ~1 year. Encrypted AES-256-GCM at rest.
 - **Single Flex Query**: Only the **Activity** Flex Query is used (Trade Confirmations was dropped). Activity updates once per end-of-day, so cron runs 2×/day at 13:00 & 20:00 UTC. The `flexQueryIdTrades` column is nullable and unused.
-- **Massive (formerly Polygon)**: All `lib/polygon` → `lib/massive`, `app/api/polygon` → `app/api/massive`, env var `POLYGON_API_KEY` → `MASSIVE_API_KEY`. **Price sync is currently disabled** (`render.yaml` cron commented out; sync dot removed from `components/sync-indicator.tsx`; settings panel hidden in `app/(dashboard)/settings/page.tsx`). Code paths still exist for re-enabling.
+- **Massive (formerly Polygon)**: All `lib/polygon` → `lib/massive`, `app/api/polygon` → `app/api/massive`, env var `POLYGON_API_KEY` → `MASSIVE_API_KEY`. **Price sync is currently disabled** (GitHub Actions workflow for massive-prices not added; sync dot removed from `components/sync-indicator.tsx`; settings panel hidden in `app/(dashboard)/settings/page.tsx`). Code paths still exist for re-enabling.
 - **Routing**: `/dashboard` is hidden — all entry points (`app/page.tsx`, `middleware.ts`, login, auth callback) redirect to `/research`. The dashboard component code is kept, not deleted.
 - **Nav tabs**: "תחקור" (`/research`) · "חיפוש" (`/search`) · "ייבוא-ידני" (`/manual-import`).
 - **Profile/Settings**: unified at `/profile` with sidebar tabs — חשבון / אבטחה / תצוגה / ברוקר. `/settings` redirects to `/profile?tab=broker`.
-- **Base URL / Render proxy**: Render runs Next.js behind a reverse proxy on port 10000. `request.url` in server-side handlers resolves to `http://localhost:10000/...`, not the real external URL. **Never use `new URL(request.url).origin` to build redirect or callback URLs.** Instead call `getBaseUrl()` from `lib/utils.ts`, which returns `SITE_URL` (set in the Render dashboard) or `http://localhost:3000` locally. `SITE_URL` is intentionally a server-only env var (no `NEXT_PUBLIC_` prefix) — `getBaseUrl()` is never called from client code. This rule applies anywhere the server needs to produce a fully-qualified external URL: auth callbacks, password-reset links, OAuth redirects, webhook return URLs, payment processor callbacks, etc. Also: always validate that a `next`/redirect path parameter starts with `/` before appending it to `getBaseUrl()` to prevent open-redirect abuse.
+- **Base URL**: **Never use `new URL(request.url).origin` to build redirect or callback URLs** — `request.url` in server-side handlers may not reflect the real external URL depending on the hosting environment. Instead call `getBaseUrl()` from `lib/utils.ts`, which returns `SITE_URL` (set in the Vercel dashboard) or `http://localhost:3000` locally. `SITE_URL` is intentionally a server-only env var (no `NEXT_PUBLIC_` prefix) — `getBaseUrl()` is never called from client code. This rule applies anywhere the server needs to produce a fully-qualified external URL: auth callbacks, password-reset links, OAuth redirects, webhook return URLs, payment processor callbacks, etc. Also: always validate that a `next`/redirect path parameter starts with `/` before appending it to `getBaseUrl()` to prevent open-redirect abuse.
 
 ### Theme
 
@@ -113,8 +113,8 @@ Key invariants:
 
 ## Backfill / cron behavior
 
-- **Backfill**: async — `POST /api/ibkr/backfill` returns 202; `GET` polls status. Uses `setImmediate`, which works on Render's persistent Node process but **not** on Vercel serverless.
-- **IBKR cron**: Render fires at 13:00 & 20:00 UTC. Step 2 polls every 10s up to 30 attempts (~5 min); IBKR typically generates the statement within 1–2 attempts.
+- **Backfill**: async — `POST /api/ibkr/backfill` returns 202; `GET` polls status. Uses `waitUntil()` from `@vercel/functions` (replaced `setImmediate` which was killed by Vercel after response).
+- **IBKR cron**: GitHub Actions fires at 13:00 & 20:00 UTC (`.github/workflows/ibkr-sync.yml`). Step 2 polls every 10s up to **4 attempts** (~40s); IBKR typically generates the statement within 1–2 attempts. If IBKR is slow and all 4 attempts fail, `IbkrTransientError` is thrown → `lastSyncAt` is not updated → next cron run retries automatically.
 - **Massive price cron**: currently disabled (see Massive note above).
 
 ## Env vars
@@ -131,7 +131,7 @@ The required names are listed in `.env.example` (do not commit values). Brief pu
 | `MASSIVE_API_KEY` | Massive API key (price data; sync currently disabled) |
 | `GEMINI_API_KEY` | Google Gemini API key for the chat assistant |
 | `CRON_SECRET` | Bearer token expected by cron endpoints (`/api/cron/*`) |
-| `SITE_URL` | Canonical external URL of the app; used by `getBaseUrl()` (`lib/utils.ts`) to build server-side redirects and callbacks — avoids Render proxy localhost issue. Server-only (no `NEXT_PUBLIC_` prefix). Not needed locally. |
+| `SITE_URL` | Canonical external URL of the app; used by `getBaseUrl()` (`lib/utils.ts`) to build server-side redirects and callbacks. Set in Vercel dashboard (e.g. `https://trade-analyst-lyart.vercel.app`). Server-only (no `NEXT_PUBLIC_` prefix). Not needed locally. |
 
 If you add a new env var, add the **name** to `.env.example` and document its purpose here.
 
