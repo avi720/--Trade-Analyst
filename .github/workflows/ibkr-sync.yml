@@ -1,0 +1,15 @@
+name: IBKR Sync
+on:
+  schedule:
+    - cron: '0 13 * * *'   # 13:00 UTC (9 AM EDT)
+    - cron: '0 20 * * *'   # 20:00 UTC (4 PM EDT)
+  workflow_dispatch:         # manual trigger from GitHub UI
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger IBKR sync
+        run: |
+          curl -f -X GET "${{ secrets.SITE_URL }}/api/cron/ibkr-sync" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

@@ -8,6 +8,9 @@ import { fetchFlexQuery } from "@/lib/ibkr/flex-client";
 import { parseActivityXml } from "@/lib/ibkr/parse-flex-xml";
 import { processExecutions } from "@/lib/ibkr/process-executions";
 import type { Database } from "@/lib/db/types";
+import { waitUntil } from "@vercel/functions";
+
+export const maxDuration = 60;
 
 const schema = z.object({
   flexToken: z.string().min(1, "Flex token is required"),
@@ -62,7 +65,7 @@ export async function POST(req: NextRequest) {
   // Fire-and-forget initial sync — runs after response is returned
   const userId = user.id;
   console.log("[ibkr/connect] Background sync started");
-  setImmediate(async () => {
+  waitUntil((async () => {
     const adminBg = createAdminClient();
     try {
       const { data: conn } = await adminBg
@@ -117,7 +120,7 @@ export async function POST(req: NextRequest) {
         lastSyncError: msg,
       }).eq("userId", userId);
     }
-  });
+  })());
 
   return NextResponse.json({ ok: true });
 }

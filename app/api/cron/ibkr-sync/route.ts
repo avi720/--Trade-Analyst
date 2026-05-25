@@ -5,7 +5,9 @@ import { fetchFlexQuery, IbkrTransientError } from "@/lib/ibkr/flex-client";
 import { parseActivityXml } from "@/lib/ibkr/parse-flex-xml";
 import { processExecutions } from "@/lib/ibkr/process-executions";
 
-// Secured with CRON_SECRET header — called by Render Cron Job at 13:00 & 20:00 UTC daily
+export const maxDuration = 60;
+
+// Secured with CRON_SECRET header — called by GitHub Actions at 13:00 & 20:00 UTC daily
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("Authorization");
   if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -111,5 +113,4 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ ok: true, status: syncStatus, error: syncError });
 }
 
-// Allow POST as well — Render cron may be configured with -X POST
 export const POST = GET;

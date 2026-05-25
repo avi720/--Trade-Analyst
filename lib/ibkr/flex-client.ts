@@ -100,10 +100,11 @@ export async function fetchFlexQuery(token: string, queryId: string): Promise<st
   console.log(`[flex] Step1 response: referenceCode=${referenceCode}, url=${url}`);
 
   // Step 2 — download the report (retry if not ready yet)
-  // IBKR can take several minutes to generate a statement; poll every 10s up to 5 minutes.
+  // IBKR typically generates within 1-2 attempts; cap at 4 retries (40s) to stay within
+  // Vercel's 60s function timeout. IbkrTransientError on timeout → next cron run retries.
   const step2Url = `${url}?q=${encodeURIComponent(referenceCode)}&t=${encodeURIComponent(token)}&v=3`;
   const step2UrlSafe = `${url}?q=${encodeURIComponent(referenceCode)}&t=[REDACTED]&v=3`;
-  const MAX_RETRIES = 30;
+  const MAX_RETRIES = 4;
   const RETRY_DELAY_MS = 10_000;
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -126,7 +127,7 @@ export async function fetchFlexQuery(token: string, queryId: string): Promise<st
       // Still generating after 5 minutes — treat as transient so lastSyncAt is not updated
       // and the next scheduled cron run retries automatically.
       console.log(`[flex] Step2 timed out after ${MAX_RETRIES} attempts`);
-      throw new IbkrTransientError("Flex statement generation timed out after 5 minutes");
+      throw new IbkrTransientError("Flex statement generation timed out after 4 attempts");
     }
 
     // Check for error codes in the step-2 response as well

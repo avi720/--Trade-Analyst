@@ -1,0 +1,6 @@
+{
+  "functions": {
+    "app/api/cron/ibkr-sync/route.ts": { "maxDuration": 60 },
+    "app/api/ibkr/connect/route.ts": { "maxDuration": 60 }
+  }
+}
