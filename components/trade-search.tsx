@@ -95,7 +95,7 @@ export function TradeSearch({ trades, initialParams }: Props) {
   const [setup, setSetup] = useState(initialParams.setup ?? '')
   const [rMin, setRMin] = useState(initialParams.rMin ?? '')
   const [rMax, setRMax] = useState(initialParams.rMax ?? '')
-  const [status, setStatus] = useState(initialParams.status ?? 'Closed')
+  const [status, setStatus] = useState(initialParams.status ?? 'All')
   const [sortCol, setSortCol] = useState<SortCol>((initialParams.sort as SortCol) ?? 'closedAt')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>((initialParams.sortDir as 'asc' | 'desc') ?? 'desc')
   const [page, setPage] = useState(Number(initialParams.page ?? '0'))
@@ -162,12 +162,12 @@ export function TradeSearch({ trades, initialParams }: Props) {
 
   function clearFilters() {
     setQ(''); setFrom(''); setTo(''); setDirection(''); setFilterResult('')
-    setSetup(''); setRMin(''); setRMax(''); setStatus('Closed')
+    setSetup(''); setRMin(''); setRMax(''); setStatus('All')
     setSortCol('closedAt'); setSortDir('desc'); setPage(0)
     router.replace('/search', { scroll: false })
   }
 
-  const hasFilters = q || from || to || direction || filterResult || setup || rMin || rMax || status !== 'Closed'
+  const hasFilters = q || from || to || direction || filterResult || setup || rMin || rMax || status !== 'All'
 
   const filtered = useMemo(() => {
     return effectiveTrades.filter(t => {
