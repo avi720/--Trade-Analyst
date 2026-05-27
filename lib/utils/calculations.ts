@@ -14,7 +14,7 @@ export interface TradeStats {
 }
 
 export interface EquityPoint {
-  date: Date
+  date: number   // epoch ms — numeric so recharts' type="number" time axis can plot it
   cumulativeR: number
 }
 
@@ -89,7 +89,7 @@ export function equityCurve(trades: ClosedTrade[]): EquityPoint[] {
   let cumR = 0
   return sorted.map(t => {
     cumR += t.actualR
-    return { date: t.closedAt, cumulativeR: cumR }
+    return { date: t.closedAt.getTime(), cumulativeR: cumR }
   })
 }
 
