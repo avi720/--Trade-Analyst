@@ -16,7 +16,6 @@ const schema = z.object({
     currency:     z.enum(['USD', 'ILS']),
     dateFormat:   z.enum(['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD']),
     numberFormat: z.enum(['en', 'eu']),
-    timezone:     z.string().min(1),
   }),
 })
 

@@ -21,7 +21,6 @@ interface UserDisplay {
   currency?: "USD" | "ILS";
   dateFormat?: "DD/MM/YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD";
   numberFormat?: "en" | "eu";
-  timezone?: string;
 }
 
 interface ProfileLayoutProps {

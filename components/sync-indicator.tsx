@@ -52,7 +52,7 @@ function ibkrDotColor(
 
 function formatShort(iso: string | null | undefined): string {
   if (!iso) return "";
-  const diff = Date.now() - new Date(iso + "Z").getTime();
+  const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return "עכשיו";
   if (mins < 60) return `${mins}d`;
@@ -83,14 +83,14 @@ export function SyncIndicator() {
   const ibkrLabel = formatShort(conn?.lastSyncAt);
 
   const ibkrTitle = conn?.lastSyncAt
-    ? `IBKR — סנכרון אחרון: ${new Date(conn.lastSyncAt + "Z").toLocaleString("he-IL")} (${conn.lastSyncStatus ?? "—"})`
+    ? `IBKR — סנכרון אחרון: ${new Date(conn.lastSyncAt).toLocaleString("he-IL")} (${conn.lastSyncStatus ?? "—"})`
     : "IBKR — טרם סונכרן";
 
   /* DASHBOARD-FUTURE: price sync indicator — re-enable when live dashboard is released.
   const priceColor = dotColor(conn?.lastPriceSyncAt, conn?.lastPriceSyncStatus, null);
   const priceLabel = formatShort(conn?.lastPriceSyncAt);
   const priceTitle = conn?.lastPriceSyncAt
-    ? `מחירים — עדכון אחרון: ${new Date(conn.lastPriceSyncAt + "Z").toLocaleString("he-IL")} (${conn.lastPriceSyncStatus ?? "—"})`
+    ? `מחירים — עדכון אחרון: ${new Date(conn.lastPriceSyncAt).toLocaleString("he-IL")} (${conn.lastPriceSyncStatus ?? "—"})`
     : "מחירים — טרם עודכן";
   */
 

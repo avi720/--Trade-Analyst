@@ -38,7 +38,6 @@ const step3Schema = z.object({
   currency:     z.enum(['USD', 'ILS']),
   dateFormat:   z.enum(['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD']),
   numberFormat: z.enum(['en', 'eu']),
-  timezone:     z.string().min(1),
 })
 
 type Step1Fields = z.infer<typeof step1Schema>
@@ -46,22 +45,6 @@ type Step2Fields = z.infer<typeof step2Schema>
 type Step3Fields = z.infer<typeof step3Schema>
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const TIMEZONES = [
-  { value: 'America/New_York',   label: 'New York (EST/EDT)' },
-  { value: 'America/Chicago',    label: 'Chicago (CST/CDT)' },
-  { value: 'America/Denver',     label: 'Denver (MST/MDT)' },
-  { value: 'America/Los_Angeles',label: 'Los Angeles (PST/PDT)' },
-  { value: 'America/Sao_Paulo',  label: 'São Paulo (BRT)' },
-  { value: 'Europe/London',      label: 'London (GMT/BST)' },
-  { value: 'Europe/Paris',       label: 'Paris (CET/CEST)' },
-  { value: 'Europe/Berlin',      label: 'Berlin (CET/CEST)' },
-  { value: 'Asia/Jerusalem',     label: 'ירושלים / תל אביב (IST/IDT)' },
-  { value: 'Asia/Dubai',         label: 'Dubai (GST)' },
-  { value: 'Asia/Tokyo',         label: 'Tokyo (JST)' },
-  { value: 'Australia/Sydney',   label: 'Sydney (AEST/AEDT)' },
-  { value: 'UTC',                label: 'UTC' },
-]
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
 
@@ -252,14 +235,12 @@ export default function SignupPage() {
       currency:     'USD',
       dateFormat:   'DD/MM/YYYY',
       numberFormat: 'en',
-      timezone:     'Asia/Jerusalem',
     },
   })
 
   const currency     = form3.watch('currency')
   const dateFormat   = form3.watch('dateFormat')
   const numberFormat = form3.watch('numberFormat')
-  const timezone     = form3.watch('timezone')
 
   async function onStep3Submit(display: Step3Fields) {
     if (!step2Data) return
@@ -532,21 +513,6 @@ export default function SignupPage() {
                   { value: 'eu', label: 'אירופאי', sub: '1.234.567,89' },
                 ]}
               />
-            </div>
-
-            {/* Timezone */}
-            <div>
-              <p className="text-xs font-medium text-[#888888] uppercase tracking-wider mb-2">אזור זמן</p>
-              <select
-                value={timezone}
-                onChange={e => form3.setValue('timezone', e.target.value)}
-                dir="ltr"
-                className="w-full bg-[#0d0d0d] border border-[#222222] rounded-md px-3 py-2.5 text-sm text-[#E0E0E0] focus:outline-none focus:border-[#FFB800] transition-colors appearance-none cursor-pointer"
-              >
-                {TIMEZONES.map(tz => (
-                  <option key={tz.value} value={tz.value}>{tz.label}</option>
-                ))}
-              </select>
             </div>
 
             {submitError && <p className="text-[#FF4D4D] text-sm text-center">{submitError}</p>}

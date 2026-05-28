@@ -5,27 +5,10 @@ import { CountdownCircle } from "./countdown-circle";
 
 const TOAST_DURATION = 10;
 
-const TIMEZONES = [
-  { value: "America/New_York", label: "New York (EST/EDT)" },
-  { value: "America/Chicago", label: "Chicago (CST/CDT)" },
-  { value: "America/Denver", label: "Denver (MST/MDT)" },
-  { value: "America/Los_Angeles", label: "Los Angeles (PST/PDT)" },
-  { value: "America/Sao_Paulo", label: "São Paulo (BRT)" },
-  { value: "Europe/London", label: "London (GMT/BST)" },
-  { value: "Europe/Paris", label: "Paris (CET/CEST)" },
-  { value: "Europe/Berlin", label: "Berlin (CET/CEST)" },
-  { value: "Asia/Jerusalem", label: "ירושלים / תל אביב (IST/IDT)" },
-  { value: "Asia/Dubai", label: "Dubai (GST)" },
-  { value: "Asia/Tokyo", label: "Tokyo (JST)" },
-  { value: "Australia/Sydney", label: "Sydney (AEST/AEDT)" },
-  { value: "UTC", label: "UTC" },
-];
-
 interface DisplaySettings {
   currency?: "USD" | "ILS";
   dateFormat?: "DD/MM/YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD";
   numberFormat?: "en" | "eu";
-  timezone?: string;
 }
 
 interface TabDisplayProps {
@@ -83,7 +66,6 @@ export function TabDisplay({ initialDisplay }: TabDisplayProps) {
     initialDisplay.dateFormat ?? "DD/MM/YYYY"
   );
   const [numberFormat, setNumberFormat] = useState<"en" | "eu">(initialDisplay.numberFormat ?? "en");
-  const [timezone, setTimezone] = useState<string>(initialDisplay.timezone ?? "America/New_York");
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -111,7 +93,7 @@ export function TabDisplay({ initialDisplay }: TabDisplayProps) {
       const res = await fetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ settings: { display: { currency, dateFormat, numberFormat, timezone } } }),
+        body: JSON.stringify({ settings: { display: { currency, dateFormat, numberFormat } } }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -140,7 +122,7 @@ export function TabDisplay({ initialDisplay }: TabDisplayProps) {
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold text-[#E0E0E0]">תצוגה</h2>
-        <p className="text-sm text-[#888888] mt-1">מטבע, פורמט תאריכים, מספרים ואזור זמן</p>
+        <p className="text-sm text-[#888888] mt-1">מטבע, פורמט תאריכים ומספרים</p>
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
@@ -182,22 +164,6 @@ export function TabDisplay({ initialDisplay }: TabDisplayProps) {
               { value: "eu", label: "אירופאי", sub: "1.234.567,89 — נקודה להפרדת אלפים, פסיק לעשרוני" },
             ]}
           />
-        </div>
-
-        {/* Timezone */}
-        <div className="panel p-5">
-          <label className={labelCls}>אזור זמן</label>
-          <p className="text-xs text-[#555555] mb-3">משפיע על הצגת שעות ביצוע עסקאות</p>
-          <select
-            value={timezone}
-            onChange={(e) => setTimezone(e.target.value)}
-            className="w-full bg-[#0d0d0d] border border-[#222222] rounded-md px-3 py-2.5 text-sm text-[#E0E0E0] focus:outline-none focus:border-[#FFB800] transition-colors appearance-none cursor-pointer"
-            dir="ltr"
-          >
-            {TIMEZONES.map((tz) => (
-              <option key={tz.value} value={tz.value}>{tz.label}</option>
-            ))}
-          </select>
         </div>
 
         {saveError && <p className="text-[#FF4D4D] text-sm">{saveError}</p>}
