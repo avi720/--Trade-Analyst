@@ -32,9 +32,12 @@ export default async function DashboardLayout({
 
   return (
     <ChatContextProvider>
+      <a href="#main-content" className="skip-link font-sans text-sm">
+        דלג לתוכן הראשי
+      </a>
       <div className="flex flex-col h-screen overflow-hidden">
         <Header userEmail={user.email} />
-        <main className="flex-1 overflow-auto">
+        <main id="main-content" className="flex-1 overflow-auto">
           {children}
         </main>
       </div>

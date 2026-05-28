@@ -59,6 +59,29 @@ body {
 }
 .btn-ghost:hover { background: #1a1a1a; }
 .btn-ghost:active { transform: translateY(1px); }
+.btn-ghost:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+/* Skip-to-content link — visible only when focused via keyboard */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+}
+.skip-link:focus {
+  left: 1rem;
+  top: 1rem;
+  background: var(--panel-bg);
+  color: var(--text-main);
+  border: 1px solid var(--amber);
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
 
 /* Panel */
 .panel {

@@ -97,23 +97,35 @@ const AXIS_TICK = { fill: '#888888', fontSize: 11 }
 const GRID_STROKE = '#1E1E1E'
 const AXIS_STROKE = '#333333'
 
+// The dashboard renders inside dir="rtl". Numeric/currency/R labels contain weak
+// bidi characters (-, +, $, <, >) that the RTL algorithm reorders, turning "-$2k"
+// into "2k-$" and "<-2R" into "2R->". Wrapping each label in LTR isolates
+// (U+2066 … U+2069) forces it to render left-to-right without affecting Hebrew
+// category labels (setup names, day names), which we leave untouched.
+const LRI = '⁦' // LEFT-TO-RIGHT ISOLATE
+const PDI = '⁩' // POP DIRECTIONAL ISOLATE
+const ltr = (s: string | number) => `${LRI}${s}${PDI}`
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+function ChartCard({ title, ariaLabel, children }: { title: string; ariaLabel?: string; children: React.ReactNode }) {
   return (
     <div className="panel p-4 flex flex-col gap-3">
       <h2 className="text-[#888888] text-xs font-sans">{title}</h2>
-      {children}
+      {/* SVG charts are not readable by assistive tech; expose a text alternative. */}
+      <div role="img" aria-label={ariaLabel ?? title}>
+        {children}
+      </div>
     </div>
   )
 }
 
 function MetricCard({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <div className="panel p-4">
-      <p className="text-[#888888] text-xs font-sans mb-1">{label}</p>
-      <p className={`text-xl font-mono font-bold truncate ${color ?? 'text-[#E0E0E0]'}`}>{value}</p>
-    </div>
+    <dl className="panel p-4">
+      <dt className="text-[#888888] text-xs font-sans mb-1">{label}</dt>
+      <dd className={`text-xl font-mono font-bold truncate m-0 ${color ?? 'text-[#E0E0E0]'}`}>{value}</dd>
+    </dl>
   )
 }
 
@@ -238,34 +250,35 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
 
   return (
     <div className="flex h-full relative">
-      <main className="flex-1 overflow-auto p-6" dir="rtl">
+      {/* Inner region (not <main> — the dashboard layout already provides the single main landmark) */}
+      <div className="flex-1 overflow-auto p-6" dir="rtl">
 
         {/* ── Filter bar ──────────────────────────────────────────────────────── */}
         <div className="panel p-4 mb-6">
           <div className="flex flex-wrap gap-3 items-end">
 
             <div className="flex flex-col gap-1">
-              <label className="text-[#888888] text-xs font-sans">מתאריך</label>
-              <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+              <label htmlFor="filter-date-from" className="text-[#888888] text-xs font-sans">מתאריך</label>
+              <input id="filter-date-from" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
                 className="input-base text-sm font-mono w-36" dir="ltr" />
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[#888888] text-xs font-sans">עד תאריך</label>
-              <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+              <label htmlFor="filter-date-to" className="text-[#888888] text-xs font-sans">עד תאריך</label>
+              <input id="filter-date-to" type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
                 className="input-base text-sm font-mono w-36" dir="ltr" />
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[#888888] text-xs font-sans">טיקר</label>
-              <input type="text" placeholder="AAPL..." value={tickerFilter}
+              <label htmlFor="filter-ticker" className="text-[#888888] text-xs font-sans">טיקר</label>
+              <input id="filter-ticker" type="text" placeholder="AAPL..." value={tickerFilter}
                 onChange={e => setTickerFilter(e.target.value)}
                 className="input-base text-sm font-mono w-24" dir="ltr" />
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[#888888] text-xs font-sans">סטאפ</label>
-              <select value={setupFilter} onChange={e => setSetupFilter(e.target.value)}
+              <label htmlFor="filter-setup" className="text-[#888888] text-xs font-sans">סטאפ</label>
+              <select id="filter-setup" value={setupFilter} onChange={e => setSetupFilter(e.target.value)}
                 className="input-base text-sm font-sans">
                 <option value="all">הכל</option>
                 {setupTypes.map(s => <option key={s} value={s}>{s}</option>)}
@@ -273,8 +286,8 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[#888888] text-xs font-sans">כיוון</label>
-              <select value={directionFilter} onChange={e => setDirectionFilter(e.target.value)}
+              <label htmlFor="filter-direction" className="text-[#888888] text-xs font-sans">כיוון</label>
+              <select id="filter-direction" value={directionFilter} onChange={e => setDirectionFilter(e.target.value)}
                 className="input-base text-sm font-sans">
                 <option value="all">הכל</option>
                 <option value="Long">Long</option>
@@ -283,8 +296,8 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[#888888] text-xs font-sans">תוצאה</label>
-              <select value={resultFilter} onChange={e => setResultFilter(e.target.value)}
+              <label htmlFor="filter-result" className="text-[#888888] text-xs font-sans">תוצאה</label>
+              <select id="filter-result" value={resultFilter} onChange={e => setResultFilter(e.target.value)}
                 className="input-base text-sm font-sans">
                 <option value="all">הכל</option>
                 <option value="Win">Win</option>
@@ -293,27 +306,27 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
               </select>
             </div>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-[#888888] text-xs font-sans">איכות ביצוע (1-10)</label>
+            <div className="flex flex-col gap-1" role="group" aria-labelledby="filter-execqual-label">
+              <span id="filter-execqual-label" className="text-[#888888] text-xs font-sans">איכות ביצוע (1-10)</span>
               <div className="flex gap-1 items-center">
-                <input type="number" placeholder="מינ׳" min={1} max={10} value={execQualMin}
+                <input type="number" aria-label="איכות ביצוע מינימלית" placeholder="מינ׳" min={1} max={10} value={execQualMin}
                   onChange={e => setExecQualMin(e.target.value)}
                   className="input-base text-sm font-mono w-16" dir="ltr" />
-                <span className="text-[#888888] text-xs">–</span>
-                <input type="number" placeholder="מקס׳" min={1} max={10} value={execQualMax}
+                <span className="text-[#888888] text-xs" aria-hidden="true">–</span>
+                <input type="number" aria-label="איכות ביצוע מקסימלית" placeholder="מקס׳" min={1} max={10} value={execQualMax}
                   onChange={e => setExecQualMax(e.target.value)}
                   className="input-base text-sm font-mono w-16" dir="ltr" />
               </div>
             </div>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-[#888888] text-xs font-sans">זמן החזקה (שעות)</label>
+            <div className="flex flex-col gap-1" role="group" aria-labelledby="filter-hold-label">
+              <span id="filter-hold-label" className="text-[#888888] text-xs font-sans">זמן החזקה (שעות)</span>
               <div className="flex gap-1 items-center">
-                <input type="number" placeholder="מינ׳" min={0} value={holdHoursMin}
+                <input type="number" aria-label="זמן החזקה מינימלי בשעות" placeholder="מינ׳" min={0} value={holdHoursMin}
                   onChange={e => setHoldHoursMin(e.target.value)}
                   className="input-base text-sm font-mono w-16" dir="ltr" />
-                <span className="text-[#888888] text-xs">–</span>
-                <input type="number" placeholder="מקס׳" min={0} value={holdHoursMax}
+                <span className="text-[#888888] text-xs" aria-hidden="true">–</span>
+                <input type="number" aria-label="זמן החזקה מקסימלי בשעות" placeholder="מקס׳" min={0} value={holdHoursMax}
                   onChange={e => setHoldHoursMax(e.target.value)}
                   className="input-base text-sm font-mono w-16" dir="ltr" />
               </div>
@@ -331,6 +344,9 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
 
           </div>
         </div>
+
+        {/* Results region — announces metric/chart updates to screen readers when filters change */}
+        <div aria-live="polite" aria-atomic="false">
 
         {/* ── Metrics row ─────────────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -384,9 +400,11 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
           <span className="text-[#888888] text-xs font-sans">גרפים מוצגים:</span>
           <button
             onClick={() => setTogglePanelOpen(p => !p)}
-            className="text-[#FFB800] text-xs font-sans hover:opacity-80 transition-opacity"
+            aria-expanded={togglePanelOpen}
+            aria-label={togglePanelOpen ? 'סגור עריכת גרפים מוצגים' : 'ערוך גרפים מוצגים'}
+            className="text-[#FFB800] text-xs font-sans hover:opacity-80 transition-opacity rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2"
           >
-            {togglePanelOpen ? 'סגור ✕' : 'ערוך ✎'}
+            {togglePanelOpen ? <>סגור <span aria-hidden="true">✕</span></> : <>ערוך <span aria-hidden="true">✎</span></>}
           </button>
           {togglePanelOpen && CHART_IDS.map(id => (
             <label key={id} className="flex items-center gap-1.5 cursor-pointer text-sm font-sans text-[#E0E0E0]">
@@ -403,7 +421,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
 
         {/* ── Charts / empty state ─────────────────────────────────────────────── */}
         {filteredTrades.length === 0 ? (
-          <div className="panel p-16 text-center">
+          <div className="panel p-16 text-center" role="status">
             <p className="text-[#888888] font-sans text-base">
               {closedTrades.length === 0
                 ? 'אין טריידים סגורים במערכת'
@@ -415,7 +433,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
 
             {/* 1 ── Equity Curve */}
             {chartVisible.equity && (
-              <ChartCard title="עקומת הון (R מצטבר)">
+              <ChartCard title="עקומת הון (R מצטבר)" ariaLabel="גרף עקומת הון: R מצטבר לאורך זמן">
                 <ResponsiveContainer width="100%" height={220}>
                   <LineChart data={chartData.equity}>
                     <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
@@ -429,11 +447,11 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
                       tick={AXIS_TICK}
                       tickCount={5}
                     />
-                    <YAxis stroke={AXIS_STROKE} tick={AXIS_TICK} tickFormatter={v => `${v}R`} />
+                    <YAxis stroke={AXIS_STROKE} tick={AXIS_TICK} tickFormatter={v => ltr(`${v}R`)} />
                     <Tooltip
                       contentStyle={TOOLTIP_STYLE}
                       labelFormatter={v => new Date(v as number).toLocaleDateString('he-IL')}
-                      formatter={(v: number) => [`${v >= 0 ? '+' : ''}${v.toFixed(2)}R`, 'R מצטבר']}
+                      formatter={(v: number) => [ltr(`${v >= 0 ? '+' : ''}${v.toFixed(2)}R`), 'R מצטבר']}
                     />
                     <ReferenceLine y={0} stroke="#444444" strokeDasharray="4 4" />
                     <Line type="monotone" dataKey="cumulativeR" stroke="#FFB800" dot={false} strokeWidth={2} isAnimationActive={false} />
@@ -444,11 +462,11 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
 
             {/* 2 ── R Distribution */}
             {chartVisible.rdist && (
-              <ChartCard title="התפלגות R">
+              <ChartCard title="התפלגות R" ariaLabel="גרף עמודות: התפלגות הטריידים לפי מכפיל R">
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={chartData.rdist}>
                     <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
-                    <XAxis dataKey="label" stroke={AXIS_STROKE} tick={AXIS_TICK} />
+                    <XAxis dataKey="label" stroke={AXIS_STROKE} tick={AXIS_TICK} tickFormatter={ltr} />
                     <YAxis stroke={AXIS_STROKE} tick={AXIS_TICK} allowDecimals={false} />
                     <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [v, 'טריידים']} />
                     <Bar dataKey="count" radius={[3, 3, 0, 0]} isAnimationActive={false}>
@@ -466,12 +484,12 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
 
             {/* 3 ── Setup Performance */}
             {chartVisible.setup && (
-              <ChartCard title="ביצועי סטאפ">
+              <ChartCard title="ביצועי סטאפ" ariaLabel="גרף עמודות: ביצועי כל סוג סטאפ — R ממוצע ואחוז הצלחה">
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={chartData.setup}>
                     <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
                     <XAxis dataKey="setupType" stroke={AXIS_STROKE} tick={AXIS_TICK} />
-                    <YAxis yAxisId="r" stroke={AXIS_STROKE} tick={AXIS_TICK} tickFormatter={v => `${v}R`} />
+                    <YAxis yAxisId="r" stroke={AXIS_STROKE} tick={AXIS_TICK} tickFormatter={v => ltr(`${v}R`)} />
                     <YAxis
                       yAxisId="wr"
                       orientation="right"
@@ -504,7 +522,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
 
             {/* 4 ── P&L by Ticker */}
             {chartVisible.ticker && (
-              <ChartCard title="P&L לפי נייר">
+              <ChartCard title="P&L לפי נייר" ariaLabel="גרף עמודות אופקי: רווח והפסד מצטבר לכל נייר">
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={chartData.ticker} layout="vertical" margin={{ left: 0, right: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} horizontal={false} />
@@ -513,10 +531,10 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
                       stroke={AXIS_STROKE}
                       tick={AXIS_TICK}
                       tickFormatter={v =>
-                        Math.abs(v) >= 1000 ? `$${(v / 1000).toFixed(0)}k` : `$${v}`
+                        ltr(Math.abs(v) >= 1000 ? `$${(v / 1000).toFixed(0)}k` : `$${v}`)
                       }
                     />
-                    <YAxis type="category" dataKey="ticker" stroke={AXIS_STROKE} tick={AXIS_TICK} width={55} />
+                    <YAxis type="category" dataKey="ticker" stroke={AXIS_STROKE} tick={AXIS_TICK} width={55} interval={0} />
                     <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [formatUsd(v), 'P&L']} />
                     <ReferenceLine x={0} stroke="#444444" strokeDasharray="4 4" />
                     <Bar dataKey="totalPnl" radius={[0, 3, 3, 0]} isAnimationActive={false}>
@@ -531,7 +549,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
 
             {/* 5 ── Hold Time vs R (scatter) */}
             {chartVisible.holdtime && (
-              <ChartCard title="זמן החזקה vs R">
+              <ChartCard title="זמן החזקה vs R" ariaLabel="גרף פיזור: זמן החזקת הטרייד מול מכפיל R, מסומן לפי תוצאה">
                 <ResponsiveContainer width="100%" height={220}>
                   <ScatterChart margin={{ top: 5, right: 10, bottom: 20, left: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
@@ -541,7 +559,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
                       name="שעות"
                       stroke={AXIS_STROKE}
                       tick={AXIS_TICK}
-                      tickFormatter={v => v < 24 ? `${v}h` : `${(v / 24).toFixed(0)}d`}
+                      tickFormatter={v => ltr(v < 24 ? `${v}h` : `${(v / 24).toFixed(0)}d`)}
                       label={{ value: 'זמן', position: 'insideBottom', offset: -10, fill: '#888888', fontSize: 10 }}
                     />
                     <YAxis
@@ -550,7 +568,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
                       name="R"
                       stroke={AXIS_STROKE}
                       tick={AXIS_TICK}
-                      tickFormatter={v => `${v}R`}
+                      tickFormatter={v => ltr(`${v}R`)}
                     />
                     <Tooltip
                       contentStyle={TOOLTIP_STYLE}
@@ -560,7 +578,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
                         const p = payload[0]?.payload as { holdHours: number; actualR: number; ticker: string }
                         if (!p) return null
                         return (
-                          <div style={TOOLTIP_STYLE} className="px-3 py-2 rounded">
+                          <div style={TOOLTIP_STYLE} dir="ltr" className="px-3 py-2 rounded">
                             <p className="font-mono font-bold text-[#E0E0E0] text-sm">{p.ticker}</p>
                             <p className="text-[#888888] text-xs">
                               {p.holdHours < 24 ? `${p.holdHours.toFixed(1)}h` : `${(p.holdHours / 24).toFixed(1)}d`}
@@ -590,7 +608,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
 
             {/* 6 ── P&L by Day of Week + Hour */}
             {chartVisible.dayhour && (
-              <ChartCard title="P&L לפי יום/שעה">
+              <ChartCard title="P&L לפי יום/שעה" ariaLabel="גרפי עמודות: רווח והפסד לפי יום בשבוע ולפי שעת סגירה">
                 <div className="flex flex-col gap-4">
 
                   <div>
@@ -599,7 +617,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
                       <BarChart data={chartData.dayofweek} margin={{ top: 0, right: 5, bottom: 0, left: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
                         <XAxis dataKey="day" stroke={AXIS_STROKE} tick={{ ...AXIS_TICK, fontSize: 10 }} />
-                        <YAxis stroke={AXIS_STROKE} tick={{ ...AXIS_TICK, fontSize: 10 }} tickFormatter={v => `$${v}`} width={40} />
+                        <YAxis stroke={AXIS_STROKE} tick={{ ...AXIS_TICK, fontSize: 10 }} tickFormatter={v => ltr(`$${v}`)} width={40} />
                         <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [formatUsd(v), 'P&L']} />
                         <Bar dataKey="totalPnl" radius={[3, 3, 0, 0]} isAnimationActive={false}>
                           {chartData.dayofweek.map((entry, i) => (
@@ -622,7 +640,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
                             tick={{ ...AXIS_TICK, fontSize: 10 }}
                             tickFormatter={v => `${String(v).padStart(2, '0')}:00`}
                           />
-                          <YAxis stroke={AXIS_STROKE} tick={{ ...AXIS_TICK, fontSize: 10 }} tickFormatter={v => `$${v}`} width={40} />
+                          <YAxis stroke={AXIS_STROKE} tick={{ ...AXIS_TICK, fontSize: 10 }} tickFormatter={v => ltr(`$${v}`)} width={40} />
                           <Tooltip
                             contentStyle={TOOLTIP_STYLE}
                             labelFormatter={v => `${String(v).padStart(2, '0')}:00`}
@@ -643,7 +661,9 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
 
           </div>
         )}
-      </main>
+        </div>
+        {/* /aria-live results region */}
+      </div>
 
     </div>
   )

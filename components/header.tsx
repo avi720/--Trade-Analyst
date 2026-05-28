@@ -65,9 +65,10 @@ export function Header({ userEmail }: HeaderProps) {
       <div className="flex items-center gap-3">
         <button
           onClick={toggleChat}
+          aria-label="פתח/סגור עוזר AI חנן"
           className="px-3 py-1.5 rounded-md text-sm font-mono text-[#FFB800] hover:bg-[#1A1A1A] transition-colors border border-[#333333]"
         >
-          חנן ▶
+          חנן <span aria-hidden="true">▶</span>
         </button>
         <SyncIndicator />
 
@@ -75,12 +76,15 @@ export function Header({ userEmail }: HeaderProps) {
         <div className="relative">
           <button
             onClick={() => setDropdownOpen(p => !p)}
+            aria-haspopup="menu"
+            aria-expanded={dropdownOpen}
+            aria-label={userEmail ? `תפריט משתמש: ${userEmail}` : 'תפריט משתמש'}
             className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-[#888888] hover:text-[#E0E0E0] hover:bg-[#1A1A1A] transition-colors"
           >
             <span className="w-6 h-6 rounded-full bg-[#222222] flex items-center justify-center text-xs font-mono text-[#FFB800]">
               {userEmail?.[0]?.toUpperCase() ?? 'U'}
             </span>
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg aria-hidden="true" className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
