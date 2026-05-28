@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { TradeLogoIcon } from '@/components/trade-logo'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -36,6 +37,9 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-[#080808]">
       <div className="panel p-8 w-full max-w-sm">
         <div className="text-center mb-8">
+          <div className="flex justify-center mb-4">
+            <TradeLogoIcon size={56} />
+          </div>
           <h1 className="text-2xl font-bold text-[#E0E0E0] font-mono">
             Trade Analysis
           </h1>

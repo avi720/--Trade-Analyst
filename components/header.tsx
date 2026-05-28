@@ -4,6 +4,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useState } from 'react'
 import { SyncIndicator } from './sync-indicator'
+import { TradeLogoIcon } from './trade-logo'
 import { cn } from '@/lib/utils/cn'
 import { useChatContext } from '@/lib/chat/chat-context'
 
@@ -34,7 +35,8 @@ export function Header({ userEmail }: HeaderProps) {
   return (
     <header className="border-b border-[#222222] bg-[#111111] px-6 h-14 flex items-center justify-between flex-shrink-0">
       {/* App name — right side in RTL */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
+        <TradeLogoIcon size={32} />
         <span className="font-mono font-semibold text-[#FFB800] text-lg tracking-tight">
           Trade Analysis
         </span>
