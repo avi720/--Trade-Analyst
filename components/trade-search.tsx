@@ -6,6 +6,7 @@ import { TradeDetailModal, type TradeModalMode } from './trade-detail-modal'
 import { ManualCloseModal } from './manual-close-modal'
 import { cn } from '@/lib/utils/cn'
 import { formatUsd } from '@/lib/utils/position-calc'
+import { fmtLocalDate } from '@/lib/utils/format-date'
 
 const PAGE_SIZE = 25
 
@@ -43,10 +44,7 @@ interface Props {
   initialParams: Record<string, string>
 }
 
-function fmtDate(s: string | null): string {
-  if (!s) return '—'
-  return s.slice(0, 10)
-}
+const fmtDate = fmtLocalDate
 
 function fmtR(r: number | null): string {
   if (r == null) return '—'

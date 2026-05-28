@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { RawTrade } from './trade-search'
 import { SetupTypeInput } from './inputs/setup-type-input'
 import { EmotionalStateInput } from './inputs/emotional-state-input'
+import { fmtLocalDateTime } from '@/lib/utils/format-date'
 
 interface Order {
   id: string
@@ -25,10 +26,7 @@ interface Props {
   onSaved: (updated: RawTrade) => void
 }
 
-function fmtDate(s: string | null) {
-  if (!s) return '—'
-  return s.slice(0, 16).replace('T', ' ')
-}
+const fmtDate = fmtLocalDateTime
 
 function fmtUsd(n: number | null) {
   if (n == null) return '—'
