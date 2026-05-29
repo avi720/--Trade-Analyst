@@ -124,7 +124,7 @@ function MetricCard({ label, value, color }: { label: string; value: string; col
   return (
     <dl className="panel p-4">
       <dt className="text-[#888888] text-xs font-sans mb-1">{label}</dt>
-      <dd className={`text-xl font-mono font-bold truncate m-0 ${color ?? 'text-[#E0E0E0]'}`}>{value}</dd>
+      <dd className={`text-xl font-mono font-bold truncate m-0 ${color ?? 'text-[#E0E0E0]'}`}>{ltr(value)}</dd>
     </dl>
   )
 }
@@ -387,9 +387,9 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
               <p className="text-[#E0E0E0] text-xl font-mono font-bold">—</p>
             ) : (
               <p className="text-sm font-mono font-bold mt-1">
-                <span className="text-[#2CC84A]">{formatUsd(stats.avgWin)}</span>
+                <span className="text-[#2CC84A]">{ltr(formatUsd(stats.avgWin))}</span>
                 <span className="text-[#888888] mx-1">/</span>
-                <span className="text-[#FF4D4D]">{formatUsd(stats.avgLoss)}</span>
+                <span className="text-[#FF4D4D]">{ltr(formatUsd(stats.avgLoss))}</span>
               </p>
             )}
           </div>
