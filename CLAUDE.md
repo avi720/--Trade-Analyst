@@ -76,7 +76,7 @@ Fonts: **IBM Plex Mono** (numbers) + **Assistant** (UI, Hebrew).
 
 ## Database RPCs
 
-- `reverse_position(p_close_trade_id, p_close_status, p_close_at, p_avg_exit_price, p_actual_r, p_result, p_realized_pnl, p_total_commission, p_close_order, p_new_trade, p_new_order)` — atomic FIFO REVERSAL (close existing position + open opposite-side trade in one Postgres transaction). **Always use this 11-param `p_`-prefixed overload**; an older 5-param overload exists from an earlier attempt and must not be used.
+- `reverse_position(p_close_trade_id, p_close_status, p_close_at, p_avg_exit_price, p_actual_r, p_result, p_realized_pnl, p_total_commission, p_close_order, p_new_trade, p_new_order)` — atomic FIFO REVERSAL (close existing position + open opposite-side trade in one Postgres transaction). **Always use this 11-param `p_`-prefixed overload**; an older 5-param overload exists from an earlier attempt and must not be used. The close UPDATE is **guarded** — it only fires when the trade is still `status='Open'` AND its `totalQuantity` still equals `p_close_order.quantity` (the open size the caller matched against). On mismatch it raises `reverse_position_conflict`, which `process-executions.ts` catches as a retryable concurrency conflict. Don't change the 11-param signature to add a guard param — the guard reuses the existing `p_close_order` quantity.
 
 ## FIFO logic — invariants
 
@@ -85,6 +85,9 @@ Fonts: **IBM Plex Mono** (numbers) + **Assistant** (UI, Hebrew).
 - **REVERSAL** produces two DB writes — callers MUST persist them via `supabase.rpc('reverse_position', { ... })` so they happen atomically.
 - `rDistribution` uses left-inclusive bins `[min, max)`. r=0 → "0R–1R", r=2 → ">2R".
 - `actualR` is null when `stopPrice` is null OR `riskPerShare < 0.0001` (prevents Infinity/NaN).
+- **Concurrency (single-user, same-ticker).** The FIFO read→match→write in `processExecutions` is not atomic, so two overlapping requests for the same `(userId, ticker)` could race (the "orphaned Open rows under request pile-up" QA symptom). Two safeguards make it self-correcting — across users there is never contention (separate rows + RLS):
+  1. **Partial unique index** `Trade_userId_ticker_open_unique` on `("userId", ticker) WHERE status='Open'` — enforces the "≤1 open trade per user+ticker" invariant the FIFO read (`.eq('status','Open').maybeSingle()`) already assumes. A duplicate concurrent OPEN fails with `23505` instead of corrupting data.
+  2. **Optimistic-concurrency retry** in `process-executions.ts`: every mutating path is guarded — OPEN catches `23505`; SCALE_IN/REDUCE/CLOSE add `.eq('status','Open').eq('totalQuantity', <readValue>).select('id')` and treat a 0-row result as a conflict; REVERSAL detects `reverse_position_conflict`. On a `ConflictError` the per-execution loop re-reads the latest open trade and re-runs `matchExecution` (up to `MAX_PERSIST_ATTEMPTS=4` with small backoff), so a racing OPEN becomes a SCALE_IN on the next pass. Genuine (non-conflict) DB errors fail immediately and are never retried.
 
 ## IBKR date parsing (CRITICAL)
 
