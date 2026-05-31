@@ -135,9 +135,12 @@ describe("processExecutions — CLOSE", () => {
       stopPrice: 170.0,
     };
     const openTradeChain = makeQueryChain({ data: openTradeData, error: null });
+    // Guarded UPDATE now terminates in .select("id"); a non-empty array means
+    // the optimistic concurrency guard matched a row.
     const updateChain = {
       update: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockResolvedValue({ error: null }),
+      eq: vi.fn().mockReturnThis(),
+      select: vi.fn().mockResolvedValue({ data: [{ id: TRADE_ID }], error: null }),
     };
     const insertOrderChain = { insert: vi.fn().mockResolvedValue({ error: null }) };
 
@@ -208,6 +211,97 @@ describe("processExecutions — REVERSAL", () => {
     expect(rpcArg.p_new_trade).toBeDefined();
     expect(rpcArg.p_close_order).toBeDefined();
     expect(rpcArg.p_new_order).toBeDefined();
+  });
+});
+
+describe("processExecutions — concurrency retry", () => {
+  it("retries after a duplicate-open (23505) conflict and re-matches as SCALE_IN", async () => {
+    const dupCheckChain = makeQueryChain({ data: null, error: null });
+    // Attempt 1: no open trade → OPEN
+    const openTradeNullChain = makeQueryChain({ data: null, error: null });
+    // OPEN insert loses the race → unique-violation from the partial index
+    const insertTradeConflictChain = {
+      insert: vi.fn().mockResolvedValue({ error: { code: "23505", message: "duplicate key value" } }),
+    };
+    // Attempt 2: the winner's open trade is now visible → SCALE_IN
+    const openTradeData = {
+      id: TRADE_ID,
+      direction: "Long",
+      avgEntryPrice: 175.5,
+      totalQuantity: 100,
+      totalQuantityOpened: 100,
+      totalCommission: 1.5,
+      realizedPnl: 0,
+      openedAt: "2026-04-23T14:30:00Z",
+      stopPrice: null,
+    };
+    const openTradeFoundChain = makeQueryChain({ data: openTradeData, error: null });
+    const scaleInUpdateChain = {
+      update: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      select: vi.fn().mockResolvedValue({ data: [{ id: TRADE_ID }], error: null }),
+    };
+    const insertOrderChain = { insert: vi.fn().mockResolvedValue({ error: null }) };
+
+    let callCount = 0;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "Order" && callCount === 0) { callCount++; return dupCheckChain; }
+      if (table === "Trade" && callCount === 1) { callCount++; return openTradeNullChain; }
+      if (table === "Trade" && callCount === 2) { callCount++; return insertTradeConflictChain; }
+      if (table === "Trade" && callCount === 3) { callCount++; return openTradeFoundChain; }
+      if (table === "Trade" && callCount === 4) { callCount++; return scaleInUpdateChain; }
+      if (table === "Order" && callCount === 5) { callCount++; return insertOrderChain; }
+      return makeQueryChain({ data: null, error: null });
+    });
+
+    const results = await processExecutions([makeExec()], USER_ID);
+
+    expect(results[0].status).toBe("PROCESSED");
+    expect(results[0].tradeId).toBe(TRADE_ID);
+    // Second pass performed a SCALE_IN update + Order insert (no duplicate Trade)
+    expect(scaleInUpdateChain.update).toHaveBeenCalledOnce();
+    expect(insertOrderChain.insert).toHaveBeenCalledOnce();
+  });
+
+  it("marks FAILED when a guarded UPDATE never matches (conflict not resolved)", async () => {
+    const dupCheckChain = makeQueryChain({ data: null, error: null });
+    const openTradeData = {
+      id: TRADE_ID,
+      direction: "Long",
+      avgEntryPrice: 175.5,
+      totalQuantity: 100,
+      totalQuantityOpened: 100,
+      totalCommission: 1.5,
+      realizedPnl: 0,
+      openedAt: "2026-04-23T14:30:00Z",
+      stopPrice: null,
+    };
+    // Every read sees an open trade, but every guarded UPDATE matches 0 rows
+    // (simulating a writer that keeps changing the position) → conflict each pass.
+    const openTradeChain = makeQueryChain({ data: openTradeData, error: null });
+    const emptyUpdateChain = {
+      update: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      select: vi.fn().mockResolvedValue({ data: [], error: null }),
+    };
+
+    // Within each retry cycle the code reads the open Trade, then issues the
+    // guarded UPDATE. So Trade calls alternate read → update; odd = read, even
+    // = update (which always matches 0 rows here → conflict every pass).
+    let calls = 0;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "Order") return dupCheckChain;
+      calls++;
+      return calls % 2 === 1 ? openTradeChain : emptyUpdateChain;
+    });
+
+    const results = await processExecutions(
+      [makeExec({ side: "SELL", quantity: 50, brokerExecId: "EXEC_REDUCE" })],
+      USER_ID
+    );
+
+    expect(results[0].status).toBe("FAILED");
+    expect(results[0].error).toContain("Concurrency conflict unresolved");
   });
 });
 
