@@ -64,6 +64,24 @@ body {
   outline-offset: 2px;
 }
 
+/* Date input: present a custom "DD / MM / YYYY" placeholder.
+   We can't change the browser's localized placeholder text (Chrome renders
+   the Hebrew "מ"מ" for the month based on <html lang="he">), so when the
+   input is empty we make the native placeholder text invisible and overlay
+   our own span (in JSX, sibling to the input). Once the user picks a date,
+   data-empty drops off and the actual value renders normally — uppercased
+   via text-transform so DD/YYYY parts always look like "DD" / "YYYY". */
+input[type="date"].date-uppercase::-webkit-datetime-edit,
+input[type="date"].date-uppercase::-webkit-datetime-edit-year-field,
+input[type="date"].date-uppercase::-webkit-datetime-edit-month-field,
+input[type="date"].date-uppercase::-webkit-datetime-edit-day-field,
+input[type="date"].date-uppercase::-webkit-datetime-edit-text {
+  text-transform: uppercase;
+}
+input[type="date"].date-uppercase[data-empty="true"]::-webkit-datetime-edit {
+  color: transparent;
+}
+
 /* Skip-to-content link — visible only when focused via keyboard */
 .skip-link {
   position: absolute;

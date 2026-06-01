@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   LineChart, Line,
   BarChart, Bar,
@@ -71,6 +71,9 @@ const CHART_LABELS: Record<ChartId, string> = {
 }
 
 const LS_KEY = 'research_charts_visible'
+const LS_KEY_HOLD_UNIT = 'research_hold_unit'
+const LS_KEY_SETUP_SERIES = 'research_setup_series'
+const LS_KEY_CHART_HEIGHTS = 'research_chart_heights'
 
 function defaultVisibility(): Record<ChartId, boolean> {
   return Object.fromEntries(CHART_IDS.map(id => [id, true])) as Record<ChartId, boolean>
@@ -82,6 +85,40 @@ function loadChartVisibility(): Record<ChartId, boolean> {
     if (stored) return { ...defaultVisibility(), ...JSON.parse(stored) }
   } catch {}
   return defaultVisibility()
+}
+
+type HoldUnit = 'hours' | 'days'
+function loadHoldUnit(): HoldUnit {
+  try {
+    const v = localStorage.getItem(LS_KEY_HOLD_UNIT)
+    if (v === 'days' || v === 'hours') return v
+  } catch {}
+  return 'hours'
+}
+
+interface SetupSeries { avgR: boolean; winRate: boolean }
+const defaultSetupSeries: SetupSeries = { avgR: true, winRate: true }
+function loadSetupSeries(): SetupSeries {
+  try {
+    const v = localStorage.getItem(LS_KEY_SETUP_SERIES)
+    if (v) return { ...defaultSetupSeries, ...JSON.parse(v) }
+  } catch {}
+  return defaultSetupSeries
+}
+
+function loadChartHeights(): Record<string, number> {
+  try {
+    const v = localStorage.getItem(LS_KEY_CHART_HEIGHTS)
+    if (v) return JSON.parse(v)
+  } catch {}
+  return {}
+}
+function saveChartHeight(chartId: string, h: number) {
+  try {
+    const cur = loadChartHeights()
+    cur[chartId] = h
+    localStorage.setItem(LS_KEY_CHART_HEIGHTS, JSON.stringify(cur))
+  } catch {}
 }
 
 // ─── Shared chart styling ─────────────────────────────────────────────────────
@@ -108,12 +145,54 @@ const ltr = (s: string | number) => `${LRI}${s}${PDI}`
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function ChartCard({ title, ariaLabel, children }: { title: string; ariaLabel?: string; children: React.ReactNode }) {
+interface ChartCardProps {
+  chartId: ChartId
+  title: string
+  ariaLabel?: string
+  /** Inline controls rendered on the opposite side of the title (e.g. series toggles). */
+  headerExtra?: React.ReactNode
+  /** Initial / SSR height before the user-saved override loads. */
+  defaultHeight?: number
+  children: React.ReactNode
+}
+function ChartCard({ chartId, title, ariaLabel, headerExtra, defaultHeight = 220, children }: ChartCardProps) {
+  const ref = useRef<HTMLDivElement>(null)
+  // On mount: apply any persisted user-resized height (imperatively, so React's
+  // style prop stays stable at defaultHeight and doesn't fight subsequent
+  // user-driven resizes). Then observe size changes from the native vertical
+  // resize handle and persist them to localStorage.
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const saved = loadChartHeights()[chartId]
+    if (saved && saved >= 150) el.style.height = saved + 'px'
+    let raf = 0
+    const obs = new ResizeObserver(([entry]) => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        const h = Math.round(entry.contentRect.height)
+        if (h >= 150) saveChartHeight(chartId, h)
+      })
+    })
+    obs.observe(el)
+    return () => { obs.disconnect(); cancelAnimationFrame(raf) }
+  }, [chartId])
   return (
     <div className="panel p-4 flex flex-col gap-3">
-      <h2 className="text-[#888888] text-xs font-sans">{title}</h2>
-      {/* SVG charts are not readable by assistive tech; expose a text alternative. */}
-      <div role="img" aria-label={ariaLabel ?? title}>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <h2 className="text-[#888888] text-xs font-sans">{title}</h2>
+        {headerExtra}
+      </div>
+      {/* SVG charts are not readable by assistive tech; expose a text alternative.
+          The native vertical resize handle on the bottom-right lets users size
+          each chart freely; the saved height comes back on every visit. */}
+      <div
+        ref={ref}
+        role="img"
+        aria-label={ariaLabel ?? title}
+        style={{ height: defaultHeight }}
+        className="resize-y overflow-hidden min-h-[150px]"
+      >
         {children}
       </div>
     </div>
@@ -147,15 +226,27 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
   const [execQualMax, setExecQualMax] = useState('')
   const [holdHoursMin, setHoldHoursMin] = useState('')
   const [holdHoursMax, setHoldHoursMax] = useState('')
+  const [holdUnit, setHoldUnit] = useState<HoldUnit>('hours')
+  const [setupSeries, setSetupSeries] = useState<SetupSeries>(defaultSetupSeries)
 
-  // Load chart visibility from localStorage after mount (avoids SSR mismatch)
+  // Load persisted UI prefs from localStorage after mount (avoids SSR mismatch)
   useEffect(() => {
     setChartVisible(loadChartVisibility())
+    setHoldUnit(loadHoldUnit())
+    setSetupSeries(loadSetupSeries())
   }, [])
 
   useEffect(() => {
     try { localStorage.setItem(LS_KEY, JSON.stringify(chartVisible)) } catch {}
   }, [chartVisible])
+
+  useEffect(() => {
+    try { localStorage.setItem(LS_KEY_HOLD_UNIT, holdUnit) } catch {}
+  }, [holdUnit])
+
+  useEffect(() => {
+    try { localStorage.setItem(LS_KEY_SETUP_SERIES, JSON.stringify(setupSeries)) } catch {}
+  }, [setupSeries])
 
   const closedTrades = useMemo(
     () => rawTrades.flatMap(t => { const ct = toClosedTrade(t); return ct ? [ct] : [] }),
@@ -179,13 +270,15 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
       if (execQualMax !== '' && (t.executionQuality ?? 10) > Number(execQualMax)) return false
       if (holdHoursMin !== '' || holdHoursMax !== '') {
         const hrs = (t.closedAt.getTime() - t.openedAt.getTime()) / 3_600_000
-        if (holdHoursMin !== '' && hrs < Number(holdHoursMin)) return false
-        if (holdHoursMax !== '' && hrs > Number(holdHoursMax)) return false
+        // Input values are interpreted in the selected unit; convert to hours for comparison.
+        const factor = holdUnit === 'days' ? 24 : 1
+        if (holdHoursMin !== '' && hrs < Number(holdHoursMin) * factor) return false
+        if (holdHoursMax !== '' && hrs > Number(holdHoursMax) * factor) return false
       }
       return true
     })
   }, [closedTrades, dateFrom, dateTo, tickerFilter, setupFilter, directionFilter, resultFilter,
-      execQualMin, execQualMax, holdHoursMin, holdHoursMax])
+      execQualMin, execQualMax, holdHoursMin, holdHoursMax, holdUnit])
 
   const stats = useMemo(() => calcStats(filteredTrades), [filteredTrades])
 
@@ -259,14 +352,34 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
 
             <div className="flex flex-col gap-1">
               <label htmlFor="filter-date-from" className="text-[#888888] text-xs font-sans">מתאריך</label>
-              <input id="filter-date-from" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-                className="input-base text-sm font-mono w-36" dir="ltr" />
+              <div className="relative">
+                <input id="filter-date-from" type="date" lang="en-GB"
+                  data-empty={!dateFrom}
+                  value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                  className="input-base date-uppercase text-sm font-mono w-36" dir="ltr" />
+                {!dateFrom && (
+                  <span aria-hidden="true"
+                    className="absolute top-1/2 left-2 -translate-y-1/2 pointer-events-none text-sm font-mono text-[#888888] tracking-tight">
+                    DD / MM / YYYY
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="flex flex-col gap-1">
               <label htmlFor="filter-date-to" className="text-[#888888] text-xs font-sans">עד תאריך</label>
-              <input id="filter-date-to" type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-                className="input-base text-sm font-mono w-36" dir="ltr" />
+              <div className="relative">
+                <input id="filter-date-to" type="date" lang="en-GB"
+                  data-empty={!dateTo}
+                  value={dateTo} onChange={e => setDateTo(e.target.value)}
+                  className="input-base date-uppercase text-sm font-mono w-36" dir="ltr" />
+                {!dateTo && (
+                  <span aria-hidden="true"
+                    className="absolute top-1/2 left-2 -translate-y-1/2 pointer-events-none text-sm font-mono text-[#888888] tracking-tight">
+                    DD / MM / YYYY
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="flex flex-col gap-1">
@@ -320,15 +433,25 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
             </div>
 
             <div className="flex flex-col gap-1" role="group" aria-labelledby="filter-hold-label">
-              <span id="filter-hold-label" className="text-[#888888] text-xs font-sans">זמן החזקה (שעות)</span>
+              <span id="filter-hold-label" className="text-[#888888] text-xs font-sans">
+                זמן החזקה ({holdUnit === 'days' ? 'ימים' : 'שעות'})
+              </span>
               <div className="flex gap-1 items-center">
-                <input type="number" aria-label="זמן החזקה מינימלי בשעות" placeholder="מינ׳" min={0} value={holdHoursMin}
+                <input type="number" aria-label={`זמן החזקה מינימלי ב${holdUnit === 'days' ? 'ימים' : 'שעות'}`}
+                  placeholder="מינ׳" min={0} value={holdHoursMin}
                   onChange={e => setHoldHoursMin(e.target.value)}
                   className="input-base text-sm font-mono w-16" dir="ltr" />
                 <span className="text-[#888888] text-xs" aria-hidden="true">–</span>
-                <input type="number" aria-label="זמן החזקה מקסימלי בשעות" placeholder="מקס׳" min={0} value={holdHoursMax}
+                <input type="number" aria-label={`זמן החזקה מקסימלי ב${holdUnit === 'days' ? 'ימים' : 'שעות'}`}
+                  placeholder="מקס׳" min={0} value={holdHoursMax}
                   onChange={e => setHoldHoursMax(e.target.value)}
                   className="input-base text-sm font-mono w-16" dir="ltr" />
+                <select value={holdUnit} onChange={e => setHoldUnit(e.target.value as HoldUnit)}
+                  aria-label="יחידת מדידה לזמן ההחזקה"
+                  className="input-base text-xs font-sans px-1">
+                  <option value="hours">שעות</option>
+                  <option value="days">ימים</option>
+                </select>
               </div>
             </div>
 
@@ -381,18 +504,18 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
             value={stats.totalTrades === 0 ? '—' : formatUsd(stats.totalPnl)}
             color={stats.totalPnl > 0 ? 'text-[#2CC84A]' : stats.totalPnl < 0 ? 'text-[#FF4D4D]' : 'text-[#E0E0E0]'}
           />
-          <div className="panel p-4">
-            <p className="text-[#888888] text-xs font-sans mb-1">ממוצע ריווח / הפסד</p>
+          <dl className="panel p-4">
+            <dt className="text-[#888888] text-xs font-sans mb-1">ממוצע רווח / הפסד</dt>
             {stats.totalTrades === 0 ? (
-              <p className="text-[#E0E0E0] text-xl font-mono font-bold">—</p>
+              <dd className="text-[#E0E0E0] text-xl font-mono font-bold m-0">—</dd>
             ) : (
-              <p className="text-sm font-mono font-bold mt-1">
+              <dd className="text-xl font-mono font-bold m-0 truncate">
                 <span className="text-[#2CC84A]">{ltr(formatUsd(stats.avgWin))}</span>
                 <span className="text-[#888888] mx-1">/</span>
                 <span className="text-[#FF4D4D]">{ltr(formatUsd(stats.avgLoss))}</span>
-              </p>
+              </dd>
             )}
-          </div>
+          </dl>
         </div>
 
         {/* ── Chart visibility toggle ──────────────────────────────────────────── */}
@@ -433,8 +556,8 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
 
             {/* 1 ── Equity Curve */}
             {chartVisible.equity && (
-              <ChartCard title="עקומת הון (R מצטבר)" ariaLabel="גרף עקומת הון: R מצטבר לאורך זמן">
-                <ResponsiveContainer width="100%" height={220}>
+              <ChartCard chartId="equity" title="עקומת הון (R מצטבר)" ariaLabel="גרף עקומת הון: R מצטבר לאורך זמן">
+                <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData.equity}>
                     <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
                     <XAxis
@@ -444,10 +567,10 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
                       domain={['dataMin', 'dataMax']}
                       tickFormatter={v => new Date(v).toLocaleDateString('he-IL', { month: 'short', day: 'numeric' })}
                       stroke={AXIS_STROKE}
-                      tick={AXIS_TICK}
+                      tick={AXIS_TICK} tickMargin={6}
                       tickCount={5}
                     />
-                    <YAxis stroke={AXIS_STROKE} tick={AXIS_TICK} tickFormatter={v => ltr(`${v}R`)} />
+                    <YAxis stroke={AXIS_STROKE} tick={AXIS_TICK} tickMargin={6} tickFormatter={v => ltr(`${v}R`)} />
                     <Tooltip
                       contentStyle={TOOLTIP_STYLE}
                       labelFormatter={v => new Date(v as number).toLocaleDateString('he-IL')}
@@ -462,12 +585,12 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
 
             {/* 2 ── R Distribution */}
             {chartVisible.rdist && (
-              <ChartCard title="התפלגות R" ariaLabel="גרף עמודות: התפלגות הטריידים לפי מכפיל R">
-                <ResponsiveContainer width="100%" height={220}>
+              <ChartCard chartId="rdist" title="התפלגות R" ariaLabel="גרף עמודות: התפלגות הטריידים לפי מכפיל R">
+                <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData.rdist}>
                     <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
-                    <XAxis dataKey="label" stroke={AXIS_STROKE} tick={AXIS_TICK} tickFormatter={ltr} />
-                    <YAxis stroke={AXIS_STROKE} tick={AXIS_TICK} allowDecimals={false} />
+                    <XAxis dataKey="label" stroke={AXIS_STROKE} tick={AXIS_TICK} tickMargin={6} tickFormatter={ltr} />
+                    <YAxis stroke={AXIS_STROKE} tick={AXIS_TICK} tickMargin={6} allowDecimals={false} />
                     <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [v, 'טריידים']} />
                     <Bar dataKey="count" radius={[3, 3, 0, 0]} isAnimationActive={false}>
                       {chartData.rdist.map((entry, i) => (
@@ -484,37 +607,67 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
 
             {/* 3 ── Setup Performance */}
             {chartVisible.setup && (
-              <ChartCard title="ביצועי סטאפ" ariaLabel="גרף עמודות: ביצועי כל סוג סטאפ — R ממוצע ואחוז הצלחה">
-                <ResponsiveContainer width="100%" height={220}>
+              <ChartCard
+                chartId="setup"
+                title="ביצועי סטאפ"
+                ariaLabel="גרף עמודות: ביצועי כל סוג סטאפ — R ממוצע ואחוז הצלחה"
+                headerExtra={
+                  <div className="flex items-center gap-3 text-xs font-sans">
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <input type="checkbox" checked={setupSeries.avgR}
+                        onChange={e => setSetupSeries(p => ({ ...p, avgR: e.target.checked }))}
+                        className="accent-[#FFB800]" />
+                      <span style={{ color: '#FFB800' }}>Avg R</span>
+                    </label>
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <input type="checkbox" checked={setupSeries.winRate}
+                        onChange={e => setSetupSeries(p => ({ ...p, winRate: e.target.checked }))}
+                        className="accent-[#2CC84A]" />
+                      <span style={{ color: '#2CC84A' }}>Win Rate</span>
+                    </label>
+                  </div>
+                }
+              >
+                <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData.setup}>
                     <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
-                    <XAxis dataKey="setupType" stroke={AXIS_STROKE} tick={AXIS_TICK} />
-                    <YAxis yAxisId="r" stroke={AXIS_STROKE} tick={AXIS_TICK} tickFormatter={v => ltr(`${v}R`)} />
-                    <YAxis
-                      yAxisId="wr"
-                      orientation="right"
-                      stroke={AXIS_STROKE}
-                      tick={AXIS_TICK}
-                      tickFormatter={v => `${(v * 100).toFixed(0)}%`}
-                      domain={[0, 1]}
-                    />
+                    <XAxis dataKey="setupType" stroke={AXIS_STROKE} tick={AXIS_TICK} tickMargin={6} />
+                    {setupSeries.avgR && (
+                      <YAxis yAxisId="r" stroke={AXIS_STROKE} tick={AXIS_TICK} tickMargin={6} tickFormatter={v => ltr(`${v}R`)} />
+                    )}
+                    {setupSeries.winRate && (
+                      <YAxis
+                        yAxisId="wr"
+                        orientation="right"
+                        stroke={AXIS_STROKE}
+                        tick={AXIS_TICK} tickMargin={6}
+                        tickFormatter={v => `${(v * 100).toFixed(0)}%`}
+                        domain={[0, 1]}
+                      />
+                    )}
                     <Tooltip
                       contentStyle={TOOLTIP_STYLE}
                       formatter={(v: number, name: string) =>
                         name === 'winRate'
                           ? [`${(v * 100).toFixed(1)}%`, 'Win Rate']
-                          : [`${v >= 0 ? '+' : ''}${v.toFixed(2)}R`, 'Avg R']
+                          : [ltr(`${v >= 0 ? '+' : ''}${v.toFixed(2)}R`), 'Avg R']
                       }
                     />
-                    <Legend
-                      formatter={(v: string) => (
-                        <span style={{ color: '#888888', fontSize: 11 }}>
-                          {v === 'winRate' ? 'Win Rate' : 'Avg R'}
-                        </span>
-                      )}
-                    />
-                    <Bar yAxisId="r"  dataKey="avgR"     fill="#FFB800" name="avgR"    radius={[3, 3, 0, 0]} isAnimationActive={false} />
-                    <Bar yAxisId="wr" dataKey="winRate"  fill="#2CC84A" name="winRate" radius={[3, 3, 0, 0]} opacity={0.75} isAnimationActive={false} />
+                    {setupSeries.avgR && setupSeries.winRate && (
+                      <Legend
+                        formatter={(v: string) => (
+                          <span style={{ color: '#888888', fontSize: 11 }}>
+                            {v === 'winRate' ? 'Win Rate' : 'Avg R'}
+                          </span>
+                        )}
+                      />
+                    )}
+                    {setupSeries.avgR && (
+                      <Bar yAxisId="r"  dataKey="avgR"     fill="#FFB800" name="avgR"    radius={[3, 3, 0, 0]} isAnimationActive={false} />
+                    )}
+                    {setupSeries.winRate && (
+                      <Bar yAxisId="wr" dataKey="winRate"  fill="#2CC84A" name="winRate" radius={[3, 3, 0, 0]} opacity={0.75} isAnimationActive={false} />
+                    )}
                   </BarChart>
                 </ResponsiveContainer>
               </ChartCard>
@@ -522,19 +675,19 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
 
             {/* 4 ── P&L by Ticker */}
             {chartVisible.ticker && (
-              <ChartCard title="P&L לפי נייר" ariaLabel="גרף עמודות אופקי: רווח והפסד מצטבר לכל נייר">
-                <ResponsiveContainer width="100%" height={220}>
+              <ChartCard chartId="ticker" title="P&L לפי נייר" ariaLabel="גרף עמודות אופקי: רווח והפסד מצטבר לכל נייר">
+                <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData.ticker} layout="vertical" margin={{ left: 0, right: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} horizontal={false} />
                     <XAxis
                       type="number"
                       stroke={AXIS_STROKE}
-                      tick={AXIS_TICK}
+                      tick={AXIS_TICK} tickMargin={6}
                       tickFormatter={v =>
                         ltr(Math.abs(v) >= 1000 ? `$${(v / 1000).toFixed(0)}k` : `$${v}`)
                       }
                     />
-                    <YAxis type="category" dataKey="ticker" stroke={AXIS_STROKE} tick={AXIS_TICK} width={55} interval={0} />
+                    <YAxis type="category" dataKey="ticker" stroke={AXIS_STROKE} tick={AXIS_TICK} tickMargin={6} width={55} interval={0} />
                     <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [formatUsd(v), 'P&L']} />
                     <ReferenceLine x={0} stroke="#444444" strokeDasharray="4 4" />
                     <Bar dataKey="totalPnl" radius={[0, 3, 3, 0]} isAnimationActive={false}>
@@ -549,8 +702,8 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
 
             {/* 5 ── Hold Time vs R (scatter) */}
             {chartVisible.holdtime && (
-              <ChartCard title="זמן החזקה vs R" ariaLabel="גרף פיזור: זמן החזקת הטרייד מול מכפיל R, מסומן לפי תוצאה">
-                <ResponsiveContainer width="100%" height={220}>
+              <ChartCard chartId="holdtime" title="זמן החזקה vs R" ariaLabel="גרף פיזור: זמן החזקת הטרייד מול מכפיל R, מסומן לפי תוצאה">
+                <ResponsiveContainer width="100%" height="100%">
                   <ScatterChart margin={{ top: 5, right: 10, bottom: 20, left: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
                     <XAxis
@@ -558,7 +711,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
                       type="number"
                       name="שעות"
                       stroke={AXIS_STROKE}
-                      tick={AXIS_TICK}
+                      tick={AXIS_TICK} tickMargin={6}
                       tickFormatter={v => ltr(v < 24 ? `${v}h` : `${(v / 24).toFixed(0)}d`)}
                       label={{ value: 'זמן', position: 'insideBottom', offset: -10, fill: '#888888', fontSize: 10 }}
                     />
@@ -567,7 +720,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
                       type="number"
                       name="R"
                       stroke={AXIS_STROKE}
-                      tick={AXIS_TICK}
+                      tick={AXIS_TICK} tickMargin={6}
                       tickFormatter={v => ltr(`${v}R`)}
                     />
                     <Tooltip
@@ -608,51 +761,60 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
 
             {/* 6 ── P&L by Day of Week + Hour */}
             {chartVisible.dayhour && (
-              <ChartCard title="P&L לפי יום/שעה" ariaLabel="גרפי עמודות: רווח והפסד לפי יום בשבוע ולפי שעת סגירה">
+              <ChartCard chartId="dayhour" defaultHeight={360} title="P&L לפי יום/שעה" ariaLabel="גרפי עמודות: רווח והפסד לפי יום בשבוע ולפי שעת סגירה">
+                {/* Sub-chart heights are fixed (not flex-1) — nesting Recharts'
+                    ResponsiveContainer inside a flex-1 + min-h-0 + h-full chain caused a layout
+                    loop in dev. Bumping the card defaultHeight to 360 (vs the prior 220) gives
+                    each sub-chart at 150px the breathing room the user asked for, and the user
+                    can resize the card larger via the bottom-right handle for even more space. */}
                 <div className="flex flex-col gap-4">
 
                   <div>
                     <h3 className="text-[#888888] text-xs font-sans mb-1">לפי יום שבוע</h3>
-                    <ResponsiveContainer width="100%" height={100}>
-                      <BarChart data={chartData.dayofweek} margin={{ top: 0, right: 5, bottom: 0, left: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
-                        <XAxis dataKey="day" stroke={AXIS_STROKE} tick={{ ...AXIS_TICK, fontSize: 10 }} />
-                        <YAxis stroke={AXIS_STROKE} tick={{ ...AXIS_TICK, fontSize: 10 }} tickFormatter={v => ltr(`$${v}`)} width={40} />
-                        <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [formatUsd(v), 'P&L']} />
-                        <Bar dataKey="totalPnl" radius={[3, 3, 0, 0]} isAnimationActive={false}>
-                          {chartData.dayofweek.map((entry, i) => (
-                            <Cell key={i} fill={entry.totalPnl >= 0 ? '#2CC84A' : '#FF4D4D'} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-
-                  {chartData.hour.length > 0 && (
-                    <div>
-                      <h3 className="text-[#888888] text-xs font-sans mb-1">לפי שעה</h3>
-                      <ResponsiveContainer width="100%" height={100}>
-                        <BarChart data={chartData.hour} margin={{ top: 0, right: 5, bottom: 0, left: 0 }}>
+                    <div style={{ height: 150 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={chartData.dayofweek} margin={{ top: 0, right: 5, bottom: 0, left: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
-                          <XAxis
-                            dataKey="hour"
-                            stroke={AXIS_STROKE}
-                            tick={{ ...AXIS_TICK, fontSize: 10 }}
-                            tickFormatter={v => `${String(v).padStart(2, '0')}:00`}
-                          />
-                          <YAxis stroke={AXIS_STROKE} tick={{ ...AXIS_TICK, fontSize: 10 }} tickFormatter={v => ltr(`$${v}`)} width={40} />
-                          <Tooltip
-                            contentStyle={TOOLTIP_STYLE}
-                            labelFormatter={v => `${String(v).padStart(2, '0')}:00`}
-                            formatter={(v: number) => [formatUsd(v), 'P&L']}
-                          />
+                          <XAxis dataKey="day" stroke={AXIS_STROKE} tick={{ ...AXIS_TICK, fontSize: 10 }} tickMargin={4} />
+                          <YAxis stroke={AXIS_STROKE} tick={{ ...AXIS_TICK, fontSize: 10 }} tickMargin={4} tickFormatter={v => ltr(`$${v}`)} width={40} />
+                          <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [formatUsd(v), 'P&L']} />
                           <Bar dataKey="totalPnl" radius={[3, 3, 0, 0]} isAnimationActive={false}>
-                            {chartData.hour.map((entry, i) => (
+                            {chartData.dayofweek.map((entry, i) => (
                               <Cell key={i} fill={entry.totalPnl >= 0 ? '#2CC84A' : '#FF4D4D'} />
                             ))}
                           </Bar>
                         </BarChart>
                       </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {chartData.hour.length > 0 && (
+                    <div>
+                      <h3 className="text-[#888888] text-xs font-sans mb-1">לפי שעה</h3>
+                      <div style={{ height: 150 }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={chartData.hour} margin={{ top: 0, right: 5, bottom: 0, left: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
+                            <XAxis
+                              dataKey="hour"
+                              stroke={AXIS_STROKE}
+                              tick={{ ...AXIS_TICK, fontSize: 10 }} tickMargin={4}
+                              tickFormatter={v => `${String(v).padStart(2, '0')}:00`}
+                            />
+                            <YAxis stroke={AXIS_STROKE} tick={{ ...AXIS_TICK, fontSize: 10 }} tickMargin={4} tickFormatter={v => ltr(`$${v}`)} width={40} />
+                            <Tooltip
+                              contentStyle={TOOLTIP_STYLE}
+                              labelFormatter={v => `${String(v).padStart(2, '0')}:00`}
+                              formatter={(v: number) => [formatUsd(v), 'P&L']}
+                            />
+                            <Bar dataKey="totalPnl" radius={[3, 3, 0, 0]} isAnimationActive={false}>
+                              {chartData.hour.map((entry, i) => (
+                                <Cell key={i} fill={entry.totalPnl >= 0 ? '#2CC84A' : '#FF4D4D'} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
                   )}
                 </div>
