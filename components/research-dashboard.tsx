@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import {
   LineChart, Line,
   BarChart, Bar,
@@ -130,6 +130,51 @@ function saveChartSize(chartId: string, size: ChartSize) {
   } catch {}
 }
 
+const LS_KEY_ROW_RATIOS = 'research_row_ratios'
+function loadRowRatios(): Record<string, number> {
+  try {
+    const v = localStorage.getItem(LS_KEY_ROW_RATIOS)
+    if (v) return JSON.parse(v) as Record<string, number>
+  } catch {}
+  return {}
+}
+function saveRowRatio(pairKey: string, ratio: number) {
+  try {
+    const cur = loadRowRatios()
+    cur[pairKey] = ratio
+    localStorage.setItem(LS_KEY_ROW_RATIOS, JSON.stringify(cur))
+  } catch {}
+}
+
+const FULLWIDTH_CHARTS = new Set<ChartId>(['setup'])
+
+type ChartRow =
+  | { type: 'full'; chartId: ChartId }
+  | { type: 'pair'; chartIds: [ChartId, ChartId]; pairKey: string }
+  | { type: 'solo'; chartId: ChartId }
+
+function groupChartsIntoRows(vis: Record<ChartId, boolean>): ChartRow[] {
+  const rows: ChartRow[] = []
+  const buf: ChartId[] = []
+  for (const id of CHART_IDS) {
+    if (!vis[id]) continue
+    if (FULLWIDTH_CHARTS.has(id)) {
+      if (buf.length === 1) { rows.push({ type: 'solo', chartId: buf.pop()! }) }
+      rows.push({ type: 'full', chartId: id })
+    } else {
+      buf.push(id)
+      if (buf.length === 2) {
+        const a = buf[0], b = buf[1]
+        const pairKey = a < b ? `${a}_${b}` : `${b}_${a}`
+        rows.push({ type: 'pair', chartIds: [a, b], pairKey })
+        buf.length = 0
+      }
+    }
+  }
+  if (buf.length === 1) rows.push({ type: 'solo', chartId: buf[0] })
+  return rows
+}
+
 // ─── Shared chart styling ─────────────────────────────────────────────────────
 
 const TOOLTIP_STYLE: React.CSSProperties = {
@@ -179,6 +224,12 @@ interface ChartCardProps {
   defaultHeight?: number
   /** Span the full row by default (used for the setup chart). */
   fullWidth?: boolean
+  /** Position within a pair row — determines width-drag direction. null = solo/full. */
+  pairPosition?: 'first' | 'second' | null
+  /** Called during width drag with pixel delta from drag start. */
+  onWidthDrag?: (deltaX: number) => void
+  /** Called when width drag ends. */
+  onWidthDragEnd?: () => void
   children: React.ReactNode
 }
 
@@ -186,39 +237,26 @@ interface ChartCardProps {
 const MIN_CHART_W = 280
 const MIN_CHART_H = 150
 
-function ChartCard({ chartId, title, ariaLabel, headerExtra, footerExtra, defaultHeight = 220, fullWidth = false, children }: ChartCardProps) {
+function ChartCard({ chartId, title, ariaLabel, headerExtra, footerExtra, defaultHeight = 220, fullWidth = false, pairPosition, onWidthDrag, onWidthDragEnd, children }: ChartCardProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const innerRef = useRef<HTMLDivElement>(null)
 
-  // On mount: apply any persisted user-saved width/height imperatively, so
-  // React's stable inline style props don't fight subsequent user drags.
   useEffect(() => {
     const inner = innerRef.current
-    const panel = panelRef.current
-    if (!inner || !panel) return
+    if (!inner) return
     const saved = loadChartSizes()[chartId]
     if (saved?.h && saved.h >= MIN_CHART_H) inner.style.height = saved.h + 'px'
-    if (saved?.w && saved.w >= MIN_CHART_W) panel.style.width = saved.w + 'px'
   }, [chartId])
 
-  // Custom resize handle — mouse-driven, so we can:
-  //  (a) resize both axes (width + height), not just vertical like native CSS resize
-  //  (b) auto-scroll the page when the cursor approaches the viewport edges,
-  //      so users can keep dragging past the visible bottom (the native handle
-  //      stops at the viewport edge with no scroll, which trapped users in the
-  //      last row of charts).
   function handleMouseDown(e: React.MouseEvent<HTMLSpanElement>) {
     e.preventDefault()
     const panel = panelRef.current
     const inner = innerRef.current
     if (!panel || !inner) return
-    // Capture the narrowed refs locally so the nested closures keep the non-null
-    // type without each one needing an assertion.
     const p = panel
     const i = inner
+    const startX = e.clientX
 
-    // Find the *actual* scrolling ancestor (the layout uses <main overflow-auto>,
-    // not the document). Walk up looking for an element with overflow auto/scroll.
     function findScroller(start: HTMLElement): HTMLElement {
       let el: HTMLElement | null = start.parentElement
       while (el) {
@@ -230,15 +268,11 @@ function ChartCard({ chartId, title, ariaLabel, headerExtra, footerExtra, defaul
     }
     const scroller = findScroller(p)
 
-    // Continuous edge-scroll: setInterval-based so the page keeps scrolling even
-    // when the cursor stays still at the edge (mousemove alone only fires while
-    // the cursor moves, which is the wrong UX for hold-at-edge).
-    let scrollDir = 0  // -1 up, +1 down
+    let scrollDir = 0
     let scrollTimer: ReturnType<typeof setInterval> | null = null
     function tickScroll() {
       if (scrollDir === 0) return
-      scroller.scrollTop += scrollDir * 14
-      // Re-fire a resize update so the chart keeps growing with the scroll.
+      scroller.scrollTop += scrollDir * 4
       if (lastMoveEv) updateSize(lastMoveEv)
     }
     function startScroll(dir: -1 | 1) {
@@ -251,18 +285,13 @@ function ChartCard({ chartId, title, ariaLabel, headerExtra, footerExtra, defaul
       if (scrollTimer) { clearInterval(scrollTimer); scrollTimer = null }
     }
 
-    // Compute the new dimensions from the *current* cursor position relative
-    // to the chart's bounding rect — this naturally tracks the cursor across
-    // page scrolls, so dragging past the viewport edge keeps the chart
-    // growing in lockstep with the scroll position.
     function updateSize(ev: MouseEvent) {
       const innerRect = i.getBoundingClientRect()
-      const panelRect = p.getBoundingClientRect()
       const newH = Math.max(MIN_CHART_H, ev.clientY - innerRect.top)
-      // RTL: panel grows to the LEFT, so width = panel's right edge − cursor X.
-      const newW = Math.max(MIN_CHART_W, panelRect.right - ev.clientX)
       i.style.height = newH + 'px'
-      p.style.width = newW + 'px'
+      if (onWidthDrag) {
+        onWidthDrag(ev.clientX - startX)
+      }
     }
 
     let lastMoveEv: MouseEvent | null = null
@@ -279,7 +308,8 @@ function ChartCard({ chartId, title, ariaLabel, headerExtra, footerExtra, defaul
       stopScroll()
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
-      saveChartSize(chartId, { w: p.offsetWidth, h: i.offsetHeight })
+      saveChartSize(chartId, { h: i.offsetHeight })
+      onWidthDragEnd?.()
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
@@ -288,7 +318,8 @@ function ChartCard({ chartId, title, ariaLabel, headerExtra, footerExtra, defaul
   return (
     <div
       ref={panelRef}
-      className={`panel p-4 flex flex-col gap-3 relative ${fullWidth ? 'lg:col-span-2' : ''}`}
+      data-chart-panel={chartId}
+      className="panel p-4 flex flex-col gap-3 relative min-w-0"
     >
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <h2 className="text-[#888888] text-xs font-sans">{title}</h2>
@@ -301,6 +332,7 @@ function ChartCard({ chartId, title, ariaLabel, headerExtra, footerExtra, defaul
           render correctly because Hebrew runs are strong-RTL regardless. */}
       <div
         ref={innerRef}
+        data-chart-inner={chartId}
         role="img"
         aria-label={ariaLabel ?? title}
         style={{ height: defaultHeight, direction: 'ltr' }}
@@ -309,19 +341,107 @@ function ChartCard({ chartId, title, ariaLabel, headerExtra, footerExtra, defaul
         {children}
       </div>
       {footerExtra}
-      {/* Custom resize handle — bottom-{trailing} corner (bottom-left in RTL). */}
+      {/* Custom resize handle. For left-side charts (second in pair, RTL) the
+          handle moves to the bottom-right (the inner edge, toward the center)
+          so the user expands the chart toward the visible center of the page. */}
       <span
         onMouseDown={handleMouseDown}
         aria-label="שינוי גודל גרף"
         role="separator"
-        className="absolute bottom-1 left-1 w-3.5 h-3.5 cursor-nwse-resize text-[#666] hover:text-[#FFB800] select-none"
+        className={`absolute bottom-1 ${pairPosition === 'second' ? 'right-1' : 'left-1'} w-3.5 h-3.5 cursor-nwse-resize text-[#666] hover:text-[#FFB800] select-none`}
         style={{ lineHeight: 1 }}
       >
-        {/* Visual grip — diagonal dashes */}
-        <svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true">
+        <svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true" style={pairPosition === 'second' ? { transform: 'scaleX(-1)' } : undefined}>
           <path d="M2 12 L12 2 M6 12 L12 6 M10 12 L12 10" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round" />
         </svg>
       </span>
+    </div>
+  )
+}
+
+function PairRow({
+  pairKey,
+  initialRatio,
+  onRatioCommit,
+  children,
+}: {
+  pairKey: string
+  initialRatio: number
+  onRatioCommit: (pairKey: string, ratio: number) => void
+  children: [React.ReactElement, React.ReactElement]
+}) {
+  const rowRef = useRef<HTMLDivElement>(null)
+  const ratioRef = useRef(initialRatio)
+  const startRatioRef = useRef(initialRatio)
+
+  useEffect(() => { ratioRef.current = initialRatio }, [initialRatio])
+
+  const applyRatio = (r: number) => {
+    const row = rowRef.current
+    if (!row) return
+    const gap = 16
+    const totalW = row.offsetWidth - gap
+    const first = row.children[0] as HTMLElement | undefined
+    const second = row.children[1] as HTMLElement | undefined
+    if (first) first.style.width = (r * totalW) + 'px'
+    if (second) second.style.width = ((1 - r) * totalW) + 'px'
+  }
+
+  useEffect(() => { applyRatio(initialRatio) }, [initialRatio])
+
+  useEffect(() => {
+    const row = rowRef.current
+    if (!row) return
+    const obs = new ResizeObserver(() => applyRatio(ratioRef.current))
+    obs.observe(row)
+    return () => obs.disconnect()
+  }, [])
+
+  const draggingRef = useRef(false)
+
+  const makeWidthDrag = (_pos: 'first' | 'second') => (deltaX: number) => {
+    if (!draggingRef.current) {
+      startRatioRef.current = ratioRef.current
+      draggingRef.current = true
+    }
+    const row = rowRef.current
+    if (!row) return
+    const gap = 16
+    const totalW = row.offsetWidth - gap
+    if (totalW <= 0) return
+    const ratioDelta = deltaX / totalW
+    // Handle is always at physical left of each panel. In RTL the first
+    // chart sits on the right so dragging its handle left (negative deltaX)
+    // expands it → ratio increases. For the second chart (left side),
+    // dragging its handle right (positive deltaX) expands it → ratio
+    // decreases. Both cases resolve to: ratio = start − delta.
+    let newRatio = startRatioRef.current - ratioDelta
+    const minR = MIN_CHART_W / totalW
+    newRatio = Math.max(minR, Math.min(1 - minR, newRatio))
+    ratioRef.current = newRatio
+    applyRatio(newRatio)
+  }
+
+  const makeWidthDragEnd = () => () => {
+    draggingRef.current = false
+    const r = ratioRef.current
+    startRatioRef.current = r
+    onRatioCommit(pairKey, r)
+  }
+
+  const [first, second] = children
+  return (
+    <div ref={rowRef} className="flex gap-4 flex-col lg:flex-row lg:items-start" dir="rtl">
+      {React.cloneElement(first, {
+        pairPosition: 'first' as const,
+        onWidthDrag: makeWidthDrag('first'),
+        onWidthDragEnd: makeWidthDragEnd(),
+      } as Partial<ChartCardProps>)}
+      {React.cloneElement(second, {
+        pairPosition: 'second' as const,
+        onWidthDrag: makeWidthDrag('second'),
+        onWidthDragEnd: makeWidthDragEnd(),
+      } as Partial<ChartCardProps>)}
     </div>
   )
 }
@@ -437,12 +557,14 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
   const [holdHoursMax, setHoldHoursMax] = useState('')
   const [holdUnit, setHoldUnit] = useState<HoldUnit>('hours')
   const [setupSeries, setSetupSeries] = useState<SetupSeries>(defaultSetupSeries)
+  const [rowRatios, setRowRatios] = useState<Record<string, number>>({})
+  const [resetKey, setResetKey] = useState(0)
 
-  // Load persisted UI prefs from localStorage after mount (avoids SSR mismatch)
   useEffect(() => {
     setChartVisible(loadChartVisibility())
     setHoldUnit(loadHoldUnit())
     setSetupSeries(loadSetupSeries())
+    setRowRatios(loadRowRatios())
   }, [])
 
   useEffect(() => {
@@ -527,6 +649,20 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
     }
   }, [filteredTrades])
 
+  const chartRows = useMemo(() => groupChartsIntoRows(chartVisible), [chartVisible])
+
+  function handleRatioCommit(pairKey: string, ratio: number) {
+    setRowRatios(prev => ({ ...prev, [pairKey]: ratio }))
+    saveRowRatio(pairKey, ratio)
+  }
+
+  function resetChartSizes() {
+    try { localStorage.removeItem(LS_KEY_CHART_HEIGHTS) } catch {}
+    try { localStorage.removeItem(LS_KEY_ROW_RATIOS) } catch {}
+    setRowRatios({})
+    setResetKey(k => k + 1)
+  }
+
   function resetFilters() {
     setDateFrom(''); setDateTo(''); setTickerFilter(''); setSetupFilter('all')
     setDirectionFilter('all'); setResultFilter('all')
@@ -547,6 +683,254 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
     stats.totalTrades === 0 ? 'text-[#E0E0E0]' :
     stats.profitFactor >= 1.5 ? 'text-[#2CC84A]' :
     stats.profitFactor < 1    ? 'text-[#FF4D4D]' : 'text-[#FFB800]'
+
+  const tickerDefaultHeight = Math.max(220, chartData.ticker.length * 28 + 40)
+
+  function chartDefaultHeight(id: ChartId): number {
+    if (id === 'ticker') return tickerDefaultHeight
+    if (id === 'dayhour') return 360
+    return 220
+  }
+
+  function renderChart(id: ChartId, defaultHeightOverride?: number): React.ReactElement {
+    const dh = defaultHeightOverride ?? chartDefaultHeight(id)
+    switch (id) {
+      case 'equity':
+        return (
+          <ChartCard chartId="equity" title="עקומת הון (R מצטבר)" ariaLabel="גרף עקומת הון: R מצטבר לאורך זמן" defaultHeight={dh}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData.equity}>
+                <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                <XAxis
+                  dataKey="date"
+                  type="number"
+                  scale="time"
+                  domain={['dataMin', 'dataMax']}
+                  tickFormatter={v => new Date(v).toLocaleDateString('he-IL', { month: 'short', day: 'numeric' })}
+                  stroke={AXIS_STROKE}
+                  tick={AXIS_TICK} tickMargin={6}
+                  tickCount={5}
+                />
+                <YAxis stroke={AXIS_STROKE} tick={AXIS_TICK} tickMargin={6} tickFormatter={v => ltr(`${v}R`)} />
+                <Tooltip
+                  contentStyle={TOOLTIP_STYLE}
+                  labelFormatter={v => new Date(v as number).toLocaleDateString('he-IL')}
+                  formatter={(v: number) => [ltr(`${v >= 0 ? '+' : ''}${v.toFixed(2)}R`), 'R מצטבר']}
+                />
+                <ReferenceLine y={0} stroke="#444444" strokeDasharray="4 4" />
+                <Line type="monotone" dataKey="cumulativeR" stroke="#FFB800" dot={false} strokeWidth={2} isAnimationActive={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        )
+      case 'rdist':
+        return (
+          <ChartCard chartId="rdist" title="התפלגות R" ariaLabel="גרף עמודות: התפלגות הטריידים לפי מכפיל R" defaultHeight={dh}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData.rdist}>
+                <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
+                <XAxis dataKey="label" stroke={AXIS_STROKE} tick={AXIS_TICK} tickMargin={6} tickFormatter={ltr} />
+                <YAxis stroke={AXIS_STROKE} tick={AXIS_TICK} tickMargin={6} allowDecimals={false} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [v, 'טריידים']} />
+                <Bar dataKey="count" radius={[3, 3, 0, 0]} isAnimationActive={false}>
+                  {chartData.rdist.map((entry, i) => (
+                    <Cell
+                      key={i}
+                      fill={['<-2R', '-2R–-1R', '-1R–0R'].includes(entry.label) ? '#FF4D4D' : '#2CC84A'}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        )
+      case 'setup':
+        return (
+          <ChartCard
+            chartId="setup"
+            title="ביצועי סטאפ"
+            ariaLabel="גרף עמודות: ביצועי כל סוג סטאפ — R ממוצע ואחוז הצלחה"
+            fullWidth
+            defaultHeight={dh}
+            headerExtra={
+              <div className="flex items-center gap-3 text-xs font-sans" dir="rtl">
+                <label className="flex items-center gap-1 cursor-pointer">
+                  <input type="checkbox" checked={setupSeries.avgR}
+                    onChange={e => setSetupSeries(p => ({ ...p, avgR: e.target.checked }))}
+                    className="accent-[#FFB800]" />
+                  <span className="text-[#E0E0E0]">Avg R</span>
+                </label>
+                <label className="flex items-center gap-1 cursor-pointer">
+                  <input type="checkbox" checked={setupSeries.winRate}
+                    onChange={e => setSetupSeries(p => ({ ...p, winRate: e.target.checked }))}
+                    className="accent-[#888888]" />
+                  <span className="text-[#E0E0E0]">Win Rate (חצי-שקוף)</span>
+                </label>
+              </div>
+            }
+            footerExtra={
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-1 text-xs font-sans" dir="rtl">
+                {chartData.setup.map((entry, i) => (
+                  <div key={entry.setupType} className="flex items-center gap-1.5">
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        background: SETUP_COLORS[i % SETUP_COLORS.length],
+                        width: 12, height: 12, display: 'inline-block', borderRadius: 2,
+                      }}
+                    />
+                    <span className="text-[#E0E0E0]">{entry.setupType}</span>
+                  </div>
+                ))}
+              </div>
+            }
+          >
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData.setup}>
+                <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
+                <XAxis dataKey="setupType" hide />
+                {setupSeries.avgR && (
+                  <YAxis yAxisId="r" stroke={AXIS_STROKE} tick={AXIS_TICK} tickMargin={6} tickFormatter={v => ltr(`${v}R`)} />
+                )}
+                {setupSeries.winRate && (
+                  <YAxis
+                    yAxisId="wr"
+                    orientation="right"
+                    stroke={AXIS_STROKE}
+                    tick={AXIS_TICK} tickMargin={6}
+                    tickFormatter={v => `${(v * 100).toFixed(0)}%`}
+                    domain={[0, 1]}
+                  />
+                )}
+                <Tooltip
+                  cursor={{ fill: '#FFFFFF', fillOpacity: 0.04 }}
+                  content={({ payload, active }) => {
+                    if (!active || !payload?.length) return null
+                    const row = payload[0].payload as { setupType: string; avgR: number; winRate: number }
+                    return (
+                      <div style={TOOLTIP_STYLE} dir="rtl" className="px-3 py-2 rounded">
+                        <p className="text-[#E0E0E0] font-bold text-sm">{row.setupType}</p>
+                        {payload.map(p => (
+                          <p key={String(p.dataKey)} className="text-xs" style={{ color: p.color }}>
+                            {p.dataKey === 'winRate'
+                              ? `Win Rate: ${(Number(p.value) * 100).toFixed(1)}%`
+                              : `Avg R: ${ltr(`${Number(p.value) >= 0 ? '+' : ''}${Number(p.value).toFixed(2)}R`)}`}
+                          </p>
+                        ))}
+                      </div>
+                    )
+                  }}
+                />
+                {setupSeries.avgR && (
+                  <Bar yAxisId="r" dataKey="avgR" name="avgR" radius={[3, 3, 0, 0]} isAnimationActive={false}>
+                    {chartData.setup.map((_, i) => (
+                      <Cell key={i} fill={SETUP_COLORS[i % SETUP_COLORS.length]} />
+                    ))}
+                  </Bar>
+                )}
+                {setupSeries.winRate && (
+                  <Bar yAxisId="wr" dataKey="winRate" name="winRate" radius={[3, 3, 0, 0]} opacity={0.5} isAnimationActive={false}>
+                    {chartData.setup.map((_, i) => (
+                      <Cell key={i} fill={SETUP_COLORS[i % SETUP_COLORS.length]} />
+                    ))}
+                  </Bar>
+                )}
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        )
+      case 'ticker':
+        return (
+          <ChartCard chartId="ticker" title="P&L לפי נייר" ariaLabel="גרף עמודות אופקי: רווח והפסד מצטבר לכל נייר" defaultHeight={dh}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData.ticker} layout="vertical" margin={{ left: 0, right: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} horizontal={false} />
+                <XAxis
+                  type="number"
+                  stroke={AXIS_STROKE}
+                  tick={AXIS_TICK} tickMargin={6}
+                  tickFormatter={v =>
+                    ltr(Math.abs(v) >= 1000 ? `$${(v / 1000).toFixed(0)}k` : `$${v}`)
+                  }
+                />
+                <YAxis type="category" dataKey="ticker" stroke={AXIS_STROKE} tick={AXIS_TICK} tickMargin={6} width={55} interval={0} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [formatUsd(v), 'P&L']} />
+                <ReferenceLine x={0} stroke="#444444" strokeDasharray="4 4" />
+                <Bar dataKey="totalPnl" radius={[0, 3, 3, 0]} isAnimationActive={false}>
+                  {chartData.ticker.map((entry, i) => (
+                    <Cell key={i} fill={entry.totalPnl >= 0 ? '#2CC84A' : '#FF4D4D'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        )
+      case 'holdtime':
+        return (
+          <ChartCard chartId="holdtime" title="זמן החזקה vs R" ariaLabel="גרף פיזור: זמן החזקת הטרייד מול מכפיל R, מסומן לפי תוצאה" defaultHeight={dh}>
+            <ResponsiveContainer width="100%" height="100%">
+              <ScatterChart margin={{ top: 5, right: 10, bottom: 20, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                <XAxis
+                  dataKey="holdHours"
+                  type="number"
+                  name="שעות"
+                  stroke={AXIS_STROKE}
+                  tick={AXIS_TICK} tickMargin={6}
+                  tickFormatter={v => ltr(v < 24 ? `${v}h` : `${(v / 24).toFixed(0)}d`)}
+                  label={{ value: 'זמן', position: 'insideBottom', offset: -10, fill: '#888888', fontSize: 10 }}
+                />
+                <YAxis
+                  dataKey="actualR"
+                  type="number"
+                  name="R"
+                  stroke={AXIS_STROKE}
+                  tick={AXIS_TICK} tickMargin={6}
+                  tickFormatter={v => ltr(`${v}R`)}
+                />
+                <Tooltip
+                  contentStyle={TOOLTIP_STYLE}
+                  cursor={{ strokeDasharray: '3 3' }}
+                  content={({ payload }) => {
+                    if (!payload?.length) return null
+                    const p = payload[0]?.payload as { holdHours: number; actualR: number; ticker: string }
+                    if (!p) return null
+                    return (
+                      <div style={TOOLTIP_STYLE} dir="ltr" className="px-3 py-2 rounded">
+                        <p className="font-mono font-bold text-[#E0E0E0] text-sm">{p.ticker}</p>
+                        <p className="text-[#888888] text-xs">
+                          {p.holdHours < 24 ? `${p.holdHours.toFixed(1)}h` : `${(p.holdHours / 24).toFixed(1)}d`}
+                        </p>
+                        <p className={`text-sm ${p.actualR >= 0 ? 'text-[#2CC84A]' : 'text-[#FF4D4D]'}`}>
+                          {p.actualR >= 0 ? '+' : ''}{p.actualR.toFixed(2)}R
+                        </p>
+                      </div>
+                    )
+                  }}
+                />
+                <ReferenceLine y={0} stroke="#444444" strokeDasharray="4 4" />
+                <Legend
+                  formatter={(v: string) => (
+                    <span style={{ color: '#888888', fontSize: 11 }}>{v}</span>
+                  )}
+                />
+                <Scatter name="Win"  data={chartData.holdWins}  fill="#2CC84A" opacity={0.8} isAnimationActive={false} />
+                <Scatter name="Loss" data={chartData.holdLoss}  fill="#FF4D4D" opacity={0.8} isAnimationActive={false} />
+                {chartData.holdOther.length > 0 && (
+                  <Scatter name="אחר" data={chartData.holdOther} fill="#888888" opacity={0.8} isAnimationActive={false} />
+                )}
+              </ScatterChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        )
+      case 'dayhour':
+        return (
+          <ChartCard chartId="dayhour" defaultHeight={dh} title="P&L לפי יום/שעה" ariaLabel="גרפי עמודות: רווח והפסד לפי יום בשבוע ולפי שעת סגירה">
+            <DayHourInner dayofweek={chartData.dayofweek} hour={chartData.hour} />
+          </ChartCard>
+        )
+    }
+  }
 
   // ─── Render ─────────────────────────────────────────────────────────────────
 
@@ -738,6 +1122,13 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
           >
             {togglePanelOpen ? <>סגור <span aria-hidden="true">✕</span></> : <>ערוך <span aria-hidden="true">✎</span></>}
           </button>
+          <button
+            onClick={resetChartSizes}
+            aria-label="אפס גדלי גרפים לברירת מחדל"
+            className="text-[#888888] text-xs font-sans hover:text-[#FFB800] transition-colors rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2"
+          >
+            אפס גדלים ↺
+          </button>
           {togglePanelOpen && CHART_IDS.map(id => (
             <label key={id} className="flex items-center gap-1.5 cursor-pointer text-sm font-sans text-[#E0E0E0]">
               <input
@@ -761,253 +1152,22 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-            {/* 1 ── Equity Curve */}
-            {chartVisible.equity && (
-              <ChartCard chartId="equity" title="עקומת הון (R מצטבר)" ariaLabel="גרף עקומת הון: R מצטבר לאורך זמן">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData.equity}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
-                    <XAxis
-                      dataKey="date"
-                      type="number"
-                      scale="time"
-                      domain={['dataMin', 'dataMax']}
-                      tickFormatter={v => new Date(v).toLocaleDateString('he-IL', { month: 'short', day: 'numeric' })}
-                      stroke={AXIS_STROKE}
-                      tick={AXIS_TICK} tickMargin={6}
-                      tickCount={5}
-                    />
-                    <YAxis stroke={AXIS_STROKE} tick={AXIS_TICK} tickMargin={6} tickFormatter={v => ltr(`${v}R`)} />
-                    <Tooltip
-                      contentStyle={TOOLTIP_STYLE}
-                      labelFormatter={v => new Date(v as number).toLocaleDateString('he-IL')}
-                      formatter={(v: number) => [ltr(`${v >= 0 ? '+' : ''}${v.toFixed(2)}R`), 'R מצטבר']}
-                    />
-                    <ReferenceLine y={0} stroke="#444444" strokeDasharray="4 4" />
-                    <Line type="monotone" dataKey="cumulativeR" stroke="#FFB800" dot={false} strokeWidth={2} isAnimationActive={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </ChartCard>
-            )}
-
-            {/* 2 ── R Distribution */}
-            {chartVisible.rdist && (
-              <ChartCard chartId="rdist" title="התפלגות R" ariaLabel="גרף עמודות: התפלגות הטריידים לפי מכפיל R">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData.rdist}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
-                    <XAxis dataKey="label" stroke={AXIS_STROKE} tick={AXIS_TICK} tickMargin={6} tickFormatter={ltr} />
-                    <YAxis stroke={AXIS_STROKE} tick={AXIS_TICK} tickMargin={6} allowDecimals={false} />
-                    <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [v, 'טריידים']} />
-                    <Bar dataKey="count" radius={[3, 3, 0, 0]} isAnimationActive={false}>
-                      {chartData.rdist.map((entry, i) => (
-                        <Cell
-                          key={i}
-                          fill={['<-2R', '-2R–-1R', '-1R–0R'].includes(entry.label) ? '#FF4D4D' : '#2CC84A'}
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartCard>
-            )}
-
-            {/* 3 ── Setup Performance */}
-            {chartVisible.setup && (
-              <ChartCard
-                chartId="setup"
-                title="ביצועי סטאפ"
-                ariaLabel="גרף עמודות: ביצועי כל סוג סטאפ — R ממוצע ואחוז הצלחה"
-                fullWidth
-                headerExtra={
-                  <div className="flex items-center gap-3 text-xs font-sans" dir="rtl">
-                    <label className="flex items-center gap-1 cursor-pointer">
-                      <input type="checkbox" checked={setupSeries.avgR}
-                        onChange={e => setSetupSeries(p => ({ ...p, avgR: e.target.checked }))}
-                        className="accent-[#FFB800]" />
-                      <span className="text-[#E0E0E0]">Avg R</span>
-                    </label>
-                    <label className="flex items-center gap-1 cursor-pointer">
-                      <input type="checkbox" checked={setupSeries.winRate}
-                        onChange={e => setSetupSeries(p => ({ ...p, winRate: e.target.checked }))}
-                        className="accent-[#888888]" />
-                      <span className="text-[#E0E0E0]">Win Rate (חצי-שקוף)</span>
-                    </label>
-                  </div>
-                }
-                footerExtra={
-                  // Color → setup-name legend. Each setup has its own color from
-                  // SETUP_COLORS; that color is shared between the setup's two bars
-                  // (avgR opaque, winRate half-opacity) so a single legend entry
-                  // identifies all bars for that setup.
-                  <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-1 text-xs font-sans" dir="rtl">
-                    {chartData.setup.map((entry, i) => (
-                      <div key={entry.setupType} className="flex items-center gap-1.5">
-                        <span
-                          aria-hidden="true"
-                          style={{
-                            background: SETUP_COLORS[i % SETUP_COLORS.length],
-                            width: 12, height: 12, display: 'inline-block', borderRadius: 2,
-                          }}
-                        />
-                        <span className="text-[#E0E0E0]">{entry.setupType}</span>
-                      </div>
-                    ))}
-                  </div>
-                }
-              >
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData.setup}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
-                    {/* Setup-type names live in the legend below the chart instead of as X-axis ticks
-                        — long Hebrew names didn't fit on the X axis even on the full-width card. */}
-                    <XAxis dataKey="setupType" hide />
-                    {setupSeries.avgR && (
-                      <YAxis yAxisId="r" stroke={AXIS_STROKE} tick={AXIS_TICK} tickMargin={6} tickFormatter={v => ltr(`${v}R`)} />
-                    )}
-                    {setupSeries.winRate && (
-                      <YAxis
-                        yAxisId="wr"
-                        orientation="right"
-                        stroke={AXIS_STROKE}
-                        tick={AXIS_TICK} tickMargin={6}
-                        tickFormatter={v => `${(v * 100).toFixed(0)}%`}
-                        domain={[0, 1]}
-                      />
-                    )}
-                    <Tooltip
-                      cursor={{ fill: '#FFFFFF', fillOpacity: 0.04 }}
-                      content={({ payload, active }) => {
-                        if (!active || !payload?.length) return null
-                        const row = payload[0].payload as { setupType: string; avgR: number; winRate: number }
-                        return (
-                          <div style={TOOLTIP_STYLE} dir="rtl" className="px-3 py-2 rounded">
-                            <p className="text-[#E0E0E0] font-bold text-sm">{row.setupType}</p>
-                            {payload.map(p => (
-                              <p key={String(p.dataKey)} className="text-xs" style={{ color: p.color }}>
-                                {p.dataKey === 'winRate'
-                                  ? `Win Rate: ${(Number(p.value) * 100).toFixed(1)}%`
-                                  : `Avg R: ${ltr(`${Number(p.value) >= 0 ? '+' : ''}${Number(p.value).toFixed(2)}R`)}`}
-                              </p>
-                            ))}
-                          </div>
-                        )
-                      }}
-                    />
-                    {setupSeries.avgR && (
-                      <Bar yAxisId="r" dataKey="avgR" name="avgR" radius={[3, 3, 0, 0]} isAnimationActive={false}>
-                        {chartData.setup.map((_, i) => (
-                          <Cell key={i} fill={SETUP_COLORS[i % SETUP_COLORS.length]} />
-                        ))}
-                      </Bar>
-                    )}
-                    {setupSeries.winRate && (
-                      <Bar yAxisId="wr" dataKey="winRate" name="winRate" radius={[3, 3, 0, 0]} opacity={0.5} isAnimationActive={false}>
-                        {chartData.setup.map((_, i) => (
-                          <Cell key={i} fill={SETUP_COLORS[i % SETUP_COLORS.length]} />
-                        ))}
-                      </Bar>
-                    )}
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartCard>
-            )}
-
-            {/* 4 ── P&L by Ticker */}
-            {chartVisible.ticker && (
-              <ChartCard chartId="ticker" title="P&L לפי נייר" ariaLabel="גרף עמודות אופקי: רווח והפסד מצטבר לכל נייר">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData.ticker} layout="vertical" margin={{ left: 0, right: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} horizontal={false} />
-                    <XAxis
-                      type="number"
-                      stroke={AXIS_STROKE}
-                      tick={AXIS_TICK} tickMargin={6}
-                      tickFormatter={v =>
-                        ltr(Math.abs(v) >= 1000 ? `$${(v / 1000).toFixed(0)}k` : `$${v}`)
-                      }
-                    />
-                    <YAxis type="category" dataKey="ticker" stroke={AXIS_STROKE} tick={AXIS_TICK} tickMargin={6} width={55} interval={0} />
-                    <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [formatUsd(v), 'P&L']} />
-                    <ReferenceLine x={0} stroke="#444444" strokeDasharray="4 4" />
-                    <Bar dataKey="totalPnl" radius={[0, 3, 3, 0]} isAnimationActive={false}>
-                      {chartData.ticker.map((entry, i) => (
-                        <Cell key={i} fill={entry.totalPnl >= 0 ? '#2CC84A' : '#FF4D4D'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartCard>
-            )}
-
-            {/* 5 ── Hold Time vs R (scatter) */}
-            {chartVisible.holdtime && (
-              <ChartCard chartId="holdtime" title="זמן החזקה vs R" ariaLabel="גרף פיזור: זמן החזקת הטרייד מול מכפיל R, מסומן לפי תוצאה">
-                <ResponsiveContainer width="100%" height="100%">
-                  <ScatterChart margin={{ top: 5, right: 10, bottom: 20, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
-                    <XAxis
-                      dataKey="holdHours"
-                      type="number"
-                      name="שעות"
-                      stroke={AXIS_STROKE}
-                      tick={AXIS_TICK} tickMargin={6}
-                      tickFormatter={v => ltr(v < 24 ? `${v}h` : `${(v / 24).toFixed(0)}d`)}
-                      label={{ value: 'זמן', position: 'insideBottom', offset: -10, fill: '#888888', fontSize: 10 }}
-                    />
-                    <YAxis
-                      dataKey="actualR"
-                      type="number"
-                      name="R"
-                      stroke={AXIS_STROKE}
-                      tick={AXIS_TICK} tickMargin={6}
-                      tickFormatter={v => ltr(`${v}R`)}
-                    />
-                    <Tooltip
-                      contentStyle={TOOLTIP_STYLE}
-                      cursor={{ strokeDasharray: '3 3' }}
-                      content={({ payload }) => {
-                        if (!payload?.length) return null
-                        const p = payload[0]?.payload as { holdHours: number; actualR: number; ticker: string }
-                        if (!p) return null
-                        return (
-                          <div style={TOOLTIP_STYLE} dir="ltr" className="px-3 py-2 rounded">
-                            <p className="font-mono font-bold text-[#E0E0E0] text-sm">{p.ticker}</p>
-                            <p className="text-[#888888] text-xs">
-                              {p.holdHours < 24 ? `${p.holdHours.toFixed(1)}h` : `${(p.holdHours / 24).toFixed(1)}d`}
-                            </p>
-                            <p className={`text-sm ${p.actualR >= 0 ? 'text-[#2CC84A]' : 'text-[#FF4D4D]'}`}>
-                              {p.actualR >= 0 ? '+' : ''}{p.actualR.toFixed(2)}R
-                            </p>
-                          </div>
-                        )
-                      }}
-                    />
-                    <ReferenceLine y={0} stroke="#444444" strokeDasharray="4 4" />
-                    <Legend
-                      formatter={(v: string) => (
-                        <span style={{ color: '#888888', fontSize: 11 }}>{v}</span>
-                      )}
-                    />
-                    <Scatter name="Win"  data={chartData.holdWins}  fill="#2CC84A" opacity={0.8} isAnimationActive={false} />
-                    <Scatter name="Loss" data={chartData.holdLoss}  fill="#FF4D4D" opacity={0.8} isAnimationActive={false} />
-                    {chartData.holdOther.length > 0 && (
-                      <Scatter name="אחר" data={chartData.holdOther} fill="#888888" opacity={0.8} isAnimationActive={false} />
-                    )}
-                  </ScatterChart>
-                </ResponsiveContainer>
-              </ChartCard>
-            )}
-
-            {/* 6 ── P&L by Day of Week + Hour */}
-            {chartVisible.dayhour && (
-              <ChartCard chartId="dayhour" defaultHeight={360} title="P&L לפי יום/שעה" ariaLabel="גרפי עמודות: רווח והפסד לפי יום בשבוע ולפי שעת סגירה">
-                <DayHourInner dayofweek={chartData.dayofweek} hour={chartData.hour} />
-              </ChartCard>
-            )}
-
+          <div key={resetKey} className="flex flex-col gap-4">
+            {chartRows.map((row, ri) => {
+              if (row.type === 'pair') {
+                const ratio = rowRatios[row.pairKey] ?? 0.5
+                const [a, b] = row.chartIds
+                const pairDh = Math.max(chartDefaultHeight(a), chartDefaultHeight(b))
+                return (
+                  <PairRow key={row.pairKey} pairKey={row.pairKey} initialRatio={ratio} onRatioCommit={handleRatioCommit}>
+                    {renderChart(a, pairDh)}
+                    {renderChart(b, pairDh)}
+                  </PairRow>
+                )
+              }
+              const id = row.chartId
+              return <div key={id}>{renderChart(id)}</div>
+            })}
           </div>
         )}
         </div>
