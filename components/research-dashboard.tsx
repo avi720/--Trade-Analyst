@@ -212,35 +212,71 @@ function ChartCard({ chartId, title, ariaLabel, headerExtra, footerExtra, defaul
     const panel = panelRef.current
     const inner = innerRef.current
     if (!panel || !inner) return
-    const startX = e.clientX
-    const startY = e.clientY
-    const startW = panel.offsetWidth
-    const startH = inner.offsetHeight
-    const scroller = document.scrollingElement as HTMLElement | null
-                  ?? document.querySelector('main') as HTMLElement | null
-                  ?? document.documentElement
-
     // Capture the narrowed refs locally so the nested closures keep the non-null
     // type without each one needing an assertion.
     const p = panel
     const i = inner
-    function onMove(ev: MouseEvent) {
-      // Page is dir="rtl" → the visual bottom-{trailing} corner is bottom-LEFT,
-      // and dragging further left should *grow* the card's width.
-      const dx = startX - ev.clientX
-      const dy = ev.clientY - startY
-      const newW = Math.max(MIN_CHART_W, startW + dx)
-      const newH = Math.max(MIN_CHART_H, startH + dy)
-      p.style.width = newW + 'px'
-      i.style.height = newH + 'px'
 
-      // Auto-scroll when cursor nears the viewport vertical edges.
+    // Find the *actual* scrolling ancestor (the layout uses <main overflow-auto>,
+    // not the document). Walk up looking for an element with overflow auto/scroll.
+    function findScroller(start: HTMLElement): HTMLElement {
+      let el: HTMLElement | null = start.parentElement
+      while (el) {
+        const oy = getComputedStyle(el).overflowY
+        if (oy === 'auto' || oy === 'scroll') return el
+        el = el.parentElement
+      }
+      return (document.scrollingElement as HTMLElement) ?? document.documentElement
+    }
+    const scroller = findScroller(p)
+
+    // Continuous edge-scroll: setInterval-based so the page keeps scrolling even
+    // when the cursor stays still at the edge (mousemove alone only fires while
+    // the cursor moves, which is the wrong UX for hold-at-edge).
+    let scrollDir = 0  // -1 up, +1 down
+    let scrollTimer: ReturnType<typeof setInterval> | null = null
+    function tickScroll() {
+      if (scrollDir === 0) return
+      scroller.scrollTop += scrollDir * 14
+      // Re-fire a resize update so the chart keeps growing with the scroll.
+      if (lastMoveEv) updateSize(lastMoveEv)
+    }
+    function startScroll(dir: -1 | 1) {
+      if (scrollDir === dir) return
+      scrollDir = dir
+      if (!scrollTimer) scrollTimer = setInterval(tickScroll, 16)
+    }
+    function stopScroll() {
+      scrollDir = 0
+      if (scrollTimer) { clearInterval(scrollTimer); scrollTimer = null }
+    }
+
+    // Compute the new dimensions from the *current* cursor position relative
+    // to the chart's bounding rect — this naturally tracks the cursor across
+    // page scrolls, so dragging past the viewport edge keeps the chart
+    // growing in lockstep with the scroll position.
+    function updateSize(ev: MouseEvent) {
+      const innerRect = i.getBoundingClientRect()
+      const panelRect = p.getBoundingClientRect()
+      const newH = Math.max(MIN_CHART_H, ev.clientY - innerRect.top)
+      // RTL: panel grows to the LEFT, so width = panel's right edge − cursor X.
+      const newW = Math.max(MIN_CHART_W, panelRect.right - ev.clientX)
+      i.style.height = newH + 'px'
+      p.style.width = newW + 'px'
+    }
+
+    let lastMoveEv: MouseEvent | null = null
+    function onMove(ev: MouseEvent) {
+      lastMoveEv = ev
+      updateSize(ev)
       const vh = window.innerHeight
       const margin = 50
-      if (ev.clientY > vh - margin && scroller) scroller.scrollTop += 14
-      else if (ev.clientY < margin && scroller) scroller.scrollTop -= 14
+      if (ev.clientY > vh - margin) startScroll(1)
+      else if (ev.clientY < margin) startScroll(-1)
+      else stopScroll()
     }
     function onUp() {
+      stopScroll()
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
       saveChartSize(chartId, { w: p.offsetWidth, h: i.offsetHeight })
