@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import Link from 'next/link'
 import { CityCombobox } from '@/components/city-combobox'
+import { GoogleSignInButton } from '@/components/google-signin-button'
 
 // ─── Zod schemas ─────────────────────────────────────────────────────────────
 
@@ -222,6 +223,32 @@ export default function SignupPage() {
   const form2 = useForm<Step2Fields>({ resolver: zodResolver(step2Schema) })
   const cityValue = form2.watch('addressCity') ?? ''
 
+  // When arriving at step 2 (e.g. via Google sign-in), prefill name from auth metadata
+  useEffect(() => {
+    if (step !== 2) return
+    if (form2.getValues('firstName')) return
+    ;(async () => {
+      const { createClient } = await import('@/lib/supabase/client')
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      const meta = (user?.user_metadata ?? {}) as Record<string, unknown>
+      const fullName =
+        (typeof meta.full_name === 'string' && meta.full_name) ||
+        (typeof meta.name === 'string' && meta.name) ||
+        ''
+      const given = typeof meta.given_name === 'string' ? meta.given_name : ''
+      const family = typeof meta.family_name === 'string' ? meta.family_name : ''
+      if (given || family) {
+        if (given) form2.setValue('firstName', given)
+        if (family) form2.setValue('lastName', family)
+      } else if (fullName) {
+        const parts = fullName.trim().split(/\s+/)
+        form2.setValue('firstName', parts[0] ?? '')
+        if (parts.length > 1) form2.setValue('lastName', parts.slice(1).join(' '))
+      }
+    })()
+  }, [step, form2])
+
   function onStep2Submit(values: Step2Fields) {
     setStep2Data(values)
     setStep(3)
@@ -293,7 +320,16 @@ export default function SignupPage() {
         {step === 1 && (
           <>
             {!verificationSent ? (
-              <form onSubmit={form1.handleSubmit(onStep1Submit)} className="space-y-4">
+              <>
+                <GoogleSignInButton next="/signup" label="הירשם עם Google" />
+
+                <div className="flex items-center gap-3 my-5">
+                  <div className="flex-1 h-px bg-[#222222]" />
+                  <span className="text-[#555555] text-xs">או</span>
+                  <div className="flex-1 h-px bg-[#222222]" />
+                </div>
+
+                <form onSubmit={form1.handleSubmit(onStep1Submit)} className="space-y-4">
                 <div>
                   <label className={labelCls}>דואר אלקטרוני</label>
                   <input
@@ -346,7 +382,8 @@ export default function SignupPage() {
                 >
                   {form1.formState.isSubmitting ? 'שולח...' : 'שלח מייל אימות'}
                 </button>
-              </form>
+                </form>
+              </>
             ) : (
               /* Verification instructions card */
               <div className="space-y-4">

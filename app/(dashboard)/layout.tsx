@@ -22,12 +22,23 @@ export default async function DashboardLayout({
     email: user.email!,
     settings: {},
   }
-  const { error } = await supabase
+  const { error: upsertError } = await supabase
     .from('User')
     .upsert(userRow, { onConflict: 'id', ignoreDuplicates: true })
 
-  if (error) {
-    console.error('[layout] User upsert failed:', error)
+  if (upsertError) {
+    console.error('[layout] User upsert failed:', upsertError)
+  }
+
+  // Funnel users with incomplete profiles (e.g. fresh Google sign-ins) into the signup wizard
+  const { data: profile } = await supabase
+    .from('User')
+    .select('firstName')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (!profile?.firstName) {
+    redirect('/signup')
   }
 
   return (

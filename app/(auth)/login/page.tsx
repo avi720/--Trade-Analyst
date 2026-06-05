@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { TradeLogoIcon } from '@/components/trade-logo'
+import { GoogleSignInButton } from '@/components/google-signin-button'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -44,6 +45,14 @@ export default function LoginPage() {
             Trade Analysis
           </h1>
           <p className="text-[#888888] text-sm mt-1">יומן מסחר חכם</p>
+        </div>
+
+        <GoogleSignInButton label="התחבר עם Google" />
+
+        <div className="flex items-center gap-3 my-5">
+          <div className="flex-1 h-px bg-[#222222]" />
+          <span className="text-[#555555] text-xs">או</span>
+          <div className="flex-1 h-px bg-[#222222]" />
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

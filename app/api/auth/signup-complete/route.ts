@@ -70,6 +70,13 @@ export async function POST(req: NextRequest) {
   )
 
   if (error) {
+    console.error('[signup-complete] User upsert failed:', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      userId: user.id,
+    })
     return NextResponse.json({ error: 'שגיאה בשמירת הפרטים' }, { status: 500 })
   }
 
