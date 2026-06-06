@@ -11,7 +11,7 @@ import { useChatContext } from '@/lib/chat/chat-context'
 const TABS = [
   { label: 'תחקור', href: '/research' },
   { label: 'חיפוש', href: '/search' },
-  { label: 'ייבוא-ידני', href: '/manual-import' },
+  { label: 'הזנת טריידים', href: '/manual-import' },
 ]
 
 interface HeaderProps {
@@ -53,7 +53,7 @@ export function Header({ userEmail }: HeaderProps) {
               'px-4 py-2 rounded-md text-sm font-medium transition-colors border-b-2',
               pathname === tab.href || pathname.startsWith(tab.href + '/')
                 ? 'bg-[#1A1A1A] text-[#E0E0E0] border-[#FFB800]'
-                : 'text-[#888888] hover:text-[#E0E0E0] hover:bg-[#1A1A1A] border-transparent'
+                : 'text-[#B0B0B0] hover:text-[#E0E0E0] hover:bg-[#1A1A1A] border-transparent'
             )}
           >
             {tab.label}
@@ -68,7 +68,7 @@ export function Header({ userEmail }: HeaderProps) {
           aria-label="פתח/סגור עוזר AI חנן"
           className="px-3 py-1.5 rounded-md text-sm font-mono text-[#FFB800] hover:bg-[#1A1A1A] transition-colors border border-[#333333]"
         >
-          חנן <span aria-hidden="true">▶</span>
+          חנן ה-AI <span aria-hidden="true">▶</span>
         </button>
         <SyncIndicator />
 
@@ -79,7 +79,7 @@ export function Header({ userEmail }: HeaderProps) {
             aria-haspopup="menu"
             aria-expanded={dropdownOpen}
             aria-label={userEmail ? `תפריט משתמש: ${userEmail}` : 'תפריט משתמש'}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-[#888888] hover:text-[#E0E0E0] hover:bg-[#1A1A1A] transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-[#B0B0B0] hover:text-[#E0E0E0] hover:bg-[#1A1A1A] transition-colors"
           >
             <span className="w-6 h-6 rounded-full bg-[#222222] flex items-center justify-center text-xs font-mono text-[#FFB800]">
               {userEmail?.[0]?.toUpperCase() ?? 'U'}
@@ -96,7 +96,7 @@ export function Header({ userEmail }: HeaderProps) {
                 onClick={() => setDropdownOpen(false)}
               />
               <div className="absolute left-0 mt-1 w-48 bg-[#111111] border border-[#222222] rounded-md shadow-lg z-20 py-1">
-                <div className="px-3 py-2 text-xs text-[#888888] border-b border-[#222222] font-mono truncate">
+                <div className="px-3 py-2 text-sm text-[#B0B0B0] border-b border-[#222222] font-mono truncate">
                   {userEmail}
                 </div>
                 <Link

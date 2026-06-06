@@ -26,7 +26,7 @@ const EMPTY_OPEN = (): ManualLeg => ({
 const inputCls =
   'w-full bg-[#080808] border border-[#222222] rounded px-2 py-1.5 text-sm text-[#E0E0E0] placeholder-[#444444] focus:outline-none focus:border-[#444444]'
 const selectCls = inputCls + ' cursor-pointer'
-const labelCls = 'block text-xs font-mono text-[#555555] mb-1'
+const labelCls = 'block text-sm font-mono text-[#B0B0B0] mb-1'
 
 export function ClosedTradeEntryForm() {
   const [open, setOpen] = useState<ManualLeg>(EMPTY_OPEN())
@@ -98,10 +98,10 @@ export function ClosedTradeEntryForm() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h2 className="font-mono text-[#E0E0E0] text-sm">הזנת טרייד שכבר נסגר</h2>
-        <span className="text-xs text-[#555555] font-mono">פתיחה + סגירה בטופס אחד</span>
+        <span className="text-sm text-[#B0B0B0] font-mono">פתיחה + סגירה בטופס אחד</span>
       </div>
 
-      <div className="flex items-center gap-2 text-xs font-mono text-[#555555]">
+      <div className="flex items-center gap-2 text-sm font-mono text-[#B0B0B0]">
         <span>אזור זמן:</span>
         <select
           value={timezone}
@@ -143,7 +143,7 @@ export function ClosedTradeEntryForm() {
               <label htmlFor="open-time" className={labelCls}>שעה <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
               <input id="open-time" type="time" value={open.time} onChange={e => patchOpen({ time: e.target.value })} className={inputCls} aria-required="true" />
               {toUtcPreview(open.date, open.time, timezone) && (
-                <span className="text-[10px] font-mono text-[#555555] mt-0.5 block">
+                <span className="text-[10px] font-mono text-[#B0B0B0] mt-0.5 block">
                   = {toUtcPreview(open.date, open.time, timezone)}
                 </span>
               )}
@@ -221,7 +221,7 @@ export function ClosedTradeEntryForm() {
                     onChange={e => patchOpen({ orderPlacedTime: e.target.value || undefined })}
                     className={inputCls} />
                   {open.orderPlacedDate && toUtcPreview(open.orderPlacedDate, open.orderPlacedTime ?? '', timezone) && (
-                    <span className="text-[10px] font-mono text-[#555555] mt-0.5 block">
+                    <span className="text-[10px] font-mono text-[#B0B0B0] mt-0.5 block">
                       = {toUtcPreview(open.orderPlacedDate, open.orderPlacedTime ?? '', timezone)}
                     </span>
                   )}

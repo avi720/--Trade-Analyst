@@ -89,8 +89,8 @@ export function TradeExcelImport() {
     window.location.href = '/api/trades/import?template=true'
   }
 
-  const thCls = 'text-right text-xs font-mono text-[#555555] px-2 py-1'
-  const tdCls = 'text-right text-xs font-mono text-[#888888] px-2 py-1'
+  const thCls = 'text-right text-sm font-mono text-[#B0B0B0] px-2 py-1'
+  const tdCls = 'text-right text-sm font-mono text-[#B0B0B0] px-2 py-1'
 
   return (
     <div className="flex flex-col gap-4">
@@ -98,11 +98,11 @@ export function TradeExcelImport() {
       <div className="panel p-4 flex items-center justify-between">
         <div>
           <p className="text-sm text-[#E0E0E0] font-mono">תבנית Excel</p>
-          <p className="text-xs text-[#555555] mt-0.5">הורד → מלא → העלה</p>
+          <p className="text-sm text-[#B0B0B0] mt-0.5">הורד → מלא → העלה</p>
         </div>
         <button
           onClick={downloadTemplate}
-          className="px-3 py-1.5 border border-[#333333] text-[#888888] text-xs font-mono rounded hover:text-[#FFB800] hover:border-[#FFB800] transition-colors"
+          className="px-3 py-1.5 border border-[#333333] text-[#B0B0B0] text-sm font-mono rounded hover:text-[#FFB800] hover:border-[#FFB800] transition-colors"
         >
           ⬇ הורד תבנית
         </button>
@@ -120,7 +120,7 @@ export function TradeExcelImport() {
       >
         <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFileChange} />
         <span className="text-2xl">📂</span>
-        <span className="text-sm text-[#888888] font-mono">גרור קובץ Excel לכאן או לחץ לבחירה</span>
+        <span className="text-sm text-[#B0B0B0] font-mono">גרור קובץ Excel לכאן או לחץ לבחירה</span>
         <span className="text-xs text-[#444444] font-mono">.xlsx · .xls · .csv</span>
       </div>
 
@@ -138,7 +138,7 @@ export function TradeExcelImport() {
             <div className="flex gap-2">
               <button
                 onClick={() => setPreview(null)}
-                className="text-xs font-mono text-[#888888] hover:text-[#E0E0E0] border border-[#222222] rounded px-3 py-1 transition-colors"
+                className="text-sm font-mono text-[#B0B0B0] hover:text-[#E0E0E0] border border-[#222222] rounded px-3 py-1 transition-colors"
               >
                 ביטול
               </button>
@@ -202,7 +202,7 @@ export function TradeExcelImport() {
       {result && (
         <div className="panel p-4 text-xs font-mono flex flex-col gap-1">
           <span className="text-[#2CC84A]">✓ עובדו: {result.processed}</span>
-          {result.skipped > 0 && <span className="text-[#888888]">כפולים שנדחו: {result.skipped}</span>}
+          {result.skipped > 0 && <span className="text-[#B0B0B0]">כפולים שנדחו: {result.skipped}</span>}
           {result.failed > 0 && <span className="text-[#FF4D4D]">נכשלו: {result.failed}</span>}
           {result.errors.map((e, i) => <span key={i} className="text-[#FF4D4D]">{e}</span>)}
         </div>

@@ -95,7 +95,7 @@ export function SyncIndicator() {
   */
 
   return (
-    <div className="flex items-center gap-2 text-xs text-[#888888] font-mono">
+    <div className="flex items-center gap-2 text-sm text-[#B0B0B0] font-mono">
       <span className="flex items-center gap-1" title={ibkrTitle}>
         <span className={`w-1.5 h-1.5 rounded-full ${ibkrColor}`} />
         IBKR {ibkrLabel}

@@ -16,7 +16,7 @@ export function ManualImportTabs() {
       {/* Sub-tabs */}
       <div className="flex gap-1 border-b border-[#222222] pb-0">
         {([
-          { id: 'manual' as Tab, label: 'הזנה ידנית' },
+          { id: 'manual' as Tab, label: 'טרייד פתוח' },
           { id: 'closed' as Tab, label: 'טרייד סגור' },
           { id: 'excel' as Tab,  label: 'ייבוא Excel' },
         ]).map(t => (
@@ -27,7 +27,7 @@ export function ManualImportTabs() {
               'px-4 py-2 text-sm font-mono transition-colors border-b-2 -mb-px',
               tab === t.id
                 ? 'border-[#FFB800] text-[#FFB800]'
-                : 'border-transparent text-[#888888] hover:text-[#E0E0E0]'
+                : 'border-transparent text-[#B0B0B0] hover:text-[#E0E0E0]'
             )}
           >
             {t.label}

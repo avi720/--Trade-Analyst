@@ -10,7 +10,7 @@ export default function SignupVerifiedPage() {
 
         <div>
           <h1 className="text-xl font-bold text-[#E0E0E0]">האימות הצליח</h1>
-          <p className="text-[#888888] text-sm mt-2 leading-relaxed">
+          <p className="text-[#B0B0B0] text-sm mt-2 leading-relaxed">
             ניתן לסגור כרטיסייה זו ולחזור לכרטיסיית ההרשמה כדי להמשיך.
           </p>
         </div>

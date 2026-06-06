@@ -24,7 +24,7 @@ interface TabAccountProps {
 const inputCls =
   "w-full bg-[#0d0d0d] border border-[#222222] rounded-md px-3 py-2.5 text-sm text-[#E0E0E0] placeholder-[#444444] focus:outline-none focus:border-[#FFB800] transition-colors";
 
-const labelCls = "block text-xs font-medium text-[#888888] mb-1.5 uppercase tracking-wider";
+const labelCls = "block text-xs font-medium text-[#B0B0B0] mb-1.5 uppercase tracking-wider";
 
 export function TabAccount({ userEmail, initialName, initialProfile }: TabAccountProps) {
   const router = useRouter();
@@ -91,13 +91,13 @@ export function TabAccount({ userEmail, initialName, initialProfile }: TabAccoun
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold text-[#E0E0E0]">פרטים אישיים</h2>
-        <p className="text-sm text-[#888888] mt-1">שם, פרטי קשר וכתובת מגורים</p>
+        <p className="text-sm text-[#B0B0B0] mt-1">שם, פרטי קשר וכתובת מגורים</p>
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* Email — read-only */}
         <div className="panel p-5">
-          <h3 className="text-xs font-medium text-[#888888] uppercase tracking-wider mb-4">כתובת אימייל</h3>
+          <h3 className="text-xs font-medium text-[#B0B0B0] uppercase tracking-wider mb-4">כתובת אימייל</h3>
           <div className="flex items-center justify-between gap-4">
             <p className="text-sm text-[#E0E0E0] font-mono">{userEmail}</p>
             <button
@@ -112,7 +112,7 @@ export function TabAccount({ userEmail, initialName, initialProfile }: TabAccoun
 
         {/* Name */}
         <div className="panel p-5">
-          <h3 className="text-xs font-medium text-[#888888] uppercase tracking-wider mb-4">שם</h3>
+          <h3 className="text-xs font-medium text-[#B0B0B0] uppercase tracking-wider mb-4">שם</h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelCls}>שם פרטי</label>
@@ -136,13 +136,13 @@ export function TabAccount({ userEmail, initialName, initialProfile }: TabAccoun
             </div>
           </div>
           {initialName && (
-            <p className="mt-3 text-xs text-[#555555]">שם תצוגה נוכחי: <span className="text-[#888888]">{initialName}</span></p>
+            <p className="mt-3 text-sm text-[#B0B0B0]">שם תצוגה נוכחי: <span className="text-[#B0B0B0]">{initialName}</span></p>
           )}
         </div>
 
         {/* Contact */}
         <div className="panel p-5">
-          <h3 className="text-xs font-medium text-[#888888] uppercase tracking-wider mb-4">פרטי קשר</h3>
+          <h3 className="text-xs font-medium text-[#B0B0B0] uppercase tracking-wider mb-4">פרטי קשר</h3>
           <div>
             <label className={labelCls}>מספר טלפון</label>
             <input
@@ -158,7 +158,7 @@ export function TabAccount({ userEmail, initialName, initialProfile }: TabAccoun
 
         {/* Address */}
         <div className="panel p-5">
-          <h3 className="text-xs font-medium text-[#888888] uppercase tracking-wider mb-4">כתובת מגורים</h3>
+          <h3 className="text-xs font-medium text-[#B0B0B0] uppercase tracking-wider mb-4">כתובת מגורים</h3>
           <div className="space-y-4">
             <div>
               <label className={labelCls}>רחוב ומספר</label>

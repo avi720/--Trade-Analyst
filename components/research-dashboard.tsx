@@ -184,7 +184,7 @@ const TOOLTIP_STYLE: React.CSSProperties = {
   fontSize: 12,
   borderRadius: 4,
 }
-const AXIS_TICK = { fill: '#888888', fontSize: 11 }
+const AXIS_TICK = { fill: '#B0B0B0', fontSize: 12 }
 const GRID_STROKE = '#1E1E1E'
 const AXIS_STROKE = '#333333'
 
@@ -322,7 +322,7 @@ function ChartCard({ chartId, title, ariaLabel, headerExtra, footerExtra, defaul
       className="panel p-4 flex flex-col gap-3 relative min-w-0"
     >
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h2 className="text-[#888888] text-xs font-sans">{title}</h2>
+        <h2 className="text-[#B0B0B0] text-sm font-sans">{title}</h2>
         {headerExtra}
       </div>
       {/* The chart content is forced to dir=ltr — Recharts SVGs inherit the
@@ -482,7 +482,7 @@ function DayHourInner({
   return (
     <div ref={wrapperRef} className="flex flex-col gap-2 h-full">
       <div>
-        <h3 className="text-[#888888] text-xs font-sans mb-1">לפי יום שבוע</h3>
+        <h3 className="text-[#B0B0B0] text-sm font-sans mb-1">לפי יום שבוע</h3>
         <ResponsiveContainer width="100%" height={subH}>
           <BarChart data={dayofweek} margin={{ top: 0, right: 5, bottom: 0, left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
@@ -499,7 +499,7 @@ function DayHourInner({
       </div>
       {hasHour && (
         <div>
-          <h3 className="text-[#888888] text-xs font-sans mb-1">לפי שעה</h3>
+          <h3 className="text-[#B0B0B0] text-sm font-sans mb-1">לפי שעה</h3>
           <ResponsiveContainer width="100%" height={subH}>
             <BarChart data={hour} margin={{ top: 0, right: 5, bottom: 0, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
@@ -531,7 +531,7 @@ function DayHourInner({
 function MetricCard({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <dl className="panel p-4">
-      <dt className="text-[#888888] text-xs font-sans mb-1">{label}</dt>
+      <dt className="text-[#B0B0B0] text-sm font-sans mb-1">{label}</dt>
       <dd className={`text-xl font-mono font-bold truncate m-0 ${color ?? 'text-[#E0E0E0]'}`}>{ltr(value)}</dd>
     </dl>
   )
@@ -555,6 +555,8 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
   const [execQualMax, setExecQualMax] = useState('')
   const [holdHoursMin, setHoldHoursMin] = useState('')
   const [holdHoursMax, setHoldHoursMax] = useState('')
+  const [rMin, setRMin] = useState('')
+  const [rMax, setRMax] = useState('')
   const [holdUnit, setHoldUnit] = useState<HoldUnit>('hours')
   const [setupSeries, setSetupSeries] = useState<SetupSeries>(defaultSetupSeries)
   const [rowRatios, setRowRatios] = useState<Record<string, number>>({})
@@ -599,6 +601,8 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
       if (resultFilter !== 'all' && t.result !== resultFilter) return false
       if (execQualMin !== '' && (t.executionQuality ?? 0) < Number(execQualMin)) return false
       if (execQualMax !== '' && (t.executionQuality ?? 10) > Number(execQualMax)) return false
+      if (rMin !== '' && (t.actualR == null || t.actualR < Number(rMin))) return false
+      if (rMax !== '' && (t.actualR == null || t.actualR > Number(rMax))) return false
       if (holdHoursMin !== '' || holdHoursMax !== '') {
         const hrs = (t.closedAt.getTime() - t.openedAt.getTime()) / 3_600_000
         // Input values are interpreted in the selected unit; convert to hours for comparison.
@@ -609,7 +613,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
       return true
     })
   }, [closedTrades, dateFrom, dateTo, tickerFilter, setupFilter, directionFilter, resultFilter,
-      execQualMin, execQualMax, holdHoursMin, holdHoursMax, holdUnit])
+      execQualMin, execQualMax, holdHoursMin, holdHoursMax, holdUnit, rMin, rMax])
 
   const stats = useMemo(() => calcStats(filteredTrades), [filteredTrades])
 
@@ -667,11 +671,13 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
     setDateFrom(''); setDateTo(''); setTickerFilter(''); setSetupFilter('all')
     setDirectionFilter('all'); setResultFilter('all')
     setExecQualMin(''); setExecQualMax(''); setHoldHoursMin(''); setHoldHoursMax('')
+    setRMin(''); setRMax('')
   }
 
   const hasActiveFilter =
     !!(dateFrom || dateTo || tickerFilter || setupFilter !== 'all' || directionFilter !== 'all' ||
-       resultFilter !== 'all' || execQualMin || execQualMax || holdHoursMin || holdHoursMax)
+       resultFilter !== 'all' || execQualMin || execQualMax || holdHoursMin || holdHoursMax ||
+       rMin || rMax)
 
   // Metric card color helpers
   const winRateColor =
@@ -878,7 +884,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
                   stroke={AXIS_STROKE}
                   tick={AXIS_TICK} tickMargin={6}
                   tickFormatter={v => ltr(v < 24 ? `${v}h` : `${(v / 24).toFixed(0)}d`)}
-                  label={{ value: 'זמן', position: 'insideBottom', offset: -10, fill: '#888888', fontSize: 10 }}
+                  label={{ value: 'זמן', position: 'insideBottom', offset: -10, fill: '#B0B0B0', fontSize: 11 }}
                 />
                 <YAxis
                   dataKey="actualR"
@@ -898,7 +904,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
                     return (
                       <div style={TOOLTIP_STYLE} dir="ltr" className="px-3 py-2 rounded">
                         <p className="font-mono font-bold text-[#E0E0E0] text-sm">{p.ticker}</p>
-                        <p className="text-[#888888] text-xs">
+                        <p className="text-[#B0B0B0] text-sm">
                           {p.holdHours < 24 ? `${p.holdHours.toFixed(1)}h` : `${(p.holdHours / 24).toFixed(1)}d`}
                         </p>
                         <p className={`text-sm ${p.actualR >= 0 ? 'text-[#2CC84A]' : 'text-[#FF4D4D]'}`}>
@@ -911,7 +917,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
                 <ReferenceLine y={0} stroke="#444444" strokeDasharray="4 4" />
                 <Legend
                   formatter={(v: string) => (
-                    <span style={{ color: '#888888', fontSize: 11 }}>{v}</span>
+                    <span style={{ color: '#B0B0B0', fontSize: 12 }}>{v}</span>
                   )}
                 />
                 <Scatter name="Win"  data={chartData.holdWins}  fill="#2CC84A" opacity={0.8} isAnimationActive={false} />
@@ -941,10 +947,11 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
 
         {/* ── Filter bar ──────────────────────────────────────────────────────── */}
         <div className="panel p-4 mb-6">
+          <h2 className="text-[#E0E0E0] text-sm font-sans font-semibold mb-3">סינון</h2>
           <div className="flex flex-wrap gap-3 items-end">
 
             <div className="flex flex-col gap-1">
-              <label htmlFor="filter-date-from" className="text-[#888888] text-xs font-sans">מתאריך</label>
+              <label htmlFor="filter-date-from" className="text-[#B0B0B0] text-sm font-sans">מתאריך</label>
               <div className="relative">
                 <input id="filter-date-from" type="date" lang="en-GB"
                   data-empty={!dateFrom}
@@ -952,7 +959,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
                   className="input-base date-uppercase text-sm font-mono w-36" dir="ltr" />
                 {!dateFrom && (
                   <span aria-hidden="true"
-                    className="absolute top-1/2 left-2 -translate-y-1/2 pointer-events-none text-sm font-mono text-[#888888] tracking-tight">
+                    className="absolute top-1/2 left-2 -translate-y-1/2 pointer-events-none text-sm font-mono text-[#B0B0B0] tracking-tight">
                     DD / MM / YYYY
                   </span>
                 )}
@@ -960,7 +967,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
             </div>
 
             <div className="flex flex-col gap-1">
-              <label htmlFor="filter-date-to" className="text-[#888888] text-xs font-sans">עד תאריך</label>
+              <label htmlFor="filter-date-to" className="text-[#B0B0B0] text-sm font-sans">עד תאריך</label>
               <div className="relative">
                 <input id="filter-date-to" type="date" lang="en-GB"
                   data-empty={!dateTo}
@@ -968,7 +975,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
                   className="input-base date-uppercase text-sm font-mono w-36" dir="ltr" />
                 {!dateTo && (
                   <span aria-hidden="true"
-                    className="absolute top-1/2 left-2 -translate-y-1/2 pointer-events-none text-sm font-mono text-[#888888] tracking-tight">
+                    className="absolute top-1/2 left-2 -translate-y-1/2 pointer-events-none text-sm font-mono text-[#B0B0B0] tracking-tight">
                     DD / MM / YYYY
                   </span>
                 )}
@@ -976,14 +983,14 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
             </div>
 
             <div className="flex flex-col gap-1">
-              <label htmlFor="filter-ticker" className="text-[#888888] text-xs font-sans">טיקר</label>
+              <label htmlFor="filter-ticker" className="text-[#B0B0B0] text-sm font-sans">טיקר</label>
               <input id="filter-ticker" type="text" placeholder="AAPL..." value={tickerFilter}
                 onChange={e => setTickerFilter(e.target.value)}
                 className="input-base text-sm font-mono w-24" dir="ltr" />
             </div>
 
             <div className="flex flex-col gap-1">
-              <label htmlFor="filter-setup" className="text-[#888888] text-xs font-sans">סטאפ</label>
+              <label htmlFor="filter-setup" className="text-[#B0B0B0] text-sm font-sans">סטאפ</label>
               <select id="filter-setup" value={setupFilter} onChange={e => setSetupFilter(e.target.value)}
                 className="input-base text-sm font-sans">
                 <option value="all">הכל</option>
@@ -992,7 +999,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
             </div>
 
             <div className="flex flex-col gap-1">
-              <label htmlFor="filter-direction" className="text-[#888888] text-xs font-sans">כיוון</label>
+              <label htmlFor="filter-direction" className="text-[#B0B0B0] text-sm font-sans">כיוון</label>
               <select id="filter-direction" value={directionFilter} onChange={e => setDirectionFilter(e.target.value)}
                 className="input-base text-sm font-sans">
                 <option value="all">הכל</option>
@@ -1002,7 +1009,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
             </div>
 
             <div className="flex flex-col gap-1">
-              <label htmlFor="filter-result" className="text-[#888888] text-xs font-sans">תוצאה</label>
+              <label htmlFor="filter-result" className="text-[#B0B0B0] text-sm font-sans">תוצאה</label>
               <select id="filter-result" value={resultFilter} onChange={e => setResultFilter(e.target.value)}
                 className="input-base text-sm font-sans">
                 <option value="all">הכל</option>
@@ -1013,12 +1020,12 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
             </div>
 
             <div className="flex flex-col gap-1" role="group" aria-labelledby="filter-execqual-label">
-              <span id="filter-execqual-label" className="text-[#888888] text-xs font-sans">איכות ביצוע (1-10)</span>
+              <span id="filter-execqual-label" className="text-[#B0B0B0] text-sm font-sans">איכות ביצוע (1-10)</span>
               <div className="flex gap-1 items-center">
                 <input type="number" aria-label="איכות ביצוע מינימלית" placeholder="מינ׳" min={1} max={10} value={execQualMin}
                   onChange={e => setExecQualMin(e.target.value)}
                   className="input-base text-sm font-mono w-16" dir="ltr" />
-                <span className="text-[#888888] text-xs" aria-hidden="true">–</span>
+                <span className="text-[#B0B0B0] text-sm" aria-hidden="true">–</span>
                 <input type="number" aria-label="איכות ביצוע מקסימלית" placeholder="מקס׳" min={1} max={10} value={execQualMax}
                   onChange={e => setExecQualMax(e.target.value)}
                   className="input-base text-sm font-mono w-16" dir="ltr" />
@@ -1026,7 +1033,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
             </div>
 
             <div className="flex flex-col gap-1" role="group" aria-labelledby="filter-hold-label">
-              <span id="filter-hold-label" className="text-[#888888] text-xs font-sans">
+              <span id="filter-hold-label" className="text-[#B0B0B0] text-sm font-sans">
                 זמן החזקה ({holdUnit === 'days' ? 'ימים' : 'שעות'})
               </span>
               <div className="flex gap-1 items-center">
@@ -1034,7 +1041,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
                   placeholder="מינ׳" min={0} value={holdHoursMin}
                   onChange={e => setHoldHoursMin(e.target.value)}
                   className="input-base text-sm font-mono w-16" dir="ltr" />
-                <span className="text-[#888888] text-xs" aria-hidden="true">–</span>
+                <span className="text-[#B0B0B0] text-sm" aria-hidden="true">–</span>
                 <input type="number" aria-label={`זמן החזקה מקסימלי ב${holdUnit === 'days' ? 'ימים' : 'שעות'}`}
                   placeholder="מקס׳" min={0} value={holdHoursMax}
                   onChange={e => setHoldHoursMax(e.target.value)}
@@ -1048,11 +1055,25 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
               </div>
             </div>
 
+            <div className="flex flex-col gap-1" role="group" aria-labelledby="filter-r-label">
+              <span id="filter-r-label" className="text-[#B0B0B0] text-sm font-sans">סינון לפי R</span>
+              <div className="flex gap-2 items-center">
+                <span className="text-[#B0B0B0] text-sm font-sans">מ:</span>
+                <input type="number" step="0.1" aria-label="R מינימלי" placeholder="—" value={rMin}
+                  onChange={e => setRMin(e.target.value)}
+                  className="input-base text-sm font-mono w-16" dir="ltr" />
+                <span className="text-[#B0B0B0] text-sm font-sans">עד:</span>
+                <input type="number" step="0.1" aria-label="R מקסימלי" placeholder="—" value={rMax}
+                  onChange={e => setRMax(e.target.value)}
+                  className="input-base text-sm font-mono w-16" dir="ltr" />
+              </div>
+            </div>
+
             <div className="flex-1" />
             <div className="flex items-end gap-2">
               {hasActiveFilter && (
                 <button onClick={resetFilters}
-                  className="btn-ghost px-3 py-1.5 text-sm font-sans border border-[#333333] rounded text-[#888888]">
+                  className="btn-ghost px-3 py-1.5 text-sm font-sans border border-[#333333] rounded text-[#B0B0B0]">
                   נקה פילטרים
                 </button>
               )}
@@ -1098,13 +1119,13 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
             color={stats.totalPnl > 0 ? 'text-[#2CC84A]' : stats.totalPnl < 0 ? 'text-[#FF4D4D]' : 'text-[#E0E0E0]'}
           />
           <dl className="panel p-4">
-            <dt className="text-[#888888] text-xs font-sans mb-1">ממוצע רווח / הפסד</dt>
+            <dt className="text-[#B0B0B0] text-sm font-sans mb-1">ממוצע רווח / הפסד</dt>
             {stats.totalTrades === 0 ? (
               <dd className="text-[#E0E0E0] text-xl font-mono font-bold m-0">—</dd>
             ) : (
               <dd className="text-xl font-mono font-bold m-0 truncate">
                 <span className="text-[#2CC84A]">{ltr(formatUsd(stats.avgWin))}</span>
-                <span className="text-[#888888] mx-1">/</span>
+                <span className="text-[#B0B0B0] mx-1">/</span>
                 <span className="text-[#FF4D4D]">{ltr(formatUsd(stats.avgLoss))}</span>
               </dd>
             )}
@@ -1113,7 +1134,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
 
         {/* ── Chart visibility toggle ──────────────────────────────────────────── */}
         <div className="mb-4 flex flex-wrap items-center gap-3">
-          <span className="text-[#888888] text-xs font-sans">גרפים מוצגים:</span>
+          <span className="text-[#B0B0B0] text-sm font-sans">גרפים מוצגים:</span>
           <button
             onClick={() => setTogglePanelOpen(p => !p)}
             aria-expanded={togglePanelOpen}
@@ -1125,7 +1146,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
           <button
             onClick={resetChartSizes}
             aria-label="אפס גדלי גרפים לברירת מחדל"
-            className="text-[#888888] text-xs font-sans hover:text-[#FFB800] transition-colors rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2"
+            className="text-[#B0B0B0] text-sm font-sans hover:text-[#FFB800] transition-colors rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2"
           >
             אפס גדלים ↺
           </button>
@@ -1145,7 +1166,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
         {/* ── Charts / empty state ─────────────────────────────────────────────── */}
         {filteredTrades.length === 0 ? (
           <div className="panel p-16 text-center" role="status">
-            <p className="text-[#888888] font-sans text-base">
+            <p className="text-[#B0B0B0] font-sans text-base">
               {closedTrades.length === 0
                 ? 'אין טריידים סגורים במערכת'
                 : 'אין טריידים סגורים בטווח זה'}

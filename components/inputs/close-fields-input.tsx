@@ -80,7 +80,7 @@ export function CloseFieldsInput({
             className={inputCls}
           />
           {toUtcPreview(value.closeDate, value.closeTime, timezone) && (
-            <span className="text-[10px] font-mono text-[#555555] mt-0.5 block">
+            <span className="text-[10px] font-mono text-[#B0B0B0] mt-0.5 block">
               = {toUtcPreview(value.closeDate, value.closeTime, timezone)}
             </span>
           )}
@@ -131,8 +131,8 @@ export function CloseFieldsInput({
                   className="accent-[#FFB800]"
                 />
                 {r.label}
-                {disabled && r.requires === 'stop' && <span className="text-[10px] text-[#555555]">(לא הוזן סטופ)</span>}
-                {disabled && r.requires === 'target' && <span className="text-[10px] text-[#555555]">(לא הוזן יעד)</span>}
+                {disabled && r.requires === 'stop' && <span className="text-[10px] text-[#B0B0B0]">(לא הוזן סטופ)</span>}
+                {disabled && r.requires === 'target' && <span className="text-[10px] text-[#B0B0B0]">(לא הוזן יעד)</span>}
               </label>
             )
           })}

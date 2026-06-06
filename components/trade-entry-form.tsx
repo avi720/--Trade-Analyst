@@ -32,7 +32,7 @@ interface Result {
 const inputCls =
   'w-full bg-[#080808] border border-[#222222] rounded px-2 py-1.5 text-sm text-[#E0E0E0] placeholder-[#444444] focus:outline-none focus:border-[#444444]'
 const selectCls = inputCls + ' cursor-pointer'
-const labelCls = 'block text-xs font-mono text-[#555555] mb-1'
+const labelCls = 'block text-sm font-mono text-[#B0B0B0] mb-1'
 
 interface LegCardProps {
   leg: ManualLeg
@@ -72,7 +72,7 @@ function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCar
           type="button"
           onClick={onRemove}
           disabled={!canRemove}
-          className="text-[#555555] hover:text-[#FF4D4D] disabled:opacity-20 text-xl leading-none transition-colors"
+          className="text-[#B0B0B0] hover:text-[#FF4D4D] disabled:opacity-20 text-xl leading-none transition-colors"
           title="הסר ביצוע"
         >
           ×
@@ -131,7 +131,7 @@ function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCar
               aria-required="true"
             />
             {toUtcPreview(leg.date, leg.time, timezone) && (
-              <span className="text-[10px] font-mono text-[#555555] mt-0.5 block">
+              <span className="text-[10px] font-mono text-[#B0B0B0] mt-0.5 block">
                 = {toUtcPreview(leg.date, leg.time, timezone)}
               </span>
             )}
@@ -257,7 +257,7 @@ function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCar
                   className={inputCls}
                 />
                 {leg.orderPlacedDate && toUtcPreview(leg.orderPlacedDate, leg.orderPlacedTime ?? '', timezone) && (
-                  <span className="text-[10px] font-mono text-[#555555] mt-0.5 block">
+                  <span className="text-[10px] font-mono text-[#B0B0B0] mt-0.5 block">
                     = {toUtcPreview(leg.orderPlacedDate, leg.orderPlacedTime ?? '', timezone)}
                   </span>
                 )}
@@ -419,10 +419,10 @@ export function TradeEntryForm() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h2 className="font-mono text-[#E0E0E0] text-sm">הזנת ביצועים ידנית</h2>
-        <span className="text-xs text-[#555555] font-mono">כל כרטיס = ביצוע אחד (leg)</span>
+        <span className="text-sm text-[#B0B0B0] font-mono">כל כרטיס = ביצוע אחד (leg)</span>
       </div>
 
-      <div className="flex items-center gap-2 text-xs font-mono text-[#555555]">
+      <div className="flex items-center gap-2 text-sm font-mono text-[#B0B0B0]">
         <span>אזור זמן:</span>
         <select
           value={timezone}
@@ -453,7 +453,7 @@ export function TradeEntryForm() {
         <button
           type="button"
           onClick={addLeg}
-          className="text-sm font-mono text-[#888888] hover:text-[#FFB800] border border-[#222222] rounded px-3 py-1.5 transition-colors"
+          className="text-sm font-mono text-[#B0B0B0] hover:text-[#FFB800] border border-[#222222] rounded px-3 py-1.5 transition-colors"
         >
           + הוסף ביצוע
         </button>
@@ -477,7 +477,7 @@ export function TradeEntryForm() {
         <div className="text-xs font-mono border border-[#222222] rounded px-3 py-2 flex flex-col gap-1">
           <div className="flex gap-4">
             <span className="text-[#2CC84A]">עובדו: {result.processed}</span>
-            <span className="text-[#888888]">כפולים: {result.skipped}</span>
+            <span className="text-[#B0B0B0]">כפולים: {result.skipped}</span>
             {result.failed > 0 && (
               <span className="text-[#FF4D4D]">נכשלו: {result.failed}</span>
             )}

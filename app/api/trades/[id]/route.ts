@@ -55,3 +55,56 @@ export async function PATCH(
 
   return NextResponse.json({ ok: true })
 }
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const supabase = await createClient()
+
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // Only manual trades may be deleted — IBKR-synced trades are immutable
+  // (the broker connector would re-create them on next sync via brokerExecId dedup).
+  const { data: trade, error: fetchError } = await supabase
+    .from('Trade')
+    .select('id, source')
+    .eq('id', params.id)
+    .eq('userId', user.id)
+    .maybeSingle()
+
+  if (fetchError) {
+    return NextResponse.json({ error: fetchError.message }, { status: 500 })
+  }
+  if (!trade) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+  if (trade.source !== 'manual') {
+    return NextResponse.json({ error: 'Only manual trades can be deleted' }, { status: 403 })
+  }
+
+  const { error: ordersError } = await supabase
+    .from('Order')
+    .delete()
+    .eq('tradeId', params.id)
+    .eq('userId', user.id)
+
+  if (ordersError) {
+    return NextResponse.json({ error: ordersError.message }, { status: 500 })
+  }
+
+  const { error: tradeError } = await supabase
+    .from('Trade')
+    .delete()
+    .eq('id', params.id)
+    .eq('userId', user.id)
+
+  if (tradeError) {
+    return NextResponse.json({ error: tradeError.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ ok: true })
+}

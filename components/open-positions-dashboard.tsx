@@ -161,17 +161,17 @@ export function OpenPositionsDashboard({ trades, connection }: Props) {
         {/* Summary cards */}
         <div className="grid grid-cols-3 gap-4 mb-6">
           <div className="panel p-4">
-            <p className="text-[#888888] text-xs font-sans mb-1">פוזיציות פתוחות</p>
+            <p className="text-[#B0B0B0] text-sm font-sans mb-1">פוזיציות פתוחות</p>
             <p className="text-[#E0E0E0] text-2xl font-mono font-bold">{filtered.length}</p>
           </div>
           <div className="panel p-4">
-            <p className="text-[#888888] text-xs font-sans mb-1">Exposure כולל</p>
+            <p className="text-[#B0B0B0] text-sm font-sans mb-1">Exposure כולל</p>
             <p className="text-[#E0E0E0] text-2xl font-mono font-bold">
               ${totalExposure.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
             </p>
           </div>
           <div className="panel p-4">
-            <p className="text-[#888888] text-xs font-sans mb-1">P&L לא ממומש</p>
+            <p className="text-[#B0B0B0] text-sm font-sans mb-1">P&L לא ממומש</p>
             <p
               className={`text-2xl font-mono font-bold ${
                 totalUnrealizedPnl >= 0 ? 'text-[#2CC84A]' : 'text-[#FF4D4D]'
@@ -240,7 +240,7 @@ export function OpenPositionsDashboard({ trades, connection }: Props) {
         {/* Positions table */}
         {filtered.length === 0 ? (
           <div className="panel p-12 text-center">
-            <p className="text-[#888888] font-sans text-base">
+            <p className="text-[#B0B0B0] font-sans text-base">
               {trades.length === 0 ? 'אין פוזיציות פתוחות' : 'אין תוצאות לפי הסינון הנוכחי'}
             </p>
           </div>
@@ -248,7 +248,7 @@ export function OpenPositionsDashboard({ trades, connection }: Props) {
           <div className="panel overflow-x-auto">
             <table className="w-full text-sm" style={{ direction: 'rtl' }}>
               <thead>
-                <tr className="border-b border-[#222222] text-[#888888] font-sans text-xs">
+                <tr className="border-b border-[#222222] text-[#B0B0B0] font-sans text-xs">
                   <th className="text-right px-4 py-3 font-normal">טיקר</th>
                   <th className="text-right px-4 py-3 font-normal">כיוון</th>
                   <th className="text-right px-4 py-3 font-normal">כמות</th>
@@ -322,7 +322,7 @@ export function OpenPositionsDashboard({ trades, connection }: Props) {
                             )}
                           </span>
                         ) : (
-                          <span className="text-[#888888]">—</span>
+                          <span className="text-[#B0B0B0]">—</span>
                         )}
                       </td>
 
@@ -333,24 +333,24 @@ export function OpenPositionsDashboard({ trades, connection }: Props) {
                             {formatR(r)}
                           </span>
                         ) : (
-                          <span className="text-[#888888]">—</span>
+                          <span className="text-[#B0B0B0]">—</span>
                         )}
                       </td>
 
                       {/* זמן פתוח */}
-                      <td className="px-4 py-3 font-mono text-[#888888]">
+                      <td className="px-4 py-3 font-mono text-[#B0B0B0]">
                         {relativeOpen(t.openedAt)}
                       </td>
 
                       {/* סטאפ */}
-                      <td className="px-4 py-3 text-[#888888] font-sans text-xs">
+                      <td className="px-4 py-3 text-[#B0B0B0] font-sans text-xs">
                         {t.setupType ?? '—'}
                       </td>
 
                       {/* עדכון מחיר */}
                       <td
                         className={`px-4 py-3 font-sans text-xs ${
-                          priceStale ? 'text-[#FFB800]' : 'text-[#888888]'
+                          priceStale ? 'text-[#FFB800]' : 'text-[#B0B0B0]'
                         }`}
                       >
                         {relativeTimeHe(t.lastPriceUpdateAt)}

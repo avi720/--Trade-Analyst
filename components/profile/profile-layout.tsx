@@ -68,7 +68,7 @@ export function ProfileLayout({ userEmail, userName, userProfile, userDisplay }:
               {userName && (
                 <p className="text-sm font-medium text-[#E0E0E0] truncate">{userName}</p>
               )}
-              <p className="text-xs text-[#555555] font-mono truncate" title={userEmail}>
+              <p className="text-sm text-[#B0B0B0] font-mono truncate" title={userEmail}>
                 {userEmail}
               </p>
             </div>
@@ -91,7 +91,7 @@ export function ProfileLayout({ userEmail, userName, userProfile, userDisplay }:
                   "w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all mb-0.5",
                   isActive
                     ? "bg-[#1A1200] text-[#FFB800] border-l-2 border-[#FFB800]"
-                    : "text-[#888888] hover:text-[#E0E0E0] hover:bg-[#161616]"
+                    : "text-[#B0B0B0] hover:text-[#E0E0E0] hover:bg-[#161616]"
                 )}
               >
                 <Icon size={16} className="shrink-0" />

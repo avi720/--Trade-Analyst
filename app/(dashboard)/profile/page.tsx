@@ -24,7 +24,7 @@ export default async function ProfilePage() {
   };
 
   return (
-    <Suspense fallback={<div className="flex-1 flex items-center justify-center text-[#555555] text-sm">טוען...</div>}>
+    <Suspense fallback={<div className="flex-1 flex items-center justify-center text-[#B0B0B0] text-sm">טוען...</div>}>
       <ProfileLayout
         userEmail={user.email ?? ""}
         userName={userRow?.name ?? null}

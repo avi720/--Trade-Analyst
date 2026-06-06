@@ -57,7 +57,7 @@ function resultColor(result: string | null, status: string): string {
     case 'Win': return 'text-[#2CC84A]'
     case 'Loss': return 'text-[#FF4D4D]'
     case 'Breakeven': return 'text-[#FFB800]'
-    default: return 'text-[#888888]'
+    default: return 'text-[#B0B0B0]'
   }
 }
 
@@ -75,7 +75,7 @@ function SortTh({
   return (
     <th
       onClick={() => onSort(col)}
-      className="cursor-pointer select-none px-3 py-2 text-right text-xs font-mono text-[#888888] hover:text-[#E0E0E0] whitespace-nowrap"
+      className="cursor-pointer select-none px-3 py-2 text-right text-sm font-mono text-[#B0B0B0] hover:text-[#E0E0E0] whitespace-nowrap"
     >
       {label} <span className="opacity-60">{active ? (dir === 'desc' ? '↓' : '↑') : '↕'}</span>
     </th>
@@ -99,6 +99,10 @@ export function TradeSearch({ trades, initialParams }: Props) {
   const [page, setPage] = useState(Number(initialParams.page ?? '0'))
   const [selected, setSelected] = useState<{ trade: RawTrade; mode: TradeModalMode } | null>(null)
   const [closing, setClosing] = useState<RawTrade | null>(null)
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
+  const [deleting, setDeleting] = useState<RawTrade | null>(null)
+  const [deletingBusy, setDeletingBusy] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   // Optimistic-update layer (manual equivalent of React 19's useOptimistic, which
   // isn't available in React 18.3). We keep a map of pending field-patches keyed by
@@ -133,10 +137,43 @@ export function TradeSearch({ trades, initialParams }: Props) {
     router.refresh()
   }
 
+  // Drop optimistic-delete entries once the server list no longer contains them.
+  useEffect(() => {
+    setDeletedIds(prev => {
+      if (prev.size === 0) return prev
+      const next = new Set<string>()
+      for (const id of prev) {
+        if (trades.some(t => t.id === id)) next.add(id)
+      }
+      return next.size === prev.size ? prev : next
+    })
+  }, [trades])
+
   const effectiveTrades = useMemo(() => {
-    if (Object.keys(pendingPatches).length === 0) return trades
-    return trades.map(t => (pendingPatches[t.id] ? { ...t, ...pendingPatches[t.id] } : t))
-  }, [trades, pendingPatches])
+    const base = deletedIds.size === 0 ? trades : trades.filter(t => !deletedIds.has(t.id))
+    if (Object.keys(pendingPatches).length === 0) return base
+    return base.map(t => (pendingPatches[t.id] ? { ...t, ...pendingPatches[t.id] } : t))
+  }, [trades, pendingPatches, deletedIds])
+
+  async function confirmDelete() {
+    const t = deleting
+    if (!t || deletingBusy) return
+    setDeletingBusy(true)
+    setDeleteError('')
+    try {
+      const res = await fetch(`/api/trades/${t.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setDeleteError(body.error ?? res.statusText)
+        return
+      }
+      setDeletedIds(prev => new Set(prev).add(t.id))
+      setDeleting(null)
+      router.refresh()
+    } finally {
+      setDeletingBusy(false)
+    }
+  }
 
   const setups = useMemo(
     () => [...new Set(effectiveTrades.map(t => t.setupType).filter((s): s is string => s !== null))].sort(),
@@ -210,7 +247,7 @@ export function TradeSearch({ trades, initialParams }: Props) {
   const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
   const pageItems = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
-  const inputCls = 'bg-[#080808] border border-[#222222] rounded px-2 py-1 text-sm text-[#E0E0E0] placeholder-[#555555] focus:outline-none focus:border-[#444444]'
+  const inputCls = 'bg-[#080808] border border-[#222222] rounded px-2 py-1 text-sm text-[#E0E0E0] placeholder-[#888888] focus:outline-none focus:border-[#444444]'
   const selectCls = inputCls + ' cursor-pointer'
 
   return (
@@ -229,12 +266,38 @@ export function TradeSearch({ trades, initialParams }: Props) {
               className={inputCls + ' w-44'}
             />
             <div className="flex items-center gap-1">
-              <span className="text-xs text-[#888888]">מ׳</span>
-              <input type="date" aria-label="מתאריך" value={from} onChange={e => bump(() => setFrom(e.target.value))} className={inputCls} />
+              <span className="text-sm text-[#B0B0B0]">מ:</span>
+              <div className="relative">
+                <input
+                  type="date" aria-label="מתאריך" lang="en-GB" dir="ltr"
+                  data-empty={!from}
+                  value={from} onChange={e => bump(() => setFrom(e.target.value))}
+                  className={inputCls + ' date-uppercase'}
+                />
+                {!from && (
+                  <span aria-hidden="true"
+                    className="absolute top-1/2 left-2 -translate-y-1/2 pointer-events-none text-sm font-mono text-[#B0B0B0] tracking-tight">
+                    DD / MM / YYYY
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-1">
-              <span className="text-xs text-[#888888]">עד</span>
-              <input type="date" aria-label="עד תאריך" value={to} onChange={e => bump(() => setTo(e.target.value))} className={inputCls} />
+              <span className="text-sm text-[#B0B0B0]">עד:</span>
+              <div className="relative">
+                <input
+                  type="date" aria-label="עד תאריך" lang="en-GB" dir="ltr"
+                  data-empty={!to}
+                  value={to} onChange={e => bump(() => setTo(e.target.value))}
+                  className={inputCls + ' date-uppercase'}
+                />
+                {!to && (
+                  <span aria-hidden="true"
+                    className="absolute top-1/2 left-2 -translate-y-1/2 pointer-events-none text-sm font-mono text-[#B0B0B0] tracking-tight">
+                    DD / MM / YYYY
+                  </span>
+                )}
+              </div>
             </div>
             <select value={direction} aria-label="כיוון" onChange={e => bump(() => setDirection(e.target.value))} className={selectCls}>
               <option value="">כל כיוון</option>
@@ -254,25 +317,28 @@ export function TradeSearch({ trades, initialParams }: Props) {
           </div>
           {/* Row 2 */}
           <div className="flex flex-wrap gap-2 items-center">
-            <div className="flex items-center gap-1">
-              <span className="text-xs text-[#888888]">R מ׳</span>
-              <input type="number" step="0.1" aria-label="R מינימלי" value={rMin} onChange={e => bump(() => setRMin(e.target.value))} className={inputCls + ' w-20'} placeholder="—" />
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="text-xs text-[#888888]">R עד</span>
-              <input type="number" step="0.1" aria-label="R מקסימלי" value={rMax} onChange={e => bump(() => setRMax(e.target.value))} className={inputCls + ' w-20'} placeholder="—" />
+            <div role="group" aria-labelledby="search-r-label" className="flex items-center gap-2">
+              <span id="search-r-label" className="text-sm text-[#B0B0B0]">סינון לפי R</span>
+              <span className="text-sm text-[#B0B0B0] font-sans">מ:</span>
+              <input type="number" step="0.1" aria-label="R מינימלי" value={rMin}
+                onChange={e => bump(() => setRMin(e.target.value))}
+                className={inputCls + ' w-20'} placeholder="—" dir="ltr" />
+              <span className="text-sm text-[#B0B0B0] font-sans">עד:</span>
+              <input type="number" step="0.1" aria-label="R מקסימלי" value={rMax}
+                onChange={e => bump(() => setRMax(e.target.value))}
+                className={inputCls + ' w-20'} placeholder="—" dir="ltr" />
             </div>
             <select value={status} aria-label="סטטוס" onChange={e => bump(() => setStatus(e.target.value))} className={selectCls}>
               <option value="Closed">סגורים בלבד</option>
               <option value="Open">פתוחים בלבד</option>
-              <option value="All">הכל</option>
+              <option value="All">פתוחים וסגורים</option>
             </select>
             {hasFilters && (
-              <button onClick={clearFilters} className="text-xs text-[#888888] hover:text-[#FF4D4D] transition-colors px-2 py-1 border border-[#222222] rounded">
+              <button onClick={clearFilters} className="text-sm text-[#B0B0B0] hover:text-[#FF4D4D] transition-colors px-2 py-1 border border-[#222222] rounded">
                 נקה סינון
               </button>
             )}
-            <span className="text-xs text-[#555555] mr-auto font-mono">
+            <span className="text-sm text-[#B0B0B0] mr-auto font-mono">
               {filtered.length} / {effectiveTrades.length} טריידים
             </span>
           </div>
@@ -290,15 +356,15 @@ export function TradeSearch({ trades, initialParams }: Props) {
                 <SortTh col="closedAt"   label="סגירה"  current={sortCol} dir={sortDir} onSort={handleSort} />
                 <SortTh col="actualR"    label="R"      current={sortCol} dir={sortDir} onSort={handleSort} />
                 <SortTh col="realizedPnl" label="P&L"  current={sortCol} dir={sortDir} onSort={handleSort} />
-                <th className="px-3 py-2 text-right text-xs font-mono text-[#888888]">עמ׳</th>
-                <th className="px-3 py-2 text-right text-xs font-mono text-[#888888]">תוצאה</th>
-                <th className="px-3 py-2 text-right text-xs font-mono text-[#888888]">פעולות</th>
+                <th className="px-3 py-2 text-right text-sm font-mono text-[#B0B0B0]">עמ׳</th>
+                <th className="px-3 py-2 text-right text-sm font-mono text-[#B0B0B0]">תוצאה</th>
+                <th className="px-3 py-2 text-right text-sm font-mono text-[#B0B0B0]">פעולות</th>
               </tr>
             </thead>
             <tbody>
               {pageItems.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="px-3 py-8 text-center text-[#555555] text-sm">
+                  <td colSpan={10} className="px-3 py-8 text-center text-[#B0B0B0] text-sm">
                     לא נמצאו טריידים
                   </td>
                 </tr>
@@ -318,25 +384,25 @@ export function TradeSearch({ trades, initialParams }: Props) {
                     <td className={cn('px-3 py-2 font-mono text-xs', t.direction === 'Long' ? 'text-[#2CC84A]' : 'text-[#FF4D4D]')}>
                       {t.direction}
                     </td>
-                    <td className="px-3 py-2 text-[#888888] text-xs">{t.setupType ?? '—'}</td>
-                    <td className="px-3 py-2 font-mono text-xs text-[#888888] whitespace-nowrap">{fmtDate(t.openedAt)}</td>
-                    <td className="px-3 py-2 font-mono text-xs text-[#888888] whitespace-nowrap">{fmtDate(t.closedAt)}</td>
+                    <td className="px-3 py-2 text-[#B0B0B0] text-sm">{t.setupType ?? '—'}</td>
+                    <td className="px-3 py-2 font-mono text-sm text-[#B0B0B0] whitespace-nowrap">{fmtDate(t.openedAt)}</td>
+                    <td className="px-3 py-2 font-mono text-sm text-[#B0B0B0] whitespace-nowrap">{fmtDate(t.closedAt)}</td>
                     <td
                       title={t.actualR == null ? 'אין stop price מוגדר' : undefined}
                       className={cn('px-3 py-2 font-mono text-xs whitespace-nowrap',
                         t.actualR != null && t.actualR > 0 ? 'text-[#2CC84A]' :
-                        t.actualR != null && t.actualR < 0 ? 'text-[#FF4D4D]' : 'text-[#888888]'
+                        t.actualR != null && t.actualR < 0 ? 'text-[#FF4D4D]' : 'text-[#B0B0B0]'
                       )}
                     >
                       {fmtR(t.actualR)}
                     </td>
                     <td className={cn('px-3 py-2 font-mono text-xs whitespace-nowrap',
                       t.realizedPnl != null && t.realizedPnl > 0 ? 'text-[#2CC84A]' :
-                      t.realizedPnl != null && t.realizedPnl < 0 ? 'text-[#FF4D4D]' : 'text-[#888888]'
+                      t.realizedPnl != null && t.realizedPnl < 0 ? 'text-[#FF4D4D]' : 'text-[#B0B0B0]'
                     )}>
                       {t.realizedPnl != null ? formatUsd(t.realizedPnl) : '—'}
                     </td>
-                    <td className="px-3 py-2 font-mono text-xs text-[#888888]">
+                    <td className="px-3 py-2 font-mono text-sm text-[#B0B0B0]">
                       {t.totalCommission != null ? formatUsd(-Math.abs(t.totalCommission)) : '—'}
                     </td>
                     <td className={cn('px-3 py-2 text-xs font-mono', resultColor(t.result, t.status))}>
@@ -348,7 +414,7 @@ export function TradeSearch({ trades, initialParams }: Props) {
                           type="button"
                           onClick={() => setSelected({ trade: t, mode: 'edit' })}
                           title="עריכת הערות"
-                          className="text-[#888888] hover:text-[#FFB800] transition-colors p-1 border border-[#222222] rounded"
+                          className="text-[#B0B0B0] hover:text-[#FFB800] transition-colors p-1 border border-[#222222] rounded"
                         >
                           {/* pencil icon */}
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -361,12 +427,28 @@ export function TradeSearch({ trades, initialParams }: Props) {
                             type="button"
                             onClick={() => setClosing(t)}
                             title="סגירת טרייד"
-                            className="text-[#888888] hover:text-[#2CC84A] transition-colors p-1 border border-[#222222] rounded"
+                            className="text-[#B0B0B0] hover:text-[#2CC84A] transition-colors p-1 border border-[#222222] rounded"
                           >
                             {/* dollar/close icon */}
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <line x1="12" y1="1" x2="12" y2="23" />
                               <path d="M17 5H9.5a3.5 3.5 0 1 0 0 7h5a3.5 3.5 0 1 1 0 7H6" />
+                            </svg>
+                          </button>
+                        )}
+                        {t.source === 'manual' && (
+                          <button
+                            type="button"
+                            onClick={() => { setDeleteError(''); setDeleting(t) }}
+                            title="מחיקת טרייד"
+                            className="text-[#B0B0B0] hover:text-[#FF4D4D] transition-colors p-1 border border-[#222222] rounded"
+                          >
+                            {/* trash icon */}
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                              <path d="M10 11v6M14 11v6" />
+                              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
                             </svg>
                           </button>
                         )}
@@ -385,17 +467,17 @@ export function TradeSearch({ trades, initialParams }: Props) {
             <button
               onClick={() => setPage(p => Math.max(0, p - 1))}
               disabled={page === 0}
-              className="px-3 py-1 text-sm font-mono border border-[#222222] rounded text-[#888888] hover:text-[#E0E0E0] hover:border-[#444444] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="px-3 py-1 text-sm font-mono border border-[#222222] rounded text-[#B0B0B0] hover:text-[#E0E0E0] hover:border-[#444444] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               ← הקודם
             </button>
-            <span className="text-xs text-[#888888] font-mono">
+            <span className="text-sm text-[#B0B0B0] font-mono">
               {page + 1} / {pageCount}
             </span>
             <button
               onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
               disabled={page >= pageCount - 1}
-              className="px-3 py-1 text-sm font-mono border border-[#222222] rounded text-[#888888] hover:text-[#E0E0E0] hover:border-[#444444] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="px-3 py-1 text-sm font-mono border border-[#222222] rounded text-[#B0B0B0] hover:text-[#E0E0E0] hover:border-[#444444] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               הבא →
             </button>
@@ -438,6 +520,51 @@ export function TradeSearch({ trades, initialParams }: Props) {
             setClosing(null)
           }}
         />
+      )}
+
+      {deleting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" dir="rtl">
+          <div className="absolute inset-0 bg-black/60" onClick={() => !deletingBusy && setDeleting(null)} />
+          <div role="dialog" aria-modal="true" aria-labelledby="delete-trade-title"
+            className="relative bg-[#111111] border border-[#222222] rounded-lg w-full max-w-md mx-4 shadow-2xl">
+            <div className="px-5 py-4 border-b border-[#222222]">
+              <h3 id="delete-trade-title" className="text-base font-sans font-semibold text-[#E0E0E0]">
+                מחיקת טרייד
+              </h3>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <p className="text-sm text-[#E0E0E0]">
+                האם למחוק את הטרייד <span className="font-mono font-semibold text-[#FFB800]">{deleting.ticker}</span>?
+              </p>
+              <p className="text-sm text-[#B0B0B0]">
+                כל ה-Orders המשויכים יימחקו גם הם. פעולה זו אינה הפיכה.
+              </p>
+              {deleteError && (
+                <p className="text-sm text-[#FF4D4D] bg-[#1A0A0A] border border-[#FF4D4D]/40 rounded px-3 py-2">
+                  מחיקה נכשלה: {deleteError}
+                </p>
+              )}
+            </div>
+            <div className="px-5 py-4 border-t border-[#222222] flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleting(null)}
+                disabled={deletingBusy}
+                className="px-3 py-1.5 text-sm font-sans text-[#B0B0B0] hover:text-[#E0E0E0] border border-[#333333] rounded transition-colors disabled:opacity-50"
+              >
+                ביטול
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                disabled={deletingBusy}
+                className="px-3 py-1.5 text-sm font-sans text-white bg-[#FF4D4D] hover:bg-[#FF6666] rounded transition-colors disabled:opacity-50"
+              >
+                {deletingBusy ? 'מוחק…' : 'מחק'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   )

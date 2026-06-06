@@ -15,7 +15,7 @@ interface TabDisplayProps {
   initialDisplay: DisplaySettings;
 }
 
-const labelCls = "block text-xs font-medium text-[#888888] uppercase tracking-wider mb-3";
+const labelCls = "block text-xs font-medium text-[#B0B0B0] uppercase tracking-wider mb-3";
 
 function RadioGroup<T extends string>({
   value,
@@ -52,7 +52,7 @@ function RadioGroup<T extends string>({
           />
           <div>
             <span className="text-sm text-[#E0E0E0]">{opt.label}</span>
-            {opt.sub && <span className="block text-xs text-[#555555] mt-0.5">{opt.sub}</span>}
+            {opt.sub && <span className="block text-sm text-[#B0B0B0] mt-0.5">{opt.sub}</span>}
           </div>
         </label>
       ))}
@@ -122,7 +122,7 @@ export function TabDisplay({ initialDisplay }: TabDisplayProps) {
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold text-[#E0E0E0]">תצוגה</h2>
-        <p className="text-sm text-[#888888] mt-1">מטבע, פורמט תאריכים ומספרים</p>
+        <p className="text-sm text-[#B0B0B0] mt-1">מטבע, פורמט תאריכים ומספרים</p>
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">

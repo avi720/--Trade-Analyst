@@ -7,7 +7,7 @@ import { Eye, EyeOff, AlertTriangle } from "lucide-react";
 const inputCls =
   "w-full bg-[#0d0d0d] border border-[#222222] rounded-md px-3 py-2.5 text-sm text-[#E0E0E0] placeholder-[#444444] focus:outline-none focus:border-[#FFB800] transition-colors font-mono";
 
-const labelCls = "block text-xs font-medium text-[#888888] mb-1.5 uppercase tracking-wider";
+const labelCls = "block text-xs font-medium text-[#B0B0B0] mb-1.5 uppercase tracking-wider";
 
 function SuccessBanner({ message }: { message: string }) {
   return (
@@ -45,7 +45,7 @@ function PasswordInput({ value, onChange, placeholder }: {
       <button
         type="button"
         onClick={() => setShow((s) => !s)}
-        className="absolute left-3 top-1/2 -translate-y-1/2 text-[#555555] hover:text-[#888888] transition-colors"
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-[#B0B0B0] hover:text-[#B0B0B0] transition-colors"
         tabIndex={-1}
       >
         {show ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -164,13 +164,13 @@ export function TabSecurity({ userEmail }: { userEmail: string }) {
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold text-[#E0E0E0]">אבטחה</h2>
-        <p className="text-sm text-[#888888] mt-1">שינוי אימייל, סיסמה וניהול חשבון</p>
+        <p className="text-sm text-[#B0B0B0] mt-1">שינוי אימייל, סיסמה וניהול חשבון</p>
       </div>
 
       {/* Change email */}
       <div className="panel p-5">
-        <h3 className="text-xs font-medium text-[#888888] uppercase tracking-wider mb-4">שינוי אימייל</h3>
-        <p className="text-xs text-[#555555] mb-4">אימייל נוכחי: <span className="text-[#888888] font-mono">{userEmail}</span></p>
+        <h3 className="text-xs font-medium text-[#B0B0B0] uppercase tracking-wider mb-4">שינוי אימייל</h3>
+        <p className="text-sm text-[#B0B0B0] mb-4">אימייל נוכחי: <span className="text-[#B0B0B0] font-mono">{userEmail}</span></p>
         <form onSubmit={handleEmailChange} className="space-y-4">
           <div>
             <label className={labelCls}>אימייל חדש</label>
@@ -197,7 +197,7 @@ export function TabSecurity({ userEmail }: { userEmail: string }) {
 
       {/* Change password */}
       <div className="panel p-5">
-        <h3 className="text-xs font-medium text-[#888888] uppercase tracking-wider mb-4">שינוי סיסמה</h3>
+        <h3 className="text-xs font-medium text-[#B0B0B0] uppercase tracking-wider mb-4">שינוי סיסמה</h3>
         <form onSubmit={handlePasswordChange} className="space-y-4">
           <div>
             <label className={labelCls}>סיסמה חדשה</label>
@@ -247,7 +247,7 @@ export function TabSecurity({ userEmail }: { userEmail: string }) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-[#E0E0E0] font-medium">מחיקת חשבון</p>
-              <p className="text-xs text-[#555555] mt-0.5">פעולה זו בלתי הפיכה. כל הנתונים יימחקו לצמיתות.</p>
+              <p className="text-sm text-[#B0B0B0] mt-0.5">פעולה זו בלתי הפיכה. כל הנתונים יימחקו לצמיתות.</p>
             </div>
             <button
               onClick={() => setDeleteOpen(true)}
@@ -279,7 +279,7 @@ export function TabSecurity({ userEmail }: { userEmail: string }) {
               </button>
               <button
                 onClick={() => { setDeleteOpen(false); setDeleteConfirm(""); }}
-                className="px-4 py-2 border border-[#222222] text-[#888888] text-sm rounded-md hover:border-[#444444] hover:text-[#E0E0E0] transition-colors"
+                className="px-4 py-2 border border-[#222222] text-[#B0B0B0] text-sm rounded-md hover:border-[#444444] hover:text-[#E0E0E0] transition-colors"
               >
                 ביטול
               </button>

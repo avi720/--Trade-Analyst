@@ -44,20 +44,20 @@ export default function LoginPage() {
           <h1 className="text-2xl font-bold text-[#E0E0E0] font-mono">
             Trade Analysis
           </h1>
-          <p className="text-[#888888] text-sm mt-1">יומן מסחר חכם</p>
+          <p className="text-[#B0B0B0] text-sm mt-1">יומן מסחר חכם</p>
         </div>
 
         <GoogleSignInButton label="התחבר עם Google" />
 
         <div className="flex items-center gap-3 my-5">
           <div className="flex-1 h-px bg-[#222222]" />
-          <span className="text-[#555555] text-xs">או</span>
+          <span className="text-[#B0B0B0] text-sm">או</span>
           <div className="flex-1 h-px bg-[#222222]" />
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="email" className="block text-sm text-[#888888] mb-1">אימייל</label>
+            <label htmlFor="email" className="block text-sm text-[#B0B0B0] mb-1">אימייל</label>
             <input
               id="email"
               type="email"
@@ -72,7 +72,7 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm text-[#888888] mb-1">סיסמה</label>
+            <label htmlFor="password" className="block text-sm text-[#B0B0B0] mb-1">סיסמה</label>
             <input
               id="password"
               type="password"
@@ -99,7 +99,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-sm text-[#888888] mt-6">
+        <p className="text-center text-sm text-[#B0B0B0] mt-6">
           עדיין אין לך חשבון?{' '}
           <Link href="/signup" className="text-[#FFB800] hover:underline">
             הירשם כאן

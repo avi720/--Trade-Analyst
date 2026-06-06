@@ -141,19 +141,19 @@ export function ChatSidebar() {
         <div className="flex items-center justify-between px-4 py-3 border-b border-[#222222] flex-shrink-0">
           <div className="flex items-center gap-2">
             <span className="font-mono text-[#FFB800] font-bold">חנן</span>
-            <span className="text-[#888888] text-xs font-mono">{modelLabel}</span>
+            <span className="text-[#B0B0B0] text-sm font-mono">{modelLabel}</span>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={handleNewConversation}
-              className="text-xs text-[#888888] hover:text-[#E0E0E0] px-2 py-1 rounded hover:bg-[#1A1A1A] transition-colors"
+              className="text-sm text-[#B0B0B0] hover:text-[#E0E0E0] px-2 py-1 rounded hover:bg-[#1A1A1A] transition-colors"
               title="שיחה חדשה"
             >
               חדש
             </button>
             <button
               onClick={toggleChat}
-              className="text-[#888888] hover:text-[#E0E0E0] transition-colors text-lg leading-none"
+              className="text-[#B0B0B0] hover:text-[#E0E0E0] transition-colors text-lg leading-none"
               aria-label="סגור"
             >
               ✕
@@ -168,7 +168,7 @@ export function ChatSidebar() {
             className={`flex-1 py-1.5 rounded text-xs font-mono transition-colors ${
               contextMode === 'smart'
                 ? 'bg-[#FFB800] text-[#080808] font-bold'
-                : 'bg-[#1A1A1A] text-[#888888] hover:text-[#E0E0E0]'
+                : 'bg-[#1A1A1A] text-[#B0B0B0] hover:text-[#E0E0E0]'
             }`}
           >
             חכם ⚡
@@ -178,7 +178,7 @@ export function ChatSidebar() {
             className={`flex-1 py-1.5 rounded text-xs font-mono transition-colors ${
               contextMode === 'full'
                 ? 'bg-[#FFB800] text-[#080808] font-bold'
-                : 'bg-[#1A1A1A] text-[#888888] hover:text-[#E0E0E0]'
+                : 'bg-[#1A1A1A] text-[#B0B0B0] hover:text-[#E0E0E0]'
             }`}
           >
             עומק 🔬
@@ -189,7 +189,7 @@ export function ChatSidebar() {
         <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3">
           {messages.length === 0 && !isLoading && (
             <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center">
-              <p className="text-[#888888] text-sm font-sans">שאל את חנן על הטריידים שלך</p>
+              <p className="text-[#B0B0B0] text-sm font-sans">שאל את חנן על הטריידים שלך</p>
             </div>
           )}
 
@@ -214,7 +214,7 @@ export function ChatSidebar() {
 
           {isLoading && (
             <div className="flex justify-end">
-              <div className="bg-[#1A1A1A] border border-[#333333] rounded-lg px-3 py-2 text-sm text-[#888888] font-mono">
+              <div className="bg-[#1A1A1A] border border-[#333333] rounded-lg px-3 py-2 text-sm text-[#B0B0B0] font-mono">
                 חנן חושב...
               </div>
             </div>
@@ -232,7 +232,7 @@ export function ChatSidebar() {
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
               disabled={isLoading}
               placeholder="שאל את חנן..."
-              className="flex-1 bg-[#1A1A1A] border border-[#333333] rounded text-[#E0E0E0] text-sm px-3 py-2 placeholder-[#555555] focus:outline-none focus:border-[#FFB800]/50 disabled:opacity-50"
+              className="flex-1 bg-[#1A1A1A] border border-[#333333] rounded text-[#E0E0E0] text-sm px-3 py-2 placeholder-[#888888] focus:outline-none focus:border-[#FFB800]/50 disabled:opacity-50"
             />
             <button
               onClick={handleSend}

@@ -53,7 +53,7 @@ const inputCls = (err?: string) =>
   'w-full bg-[#080808] border rounded px-3 py-2 text-sm text-[#E0E0E0] placeholder-[#444444] focus:outline-none transition-colors ' +
   (err ? 'border-[#FF4D4D]' : 'border-[#222222] focus:border-[#444444]')
 
-const labelCls = 'block text-sm text-[#888888] mb-1'
+const labelCls = 'block text-sm text-[#B0B0B0] mb-1'
 const errorCls = 'text-[#FF4D4D] text-xs mt-1'
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -74,7 +74,7 @@ function StepPills({ current }: { current: 1 | 2 | 3 }) {
             <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
               active ? 'bg-[#FFB800] text-black' :
               done   ? 'bg-[#1A1200] text-[#FFB800] border border-[#FFB800]/30' :
-                       'bg-[#111111] text-[#555555] border border-[#222222]'
+                       'bg-[#111111] text-[#B0B0B0] border border-[#222222]'
             }`}>
               <span>{step}</span>
               <span>{label}</span>
@@ -114,7 +114,7 @@ function RadioGroup<T extends string>({
           <input type="radio" checked={value === opt.value} onChange={() => onChange(opt.value)} className="sr-only" />
           <div>
             <span className="text-sm text-[#E0E0E0]">{opt.label}</span>
-            {opt.sub && <span className="block text-xs text-[#555555] mt-0.5">{opt.sub}</span>}
+            {opt.sub && <span className="block text-sm text-[#B0B0B0] mt-0.5">{opt.sub}</span>}
           </div>
         </label>
       ))}
@@ -311,7 +311,7 @@ export default function SignupPage() {
         {/* Header */}
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-[#E0E0E0] font-mono">Trade Analysis</h1>
-          <p className="text-[#888888] text-sm mt-1">יצירת חשבון</p>
+          <p className="text-[#B0B0B0] text-sm mt-1">יצירת חשבון</p>
         </div>
 
         <StepPills current={step} />
@@ -325,7 +325,7 @@ export default function SignupPage() {
 
                 <div className="flex items-center gap-3 my-5">
                   <div className="flex-1 h-px bg-[#222222]" />
-                  <span className="text-[#555555] text-xs">או</span>
+                  <span className="text-[#B0B0B0] text-sm">או</span>
                   <div className="flex-1 h-px bg-[#222222]" />
                 </div>
 
@@ -356,7 +356,7 @@ export default function SignupPage() {
                   {form1.formState.errors.password && (
                     <p className={errorCls}>{form1.formState.errors.password.message}</p>
                   )}
-                  <p className="text-[#555555] text-xs mt-1">לפחות 8 תווים, אות ומספר</p>
+                  <p className="text-[#B0B0B0] text-sm mt-1">לפחות 8 תווים, אות ומספר</p>
                 </div>
 
                 <div>
@@ -409,7 +409,7 @@ export default function SignupPage() {
 
                 <button
                   onClick={() => { setVerificationSent(false); setStep1Error(null) }}
-                  className="w-full py-1.5 text-sm text-[#888888] hover:text-[#E0E0E0] transition-colors"
+                  className="w-full py-1.5 text-sm text-[#B0B0B0] hover:text-[#E0E0E0] transition-colors"
                 >
                   חזור לטופס
                 </button>
@@ -474,7 +474,7 @@ export default function SignupPage() {
 
             <div>
               <label className={labelCls}>
-                עיר <span className="text-[#555555] text-xs">(אופציונלי)</span>
+                עיר <span className="text-[#B0B0B0] text-sm">(אופציונלי)</span>
               </label>
               <CityCombobox
                 value={cityValue}
@@ -490,7 +490,7 @@ export default function SignupPage() {
 
             <div>
               <label className={labelCls}>
-                כתובת <span className="text-[#555555] text-xs">(אופציונלי)</span>
+                כתובת <span className="text-[#B0B0B0] text-sm">(אופציונלי)</span>
               </label>
               <input
                 {...form2.register('addressStreet')}
@@ -514,7 +514,7 @@ export default function SignupPage() {
           <form onSubmit={form3.handleSubmit(onStep3Submit)} className="space-y-5">
             {/* Currency */}
             <div>
-              <p className="text-xs font-medium text-[#888888] uppercase tracking-wider mb-2">מטבע ראשי</p>
+              <p className="text-xs font-medium text-[#B0B0B0] uppercase tracking-wider mb-2">מטבע ראשי</p>
               <RadioGroup
                 value={currency}
                 onChange={v => form3.setValue('currency', v)}
@@ -527,7 +527,7 @@ export default function SignupPage() {
 
             {/* Date format */}
             <div>
-              <p className="text-xs font-medium text-[#888888] uppercase tracking-wider mb-2">פורמט תאריך</p>
+              <p className="text-xs font-medium text-[#B0B0B0] uppercase tracking-wider mb-2">פורמט תאריך</p>
               <RadioGroup
                 value={dateFormat}
                 onChange={v => form3.setValue('dateFormat', v)}
@@ -541,7 +541,7 @@ export default function SignupPage() {
 
             {/* Number format */}
             <div>
-              <p className="text-xs font-medium text-[#888888] uppercase tracking-wider mb-2">פורמט מספרים</p>
+              <p className="text-xs font-medium text-[#B0B0B0] uppercase tracking-wider mb-2">פורמט מספרים</p>
               <RadioGroup
                 value={numberFormat}
                 onChange={v => form3.setValue('numberFormat', v)}
@@ -558,7 +558,7 @@ export default function SignupPage() {
               <button
                 type="button"
                 onClick={() => setStep(2)}
-                className="flex-1 py-2 px-4 border border-[#222222] text-[#888888] text-sm rounded-md hover:border-[#333333] hover:text-[#E0E0E0] transition-colors"
+                className="flex-1 py-2 px-4 border border-[#222222] text-[#B0B0B0] text-sm rounded-md hover:border-[#333333] hover:text-[#E0E0E0] transition-colors"
               >
                 חזור
               </button>
@@ -574,7 +574,7 @@ export default function SignupPage() {
         )}
 
         {/* Bottom link */}
-        <p className="text-center text-sm text-[#888888] mt-6">
+        <p className="text-center text-sm text-[#B0B0B0] mt-6">
           כבר יש לך חשבון?{' '}
           <Link href="/login" className="text-[#FFB800] hover:underline">
             התחבר

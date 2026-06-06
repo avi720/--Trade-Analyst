@@ -112,7 +112,7 @@ export function TradeDetailModal({ trade, mode = 'edit', onClose, onSaved }: Pro
 
   const inputCls = 'w-full bg-[#080808] border border-[#222222] rounded px-2 py-1.5 text-sm text-[#E0E0E0] placeholder-[#444444] focus:outline-none focus:border-[#444444]' + (readOnly ? ' opacity-70 cursor-not-allowed' : '')
   const selectCls = inputCls + (readOnly ? '' : ' cursor-pointer')
-  const labelCls = 'text-xs text-[#555555] font-mono block mb-1'
+  const labelCls = 'text-sm text-[#B0B0B0] font-mono block mb-1'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -120,14 +120,14 @@ export function TradeDetailModal({ trade, mode = 'edit', onClose, onSaved }: Pro
 
       <div className="relative bg-[#111111] border border-[#222222] rounded-lg w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#222222]">
-          <span className="text-xs text-[#888888] font-mono">
+          <span className="text-sm text-[#B0B0B0] font-mono">
             {trade.status === 'Open' ? 'פתוח' : 'סגור'} · {readOnly ? 'צפייה' : 'עריכה'}
             {trade.source === 'manual' && <span className="text-[#FFB800]"> · ידני</span>}
           </span>
           <h2 className="font-mono font-bold text-[#FFB800] text-lg">
             {trade.ticker} — {trade.direction}
           </h2>
-          <button onClick={onClose} className="text-[#888888] hover:text-[#E0E0E0] text-xl leading-none">×</button>
+          <button onClick={onClose} className="text-[#B0B0B0] hover:text-[#E0E0E0] text-xl leading-none">×</button>
         </div>
 
         <div className="p-5 flex flex-col gap-5">
@@ -144,23 +144,23 @@ export function TradeDetailModal({ trade, mode = 'edit', onClose, onSaved }: Pro
               ['תוצאה', trade.result ?? '—'],
             ].map(([label, val]) => (
               <div key={label} className="bg-[#0D0D0D] border border-[#1A1A1A] rounded p-2">
-                <div className="text-xs text-[#555555] font-mono">{label}</div>
+                <div className="text-sm text-[#B0B0B0] font-mono">{label}</div>
                 <div className="text-[#E0E0E0] font-mono text-sm mt-0.5">{val}</div>
               </div>
             ))}
           </div>
 
           <div>
-            <h3 className="text-xs font-mono text-[#888888] mb-2">ביצועים (Orders)</h3>
+            <h3 className="text-sm font-mono text-[#B0B0B0] mb-2">ביצועים (Orders)</h3>
             {loadingOrders ? (
-              <div className="text-xs text-[#555555] font-mono">טוען…</div>
+              <div className="text-sm text-[#B0B0B0] font-mono">טוען…</div>
             ) : orders.length === 0 ? (
-              <div className="text-xs text-[#555555] font-mono">אין ביצועים</div>
+              <div className="text-sm text-[#B0B0B0] font-mono">אין ביצועים</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-xs font-mono">
                   <thead>
-                    <tr className="border-b border-[#1A1A1A] text-[#555555]">
+                    <tr className="border-b border-[#1A1A1A] text-[#B0B0B0]">
                       <th className="text-right py-1 px-2">תאריך/שעה</th>
                       <th className="text-right py-1 px-2">צד</th>
                       <th className="text-right py-1 px-2">כמות</th>
@@ -172,12 +172,12 @@ export function TradeDetailModal({ trade, mode = 'edit', onClose, onSaved }: Pro
                   <tbody>
                     {orders.map(o => (
                       <tr key={o.id} className="border-b border-[#0D0D0D]">
-                        <td className="py-1 px-2 text-[#888888]">{fmtDate(o.executedAt)}</td>
+                        <td className="py-1 px-2 text-[#B0B0B0]">{fmtDate(o.executedAt)}</td>
                         <td className={`py-1 px-2 ${o.side === 'BUY' ? 'text-[#2CC84A]' : 'text-[#FF4D4D]'}`}>{o.side}</td>
                         <td className="py-1 px-2 text-[#E0E0E0]">{o.quantity}</td>
                         <td className="py-1 px-2 text-[#E0E0E0]">${o.price.toFixed(2)}</td>
-                        <td className="py-1 px-2 text-[#888888]">{o.commission != null ? `$${o.commission.toFixed(2)}` : '—'}</td>
-                        <td className="py-1 px-2 text-[#888888]">{o.currency ?? '—'}</td>
+                        <td className="py-1 px-2 text-[#B0B0B0]">{o.commission != null ? `$${o.commission.toFixed(2)}` : '—'}</td>
+                        <td className="py-1 px-2 text-[#B0B0B0]">{o.currency ?? '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -187,7 +187,7 @@ export function TradeDetailModal({ trade, mode = 'edit', onClose, onSaved }: Pro
           </div>
 
           <div>
-            <h3 className="text-xs font-mono text-[#888888] mb-3">{readOnly ? 'הערות אישיות' : 'עריכה'}</h3>
+            <h3 className="text-sm font-mono text-[#B0B0B0] mb-3">{readOnly ? 'הערות אישיות' : 'עריכה'}</h3>
             <fieldset disabled={readOnly} className="flex flex-col gap-3">
               <SetupTypeInput
                 value={setupType}
@@ -248,7 +248,7 @@ export function TradeDetailModal({ trade, mode = 'edit', onClose, onSaved }: Pro
             )}
             <button
               onClick={onClose}
-              className="px-4 py-2 border border-[#222222] text-[#888888] text-sm font-mono rounded hover:text-[#E0E0E0] hover:border-[#444444] transition-colors"
+              className="px-4 py-2 border border-[#222222] text-[#B0B0B0] text-sm font-mono rounded hover:text-[#E0E0E0] hover:border-[#444444] transition-colors"
             >
               {readOnly ? 'סגור' : 'ביטול'}
             </button>

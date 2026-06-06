@@ -51,7 +51,7 @@ function SetupGuide({ open, onToggle }: { open: boolean; onToggle: () => void })
         </span>
       </button>
       {open && (
-        <div className="p-4 border-t border-[#222222] space-y-4 text-sm text-[#888888]">
+        <div className="p-4 border-t border-[#222222] space-y-4 text-sm text-[#B0B0B0]">
           <div>
             <p className="text-[#E0E0E0] font-medium mb-1">שלב 1 — הפעלת Flex Web Service</p>
             <p>
@@ -82,7 +82,7 @@ function SetupGuide({ open, onToggle }: { open: boolean; onToggle: () => void })
               ))}
             </div>
           </div>
-          <p className="text-xs text-[#555555]">
+          <p className="text-sm text-[#B0B0B0]">
             שלב 3: העתק את ה-Token ואת ה-Query ID לשדות למטה.
           </p>
         </div>
@@ -101,7 +101,7 @@ function QueryStatusRow({ label, result }: { label: string; result: ActivityTest
       )}
       <span className={result.ok ? "text-[#E0E0E0]" : "text-[#FF4D4D]"}>{label}</span>
       {!result.ok && result.error && (
-        <span className="text-[#555555] text-xs truncate">{result.error}</span>
+        <span className="text-[#B0B0B0] text-sm truncate">{result.error}</span>
       )}
     </div>
   );
@@ -248,13 +248,13 @@ export function TabBroker() {
   const syncStatusColor =
     conn?.lastSyncStatus === "SUCCESS" ? "text-[#2CC84A]" :
     conn?.lastSyncStatus === "ERROR" ? "text-[#FF4D4D]" :
-    "text-[#888888]";
+    "text-[#B0B0B0]";
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold text-[#E0E0E0]">ברוקר — IBKR</h2>
-        <p className="text-sm text-[#888888] mt-1">חיבור ל-Interactive Brokers דרך Flex Web Service</p>
+        <p className="text-sm text-[#B0B0B0] mt-1">חיבור ל-Interactive Brokers דרך Flex Web Service</p>
       </div>
 
       <div className="panel p-6">
@@ -264,24 +264,24 @@ export function TabBroker() {
 
         <form onSubmit={handleSave} className="space-y-4">
           <div>
-            <label className="block text-sm text-[#888888] mb-1">Flex Token</label>
+            <label className="block text-sm text-[#B0B0B0] mb-1">Flex Token</label>
             <input
               type="password"
               value={flexToken}
               onChange={(e) => setFlexToken(e.target.value)}
               placeholder={conn ? "••••••••  (נדרש להזין מחדש לשינויים)" : "הדבק את ה-Flex Token כאן"}
-              className="w-full bg-[#111111] border border-[#222222] rounded px-3 py-2 text-sm text-[#E0E0E0] placeholder-[#555555] focus:outline-none focus:border-[#FFB800] font-mono"
+              className="w-full bg-[#111111] border border-[#222222] rounded px-3 py-2 text-sm text-[#E0E0E0] placeholder-[#888888] focus:outline-none focus:border-[#FFB800] font-mono"
             />
           </div>
 
           <div>
-            <label className="block text-sm text-[#888888] mb-1">Query ID — Activity</label>
+            <label className="block text-sm text-[#B0B0B0] mb-1">Query ID — Activity</label>
             <input
               type="text"
               value={queryIdActivity}
               onChange={(e) => setQueryIdActivity(e.target.value)}
               placeholder="123456"
-              className="w-full bg-[#111111] border border-[#222222] rounded px-3 py-2 text-sm text-[#E0E0E0] placeholder-[#555555] focus:outline-none focus:border-[#FFB800] font-mono"
+              className="w-full bg-[#111111] border border-[#222222] rounded px-3 py-2 text-sm text-[#E0E0E0] placeholder-[#888888] focus:outline-none focus:border-[#FFB800] font-mono"
             />
           </div>
 
@@ -327,7 +327,7 @@ export function TabBroker() {
         {conn && (
           <div className="mt-6 pt-4 border-t border-[#222222] space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-[#888888]">סנכרון אחרון</span>
+              <span className="text-[#B0B0B0]">סנכרון אחרון</span>
               <span className={initialSyncRunning ? "text-[#FFB800]" : syncStatusColor}>
                 {initialSyncRunning ? (
                   <span className="flex items-center gap-2">
@@ -349,7 +349,7 @@ export function TabBroker() {
               <button
                 onClick={handleExportCsv}
                 disabled={exportingCsv || !conn}
-                className="px-3 py-1.5 border border-[#222222] text-[#888888] text-xs rounded hover:border-[#444444] hover:text-[#E0E0E0] disabled:opacity-40 transition-colors"
+                className="px-3 py-1.5 border border-[#222222] text-[#B0B0B0] text-sm rounded hover:border-[#444444] hover:text-[#E0E0E0] disabled:opacity-40 transition-colors"
               >
                 {exportingCsv ? (
                   <span className="flex items-center gap-2">

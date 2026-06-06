@@ -13,7 +13,7 @@ interface Props {
 const inputCls =
   'w-full bg-[#080808] border border-[#222222] rounded px-2 py-1.5 text-sm text-[#E0E0E0] placeholder-[#444444] focus:outline-none focus:border-[#444444]'
 const selectCls = inputCls + ' cursor-pointer'
-const labelCls = 'block text-xs font-mono text-[#555555] mb-1'
+const labelCls = 'block text-sm font-mono text-[#B0B0B0] mb-1'
 
 export function ManualCloseModal({ trade, onClose, onClosed }: Props) {
   const [value, setValue] = useState<CloseFieldsValue>(emptyCloseFields())
@@ -74,25 +74,25 @@ export function ManualCloseModal({ trade, onClose, onClosed }: Props) {
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
       <div className="relative bg-[#111111] border border-[#222222] rounded-lg w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#222222]">
-          <span className="text-xs text-[#888888] font-mono">סגירה ידנית</span>
+          <span className="text-sm text-[#B0B0B0] font-mono">סגירה ידנית</span>
           <h2 className="font-mono font-bold text-[#FFB800] text-lg">
             {trade.ticker} — {trade.direction} ({trade.totalQuantity})
           </h2>
-          <button onClick={onClose} className="text-[#888888] hover:text-[#E0E0E0] text-xl leading-none">×</button>
+          <button onClick={onClose} className="text-[#B0B0B0] hover:text-[#E0E0E0] text-xl leading-none">×</button>
         </div>
 
         <div className="p-5 flex flex-col gap-4">
           <div className="grid grid-cols-3 gap-3 text-xs font-mono">
             <div className="bg-[#0D0D0D] border border-[#1A1A1A] rounded p-2">
-              <div className="text-[#555555]">מחיר כניסה ממוצע</div>
+              <div className="text-[#B0B0B0]">מחיר כניסה ממוצע</div>
               <div className="text-[#E0E0E0] mt-0.5">${trade.avgEntryPrice.toFixed(2)}</div>
             </div>
             <div className="bg-[#0D0D0D] border border-[#1A1A1A] rounded p-2">
-              <div className="text-[#555555]">סטופ</div>
+              <div className="text-[#B0B0B0]">סטופ</div>
               <div className="text-[#E0E0E0] mt-0.5">{trade.stopPrice != null ? `$${trade.stopPrice.toFixed(2)}` : '—'}</div>
             </div>
             <div className="bg-[#0D0D0D] border border-[#1A1A1A] rounded p-2">
-              <div className="text-[#555555]">יעד</div>
+              <div className="text-[#B0B0B0]">יעד</div>
               <div className="text-[#E0E0E0] mt-0.5">{trade.targetPrice != null ? `$${trade.targetPrice.toFixed(2)}` : '—'}</div>
             </div>
           </div>
@@ -121,7 +121,7 @@ export function ManualCloseModal({ trade, onClose, onClosed }: Props) {
             </button>
             <button
               onClick={onClose}
-              className="px-4 py-2 border border-[#222222] text-[#888888] text-sm font-mono rounded hover:text-[#E0E0E0] hover:border-[#444444] transition-colors"
+              className="px-4 py-2 border border-[#222222] text-[#B0B0B0] text-sm font-mono rounded hover:text-[#E0E0E0] hover:border-[#444444] transition-colors"
             >
               ביטול
             </button>
