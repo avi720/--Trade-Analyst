@@ -14,8 +14,13 @@ import type { Json } from '@/lib/db/types'
 const DB_AVAILABLE =
   !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.SUPABASE_SERVICE_ROLE_KEY
 
+// The public.User table has a FK to auth.users(id), so the test user must
+// first exist as a Supabase auth identity before we can insert the app row.
+// We create it via the service-role admin API in beforeAll and tear it down
+// in afterAll. The id is fixed so cleanup is idempotent across reruns.
 const TEST_USER_ID = 'a0000000-0000-0000-0000-000000000001'
 const TEST_EMAIL = 'integration-test@example.com'
+const TEST_PASSWORD = 'integration-test-pw-' + TEST_USER_ID
 
 const baseExec: NormalizedExecution = {
   brokerExecId: 'INT-EXEC-001',
@@ -34,13 +39,30 @@ describe.skipIf(!DB_AVAILABLE)('FIFO → DB integration', () => {
   const supabase = DB_AVAILABLE ? createAdminClient() : null!
 
   async function cleanup() {
+    // App-table rows first (FK on userId → User.id), then the app User row
+    // (FK id → auth.users.id), then the auth identity itself.
     await supabase.from('Order').delete().eq('userId', TEST_USER_ID)
     await supabase.from('Trade').delete().eq('userId', TEST_USER_ID)
     await supabase.from('User').delete().eq('id', TEST_USER_ID)
+    // deleteUser returns { error: { name: 'AuthApiError', status: 404 } } when
+    // the user is already gone — that's fine, swallow it. Any other error we
+    // ignore here too because cleanup runs in both before/after and we don't
+    // want a stale-state failure to mask the real test result.
+    await supabase.auth.admin.deleteUser(TEST_USER_ID).catch(() => {})
   }
 
   beforeAll(async () => {
     await cleanup()
+    // 1. Create the auth identity with a fixed UUID so the FK target exists.
+    const { error: authErr } = await supabase.auth.admin.createUser({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- admin API accepts id, types lag
+      id: TEST_USER_ID,
+      email: TEST_EMAIL,
+      password: TEST_PASSWORD,
+      email_confirm: true,
+    } as Parameters<typeof supabase.auth.admin.createUser>[0] & { id: string })
+    if (authErr) throw authErr
+    // 2. Now the app-level User row can be inserted (FK satisfied).
     const { error } = await supabase
       .from('User')
       .insert({ id: TEST_USER_ID, email: TEST_EMAIL, settings: {} })
