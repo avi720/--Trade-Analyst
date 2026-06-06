@@ -63,25 +63,29 @@ export function holdTimeVsR(trades: ClosedTrade[]): HoldTimePoint[] {
 }
 
 // Realized P&L by day of week (Sunday=0 … Saturday=6), always returns all 7 days.
-// Uses UTC day so results are consistent with IBKR data (all dates normalized to UTC).
+// Uses the BROWSER's local timezone (the user's session TZ) — matches what the
+// trade-detail modal displays via fmtLocalDateTime. Trades stored in UTC are
+// translated to the user's wall-clock day so the chart matches what they
+// actually experienced sitting at the desk.
 export function pnlByDayOfWeek(trades: ClosedTrade[]): DayStat[] {
   const stats = HEBREW_DAYS.map(day => ({ day, totalPnl: 0, tradeCount: 0 }))
   for (const t of trades) {
     if (t.realizedPnl == null) continue
-    const idx = t.closedAt.getUTCDay()
+    const idx = t.closedAt.getDay()
     stats[idx].totalPnl += t.realizedPnl
     stats[idx].tradeCount++
   }
   return stats
 }
 
-// Realized P&L grouped by close hour (UTC, 0-23), only hours that appear in data.
-// UTC is used for consistency with IBKR timestamps.
+// Realized P&L grouped by close hour (0-23), only hours that appear in data.
+// Uses the BROWSER's local timezone for the same reason as pnlByDayOfWeek —
+// the chart should reflect the user's wall-clock hours, not UTC.
 export function pnlByHour(trades: ClosedTrade[]): HourStat[] {
   const hourMap = new Map<number, HourStat>()
   for (const t of trades) {
     if (t.realizedPnl == null) continue
-    const hour = t.closedAt.getUTCHours()
+    const hour = t.closedAt.getHours()
     const existing = hourMap.get(hour)
     if (existing) {
       existing.totalPnl += t.realizedPnl

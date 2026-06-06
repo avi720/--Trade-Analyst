@@ -12,6 +12,8 @@ import { calcStats, equityCurve, rDistribution, setupPerformance } from '@/lib/u
 import { pnlByTicker, holdTimeVsR, pnlByDayOfWeek, pnlByHour } from '@/lib/utils/research-charts'
 import { formatUsd } from '@/lib/utils/position-calc'
 import type { ClosedTrade } from '@/types/trade'
+import { InfoTooltip } from '@/components/info-tooltip'
+import { METRIC_INFO, CHART_INFO } from '@/components/research-info'
 
 // Raw trade shape as serialized by the server component (dates as ISO strings)
 export interface RawClosedTrade {
@@ -216,6 +218,8 @@ interface ChartCardProps {
   chartId: ChartId
   title: string
   ariaLabel?: string
+  /** Explainer content shown via the ⓘ button next to the title. */
+  info?: React.ReactNode
   /** Inline controls rendered on the opposite side of the title (e.g. series toggles). */
   headerExtra?: React.ReactNode
   /** Content rendered below the chart area (e.g. a colored legend for the setup chart). */
@@ -237,7 +241,7 @@ interface ChartCardProps {
 const MIN_CHART_W = 280
 const MIN_CHART_H = 150
 
-function ChartCard({ chartId, title, ariaLabel, headerExtra, footerExtra, defaultHeight = 220, fullWidth = false, pairPosition, onWidthDrag, onWidthDragEnd, children }: ChartCardProps) {
+function ChartCard({ chartId, title, ariaLabel, info, headerExtra, footerExtra, defaultHeight = 220, fullWidth = false, pairPosition, onWidthDrag, onWidthDragEnd, children }: ChartCardProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const innerRef = useRef<HTMLDivElement>(null)
 
@@ -322,7 +326,10 @@ function ChartCard({ chartId, title, ariaLabel, headerExtra, footerExtra, defaul
       className="panel p-4 flex flex-col gap-3 relative min-w-0"
     >
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h2 className="text-[#B0B0B0] text-sm font-sans">{title}</h2>
+        <h2 className="text-[#B0B0B0] text-sm font-sans flex items-center gap-2">
+          <span>{title}</span>
+          {info && <InfoTooltip label={`מידע על ${title}`}>{info}</InfoTooltip>}
+        </h2>
         {headerExtra}
       </div>
       {/* The chart content is forced to dir=ltr — Recharts SVGs inherit the
@@ -528,10 +535,13 @@ function DayHourInner({
   )
 }
 
-function MetricCard({ label, value, color }: { label: string; value: string; color?: string }) {
+function MetricCard({ label, value, color, info }: { label: string; value: string; color?: string; info?: React.ReactNode }) {
   return (
     <dl className="panel p-4">
-      <dt className="text-[#B0B0B0] text-sm font-sans mb-1">{label}</dt>
+      <dt className="text-[#B0B0B0] text-sm font-sans mb-1 flex items-center justify-between gap-2">
+        <span>{label}</span>
+        {info && <InfoTooltip label={`מידע על ${label}`}>{info}</InfoTooltip>}
+      </dt>
       <dd className={`text-xl font-mono font-bold truncate m-0 ${color ?? 'text-[#E0E0E0]'}`}>{ltr(value)}</dd>
     </dl>
   )
@@ -592,9 +602,26 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
   )
 
   const filteredTrades = useMemo(() => {
+    // Parse the YYYY-MM-DD inputs as boundaries in the BROWSER's local timezone
+    // (matching the user's session and the day/hour chart). `new Date('YYYY-MM-DD')`
+    // parses as UTC midnight, which on negative-UTC offsets pushes the boundary
+    // a day earlier than the user expects; constructing via numeric components
+    // pins the boundary to local wall-clock midnight / 23:59:59.999.
+    const parseLocalStart = (s: string): Date | null => {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s)
+      if (!m) return null
+      return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 0, 0, 0, 0)
+    }
+    const parseLocalEnd = (s: string): Date | null => {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s)
+      if (!m) return null
+      return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 23, 59, 59, 999)
+    }
+    const fromDate = dateFrom ? parseLocalStart(dateFrom) : null
+    const toDate = dateTo ? parseLocalEnd(dateTo) : null
     return closedTrades.filter(t => {
-      if (dateFrom && t.openedAt < new Date(dateFrom)) return false
-      if (dateTo && t.openedAt > new Date(dateTo + 'T23:59:59')) return false
+      if (fromDate && t.openedAt < fromDate) return false
+      if (toDate && t.openedAt > toDate) return false
       if (tickerFilter && !t.ticker.toUpperCase().includes(tickerFilter.toUpperCase())) return false
       if (setupFilter !== 'all' && t.setupType !== setupFilter) return false
       if (directionFilter !== 'all' && t.direction !== directionFilter) return false
@@ -703,7 +730,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
     switch (id) {
       case 'equity':
         return (
-          <ChartCard chartId="equity" title="עקומת הון (R מצטבר)" ariaLabel="גרף עקומת הון: R מצטבר לאורך זמן" defaultHeight={dh}>
+          <ChartCard chartId="equity" title="עקומת הון (R מצטבר)" ariaLabel="גרף עקומת הון: R מצטבר לאורך זמן" defaultHeight={dh} info={CHART_INFO.equity}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData.equity}>
                 <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
@@ -731,7 +758,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
         )
       case 'rdist':
         return (
-          <ChartCard chartId="rdist" title="התפלגות R" ariaLabel="גרף עמודות: התפלגות הטריידים לפי מכפיל R" defaultHeight={dh}>
+          <ChartCard chartId="rdist" title="התפלגות R" ariaLabel="גרף עמודות: התפלגות הטריידים לפי מכפיל R" defaultHeight={dh} info={CHART_INFO.rdist}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData.rdist}>
                 <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
@@ -758,6 +785,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
             ariaLabel="גרף עמודות: ביצועי כל סוג סטאפ — R ממוצע ואחוז הצלחה"
             fullWidth
             defaultHeight={dh}
+            info={CHART_INFO.setup}
             headerExtra={
               <div className="flex items-center gap-3 text-xs font-sans" dir="rtl">
                 <label className="flex items-center gap-1 cursor-pointer">
@@ -847,7 +875,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
         )
       case 'ticker':
         return (
-          <ChartCard chartId="ticker" title="P&L לפי נייר" ariaLabel="גרף עמודות אופקי: רווח והפסד מצטבר לכל נייר" defaultHeight={dh}>
+          <ChartCard chartId="ticker" title="P&L לפי נייר" ariaLabel="גרף עמודות אופקי: רווח והפסד מצטבר לכל נייר" defaultHeight={dh} info={CHART_INFO.ticker}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData.ticker} layout="vertical" margin={{ left: 0, right: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} horizontal={false} />
@@ -873,7 +901,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
         )
       case 'holdtime':
         return (
-          <ChartCard chartId="holdtime" title="זמן החזקה vs R" ariaLabel="גרף פיזור: זמן החזקת הטרייד מול מכפיל R, מסומן לפי תוצאה" defaultHeight={dh}>
+          <ChartCard chartId="holdtime" title="זמן החזקה vs R" ariaLabel="גרף פיזור: זמן החזקת הטרייד מול מכפיל R, מסומן לפי תוצאה" defaultHeight={dh} info={CHART_INFO.holdtime}>
             <ResponsiveContainer width="100%" height="100%">
               <ScatterChart margin={{ top: 5, right: 10, bottom: 20, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
@@ -931,7 +959,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
         )
       case 'dayhour':
         return (
-          <ChartCard chartId="dayhour" defaultHeight={dh} title="P&L לפי יום/שעה" ariaLabel="גרפי עמודות: רווח והפסד לפי יום בשבוע ולפי שעת סגירה">
+          <ChartCard chartId="dayhour" defaultHeight={dh} title="P&L לפי יום/שעה" ariaLabel="גרפי עמודות: רווח והפסד לפי יום בשבוע ולפי שעת סגירה" info={CHART_INFO.dayhour}>
             <DayHourInner dayofweek={chartData.dayofweek} hour={chartData.hour} />
           </ChartCard>
         )
@@ -1087,39 +1115,48 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
 
         {/* ── Metrics row ─────────────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <MetricCard label="טריידים" value={String(stats.totalTrades)} />
+          <MetricCard label="טריידים" value={String(stats.totalTrades)} info={METRIC_INFO.totalTrades} />
           <MetricCard
             label="אחוז הצלחה"
             value={stats.totalTrades === 0 ? '—' : `${(stats.winRate * 100).toFixed(1)}%`}
             color={winRateColor}
+            info={METRIC_INFO.winRate}
           />
           <MetricCard
             label="R ממוצע"
             value={stats.rTradeCount === 0 ? '—' : `${stats.avgR >= 0 ? '+' : ''}${stats.avgR.toFixed(2)}R`}
             color={stats.rTradeCount === 0 ? undefined : stats.avgR > 0 ? 'text-[#2CC84A]' : stats.avgR < 0 ? 'text-[#FF4D4D]' : 'text-[#E0E0E0]'}
+            info={METRIC_INFO.avgR}
           />
           <MetricCard
             label="Profit Factor"
             value={stats.totalTrades === 0 ? '—' : stats.profitFactor >= 999 ? '∞' : stats.profitFactor.toFixed(2)}
             color={pfColor}
+            info={METRIC_INFO.profitFactor}
           />
           <MetricCard
             label="Expectancy"
             value={stats.rTradeCount === 0 ? '—' : `${stats.expectancy >= 0 ? '+' : ''}${stats.expectancy.toFixed(2)}R`}
             color={stats.rTradeCount === 0 ? undefined : stats.expectancy > 0 ? 'text-[#2CC84A]' : 'text-[#FF4D4D]'}
+            info={METRIC_INFO.expectancy}
           />
           <MetricCard
             label="Max Drawdown"
             value={stats.totalTrades === 0 ? '—' : formatUsd(stats.maxDrawdown)}
             color={stats.maxDrawdown < 0 ? 'text-[#FF4D4D]' : 'text-[#E0E0E0]'}
+            info={METRIC_INFO.maxDrawdown}
           />
           <MetricCard
             label="סה״כ P&L"
             value={stats.totalTrades === 0 ? '—' : formatUsd(stats.totalPnl)}
             color={stats.totalPnl > 0 ? 'text-[#2CC84A]' : stats.totalPnl < 0 ? 'text-[#FF4D4D]' : 'text-[#E0E0E0]'}
+            info={METRIC_INFO.totalPnl}
           />
           <dl className="panel p-4">
-            <dt className="text-[#B0B0B0] text-sm font-sans mb-1">ממוצע רווח / הפסד</dt>
+            <dt className="text-[#B0B0B0] text-sm font-sans mb-1 flex items-center justify-between gap-2">
+              <span>ממוצע רווח / הפסד</span>
+              <InfoTooltip label="מידע על ממוצע רווח / הפסד">{METRIC_INFO.avgWinLoss}</InfoTooltip>
+            </dt>
             {stats.totalTrades === 0 ? (
               <dd className="text-[#E0E0E0] text-xl font-mono font-bold m-0">—</dd>
             ) : (
