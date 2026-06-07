@@ -276,7 +276,7 @@ export function TradeSearch({ trades, initialParams }: Props) {
                 />
                 {!from && (
                   <span aria-hidden="true"
-                    className="absolute top-1/2 left-2 -translate-y-1/2 pointer-events-none text-sm font-mono text-[#B0B0B0] tracking-tight">
+                    className="absolute top-1/2 right-2 -translate-y-1/2 pointer-events-none text-sm font-mono text-[#B0B0B0] tracking-tight">
                     DD / MM / YYYY
                   </span>
                 )}
@@ -293,7 +293,7 @@ export function TradeSearch({ trades, initialParams }: Props) {
                 />
                 {!to && (
                   <span aria-hidden="true"
-                    className="absolute top-1/2 left-2 -translate-y-1/2 pointer-events-none text-sm font-mono text-[#B0B0B0] tracking-tight">
+                    className="absolute top-1/2 right-2 -translate-y-1/2 pointer-events-none text-sm font-mono text-[#B0B0B0] tracking-tight">
                     DD / MM / YYYY
                   </span>
                 )}

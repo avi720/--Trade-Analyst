@@ -131,8 +131,8 @@ export function ClosedTradeEntryForm() {
             <div>
               <label htmlFor="open-side" className={labelCls}>צד <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
               <select id="open-side" value={open.side} onChange={e => patchOpen({ side: e.target.value as 'BUY' | 'SELL' })} className={selectCls} aria-required="true">
-                <option value="BUY">BUY</option>
-                <option value="SELL">SELL</option>
+                <option value="BUY">Long</option>
+                <option value="SELL">Short</option>
               </select>
             </div>
             <div>
@@ -211,9 +211,19 @@ export function ClosedTradeEntryForm() {
                 </div>
                 <div>
                   <label htmlFor="open-order-placed-date" className={labelCls}>תאריך הגשת פקודה</label>
-                  <input id="open-order-placed-date" type="date" value={open.orderPlacedDate ?? ''}
-                    onChange={e => patchOpen({ orderPlacedDate: e.target.value || undefined })}
-                    className={inputCls} />
+                  <div className="relative">
+                    <input id="open-order-placed-date" type="date" lang="en-GB"
+                      data-empty={!open.orderPlacedDate}
+                      value={open.orderPlacedDate ?? ''}
+                      onChange={e => patchOpen({ orderPlacedDate: e.target.value || undefined })}
+                      className={inputCls + ' date-uppercase'} dir="ltr" />
+                    {!open.orderPlacedDate && (
+                      <span aria-hidden="true"
+                        className="absolute top-1/2 right-2 -translate-y-1/2 pointer-events-none text-sm font-mono text-[#444444] tracking-tight">
+                        DD / MM / YYYY
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label htmlFor="open-order-placed-time" className={labelCls}>שעת הגשת פקודה</label>
@@ -226,7 +236,25 @@ export function ClosedTradeEntryForm() {
                     </span>
                   )}
                 </div>
-                <div className="col-span-2">
+                <div>
+                  <label htmlFor="open-stop-price" className={labelCls}>מחיר עצירה</label>
+                  <input id="open-stop-price" type="number" step="0.01" value={open.stopPrice ?? ''}
+                    onChange={e => {
+                      const v = parseFloat(e.target.value)
+                      patchOpen({ stopPrice: isNaN(v) ? null : v })
+                    }}
+                    className={inputCls} placeholder="—" />
+                </div>
+                <div>
+                  <label htmlFor="open-target-price" className={labelCls}>מחיר יעד</label>
+                  <input id="open-target-price" type="number" step="0.01" value={open.targetPrice ?? ''}
+                    onChange={e => {
+                      const v = parseFloat(e.target.value)
+                      patchOpen({ targetPrice: isNaN(v) ? null : v })
+                    }}
+                    className={inputCls} placeholder="—" />
+                </div>
+                <div>
                   <label htmlFor="open-broker" className={labelCls}>ברוקר</label>
                   <select id="open-broker" value={open.broker ?? BROKERS[0]}
                     onChange={e => patchOpen({ broker: e.target.value })}
@@ -259,26 +287,6 @@ export function ClosedTradeEntryForm() {
                   inputCls={inputCls} selectCls={selectCls} labelCls={labelCls}
                   idPrefix="open-"
                 />
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label htmlFor="open-stop-price" className={labelCls}>מחיר עצירה</label>
-                    <input id="open-stop-price" type="number" step="0.01" value={open.stopPrice ?? ''}
-                      onChange={e => {
-                        const v = parseFloat(e.target.value)
-                        patchOpen({ stopPrice: isNaN(v) ? null : v })
-                      }}
-                      className={inputCls} placeholder="—" />
-                  </div>
-                  <div>
-                    <label htmlFor="open-target-price" className={labelCls}>מחיר יעד</label>
-                    <input id="open-target-price" type="number" step="0.01" value={open.targetPrice ?? ''}
-                      onChange={e => {
-                        const v = parseFloat(e.target.value)
-                        patchOpen({ targetPrice: isNaN(v) ? null : v })
-                      }}
-                      className={inputCls} placeholder="—" />
-                  </div>
-                </div>
                 <div>
                   <label htmlFor="open-notes" className={labelCls}>הערות</label>
                   <textarea id="open-notes" rows={2} value={open.notes ?? ''}
