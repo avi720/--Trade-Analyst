@@ -82,6 +82,26 @@ input[type="date"].date-uppercase[data-empty="true"]::-webkit-datetime-edit {
   color: transparent;
 }
 
+/* Visible calendar icon for every <input type="date">. We replace Chrome's
+   tiny default picker indicator with a clearly visible SVG so users know
+   the field opens a date picker. The native click area is preserved. */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23B0B0B0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='4' width='18' height='18' rx='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/></svg>");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 16px 16px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  margin-inline-start: 4px;
+  cursor: pointer;
+  opacity: 0.75;
+  transition: opacity 0.12s;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
 /* Skip-to-content link — visible only when focused via keyboard */
 .skip-link {
   position: absolute;

@@ -65,7 +65,7 @@ function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCar
                 : 'text-[#FF4D4D] bg-[#FF4D4D]/10'
             }`}
           >
-            {leg.side}
+            {leg.side === 'BUY' ? 'Long' : 'Short'}
           </span>
         </div>
         <button
@@ -105,8 +105,8 @@ function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCar
               className={selectCls}
               aria-required="true"
             >
-              <option value="BUY">BUY</option>
-              <option value="SELL">SELL</option>
+              <option value="BUY">Long</option>
+              <option value="SELL">Short</option>
             </select>
           </div>
           <div>
@@ -239,13 +239,24 @@ function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCar
               </div>
               <div>
                 <label htmlFor={`leg-${index}-order-placed-date`} className={labelCls}>תאריך הגשת פקודה</label>
-                <input
-                  id={`leg-${index}-order-placed-date`}
-                  type="date"
-                  value={leg.orderPlacedDate ?? ''}
-                  onChange={e => onChange({ orderPlacedDate: e.target.value || undefined })}
-                  className={inputCls}
-                />
+                <div className="relative">
+                  <input
+                    id={`leg-${index}-order-placed-date`}
+                    type="date"
+                    lang="en-GB"
+                    data-empty={!leg.orderPlacedDate}
+                    value={leg.orderPlacedDate ?? ''}
+                    onChange={e => onChange({ orderPlacedDate: e.target.value || undefined })}
+                    className={inputCls + ' date-uppercase'}
+                    dir="ltr"
+                  />
+                  {!leg.orderPlacedDate && (
+                    <span aria-hidden="true"
+                      className="absolute top-1/2 right-2 -translate-y-1/2 pointer-events-none text-sm font-mono text-[#444444] tracking-tight">
+                      DD / MM / YYYY
+                    </span>
+                  )}
+                </div>
               </div>
               <div>
                 <label htmlFor={`leg-${index}-order-placed-time`} className={labelCls}>שעת הגשת פקודה</label>
@@ -262,7 +273,37 @@ function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCar
                   </span>
                 )}
               </div>
-              <div className="col-span-2">
+              <div>
+                <label htmlFor={`leg-${index}-stop-price`} className={labelCls}>מחיר עצירה</label>
+                <input
+                  id={`leg-${index}-stop-price`}
+                  type="number"
+                  step="0.01"
+                  value={leg.stopPrice ?? ''}
+                  onChange={e => {
+                    const v = parseFloat(e.target.value)
+                    onChange({ stopPrice: isNaN(v) ? null : v })
+                  }}
+                  className={inputCls}
+                  placeholder="—"
+                />
+              </div>
+              <div>
+                <label htmlFor={`leg-${index}-target-price`} className={labelCls}>מחיר יעד</label>
+                <input
+                  id={`leg-${index}-target-price`}
+                  type="number"
+                  step="0.01"
+                  value={leg.targetPrice ?? ''}
+                  onChange={e => {
+                    const v = parseFloat(e.target.value)
+                    onChange({ targetPrice: isNaN(v) ? null : v })
+                  }}
+                  className={inputCls}
+                  placeholder="—"
+                />
+              </div>
+              <div>
                 <label htmlFor={`leg-${index}-broker`} className={labelCls}>ברוקר</label>
                 <select
                   id={`leg-${index}-broker`}
@@ -305,38 +346,6 @@ function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCar
                 labelCls={labelCls}
                 idPrefix={`leg-${index}-`}
               />
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor={`leg-${index}-stop-price`} className={labelCls}>מחיר עצירה</label>
-                  <input
-                    id={`leg-${index}-stop-price`}
-                    type="number"
-                    step="0.01"
-                    value={leg.stopPrice ?? ''}
-                    onChange={e => {
-                      const v = parseFloat(e.target.value)
-                      onChange({ stopPrice: isNaN(v) ? null : v })
-                    }}
-                    className={inputCls}
-                    placeholder="—"
-                  />
-                </div>
-                <div>
-                  <label htmlFor={`leg-${index}-target-price`} className={labelCls}>מחיר יעד</label>
-                  <input
-                    id={`leg-${index}-target-price`}
-                    type="number"
-                    step="0.01"
-                    value={leg.targetPrice ?? ''}
-                    onChange={e => {
-                      const v = parseFloat(e.target.value)
-                      onChange({ targetPrice: isNaN(v) ? null : v })
-                    }}
-                    className={inputCls}
-                    placeholder="—"
-                  />
-                </div>
-              </div>
               <div>
                 <label htmlFor={`leg-${index}-notes`} className={labelCls}>הערות</label>
                 <textarea
