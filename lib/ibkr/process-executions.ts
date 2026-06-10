@@ -4,10 +4,12 @@
  * Uses the service-role admin client — must only be called from server-only code paths.
  */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { matchExecution } from "@/lib/trade/fifo";
 import { validateStk } from "@/lib/ibkr/parse-flex-xml";
 import { parseIbkrDate } from "@/lib/ibkr/parse-date";
+import type { Database, TablesInsert, Json } from "@/lib/db/types";
 import type {
   NormalizedExecution,
   OpenTradeSnapshot,
@@ -15,6 +17,8 @@ import type {
   TradeCreate,
   OrderCreate,
 } from "@/types/trade";
+
+type Admin = SupabaseClient<Database>;
 
 export type ProcessingStatus =
   | "PROCESSED"
@@ -54,7 +58,7 @@ function buildOrderInsert(
   order: OrderCreate,
   tradeId: string,
   userId: string
-): Record<string, unknown> {
+): TablesInsert<"Order"> {
   const raw = order.rawPayload as Record<string, unknown>;
   return {
     id: crypto.randomUUID(),
@@ -70,7 +74,7 @@ function buildOrderInsert(
     brokerClientAccountId: order.brokerClientAccountId ?? null,
     currency: order.currency ?? null,
     orderType: order.orderType ?? null,
-    rawPayload: order.rawPayload,
+    rawPayload: order.rawPayload as unknown as Json,
     // camelCase (real IBKR) takes priority; PascalCase as fallback for test fixtures
     netCash: raw.netCash != null
       ? Number(raw.netCash)
@@ -95,7 +99,7 @@ function buildOrderInsert(
 function buildTradeInsert(
   trade: TradeCreate,
   userId: string
-): Record<string, unknown> {
+): TablesInsert<"Trade"> {
   return {
     id: crypto.randomUUID(),
     userId,
@@ -158,12 +162,10 @@ export async function processExecutions(
 
 // Processes a single execution: dedup + STK validation once, then a
 // read → match → persist cycle that retries on concurrency conflicts.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function processOneExecution(
   exec: NormalizedExecution,
   userId: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  admin: any
+  admin: Admin
 ): Promise<ExecutionResult> {
   // 1. Duplicate check — unique constraint is on brokerExecId per user
   const { data: existingOrder } = await admin
@@ -259,8 +261,7 @@ function assertUpdated(
 async function persistAction(
   action: FifoAction,
   userId: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  admin: any,
+  admin: Admin,
   prevTotalQuantity: number | null
 ): Promise<string> {
   switch (action.type) {
@@ -299,7 +300,7 @@ async function persistAction(
         })
         .eq("id", action.tradeId)
         .eq("status", "Open")
-        .eq("totalQuantity", prevTotalQuantity)
+        .eq("totalQuantity", prevTotalQuantity!)
         .select("id");
       if (tradeErr) throw new Error(`Trade update (SCALE_IN) failed: ${tradeErr.message}`);
       assertUpdated(updated, "SCALE_IN", action.tradeId);
@@ -320,7 +321,7 @@ async function persistAction(
         })
         .eq("id", action.tradeId)
         .eq("status", "Open")
-        .eq("totalQuantity", prevTotalQuantity)
+        .eq("totalQuantity", prevTotalQuantity!)
         .select("id");
       if (tradeErr) throw new Error(`Trade update (REDUCE) failed: ${tradeErr.message}`);
       assertUpdated(updated, "REDUCE", action.tradeId);
@@ -347,7 +348,7 @@ async function persistAction(
         })
         .eq("id", action.tradeId)
         .eq("status", "Open")
-        .eq("totalQuantity", prevTotalQuantity)
+        .eq("totalQuantity", prevTotalQuantity!)
         .select("id");
       if (tradeErr) throw new Error(`Trade update (CLOSE) failed: ${tradeErr.message}`);
       assertUpdated(updated, "CLOSE", action.tradeId);
@@ -380,19 +381,22 @@ async function persistAction(
         id: openOrderId,
       };
 
-      // Atomic: close existing trade + insert closing order + insert new trade + insert opening order
+      // Atomic: close existing trade + insert closing order + insert new trade + insert opening order.
+      // Cast: the generated TS types mark p_actual_r/p_result as non-nullable,
+      // but the Postgres function accepts NULL (when the trade has no stop).
+      // Cast: closeOrder/newTrade/openOrder shapes are typed inserts, not Json.
       const { error: rpcErr } = await admin.rpc("reverse_position", {
         p_close_trade_id: close.tradeId,
         p_close_status: u.status ?? "Closed",
         p_close_at: u.closedAt?.toISOString() ?? new Date().toISOString(),
         p_avg_exit_price: u.avgExitPrice ?? 0,
-        p_actual_r: u.actualR ?? null,
-        p_result: u.result ?? null,
+        p_actual_r: (u.actualR ?? null) as number,
+        p_result: (u.result ?? null) as string,
         p_realized_pnl: u.realizedPnl ?? 0,
         p_total_commission: u.totalCommission ?? 0,
-        p_close_order: closeOrder,
-        p_new_trade: newTrade,
-        p_new_order: openOrder,
+        p_close_order: closeOrder as unknown as Json,
+        p_new_trade: newTrade as unknown as Json,
+        p_new_order: openOrder as unknown as Json,
       });
       if (rpcErr) {
         // The RPC guards its close UPDATE on status='Open' AND matching quantity;

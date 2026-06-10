@@ -118,10 +118,10 @@ export function TradeExcelImport() {
           dragging ? 'border-[#FFB800] bg-[#FFB800]/5' : 'border-[#222222] hover:border-[#444444]'
         }`}
       >
-        <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFileChange} />
+        <input ref={fileRef} type="file" accept=".xlsx" className="hidden" onChange={handleFileChange} />
         <span className="text-2xl">📂</span>
         <span className="text-sm text-[#B0B0B0] font-mono">גרור קובץ Excel לכאן או לחץ לבחירה</span>
-        <span className="text-xs text-[#444444] font-mono">.xlsx · .xls · .csv</span>
+        <span className="text-xs text-[#444444] font-mono">.xlsx</span>
       </div>
 
       {parseError && (

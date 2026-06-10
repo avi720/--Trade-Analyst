@@ -1,45 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptToken } from "@/lib/ibkr/encrypt";
 import { fetchFlexQuery, IbkrTransientError } from "@/lib/ibkr/flex-client";
 import { parseActivityXml } from "@/lib/ibkr/parse-flex-xml";
 import { processExecutions } from "@/lib/ibkr/process-executions";
+import type { Database } from "@/lib/db/types";
+
+type Admin = SupabaseClient<Database>;
 
 export const maxDuration = 60;
 
-// Secured with CRON_SECRET header — called by GitHub Actions at 13:00 & 20:00 UTC daily
-export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get("Authorization");
-  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return new NextResponse("Unauthorized", { status: 401 });
-  }
+interface ConnectionRow {
+  id: string;
+  userId: string;
+  flexTokenEncrypted: string;
+  flexQueryIdActivity: string;
+}
 
-  const admin = createAdminClient();
+interface ConnectionResult {
+  connectionId: string;
+  userId: string;
+  status: "SUCCESS" | "ERROR" | "TRANSIENT_ERROR";
+  error: string | null;
+  executions: number;
+  failedExecutions: number;
+}
 
-  // Load the active BrokerConnection for this cron run (currently syncs one connection per run)
-  const { data: conn, error: connErr } = await admin
-    .from("BrokerConnection")
-    .select("id, userId, flexTokenEncrypted, flexQueryIdActivity")
-    .eq("isActive", true)
-    .maybeSingle();
-
-  if (connErr) {
-    console.error("[cron/ibkr-sync] DB error loading connection:", connErr.message);
-    return NextResponse.json({ error: "DB error" }, { status: 500 });
-  }
-  if (!conn) {
-    return NextResponse.json({ skipped: true, reason: "No active connection" });
-  }
-
+async function syncOneConnection(admin: Admin, conn: ConnectionRow): Promise<ConnectionResult> {
   let syncStatus: "SUCCESS" | "ERROR" = "SUCCESS";
   let syncError: string | null = null;
+  let executions = 0;
+  let failedExecutions = 0;
 
   try {
-    console.log(`[cron/ibkr-sync] Starting. queryId=${conn.flexQueryIdActivity}`);
+    console.log(`[cron/ibkr-sync] user=${conn.userId} queryId=${conn.flexQueryIdActivity} starting`);
 
     const token = decryptToken(conn.flexTokenEncrypted);
     const xml = await fetchFlexQuery(token, conn.flexQueryIdActivity);
-    console.log(`[cron/ibkr-sync] fetchFlexQuery complete. xml.length=${xml.length}`);
+    console.log(`[cron/ibkr-sync] user=${conn.userId} fetchFlexQuery complete. xml.length=${xml.length}`);
 
     // Audit log — store raw XML (capped)
     const { data: event } = await admin.from("BrokerEvent").insert({
@@ -49,20 +48,20 @@ export async function GET(req: NextRequest) {
       rawPayload: { xml: xml.slice(0, 10000) },
       processingStatus: "PENDING",
     }).select("id").single();
-    console.log(`[cron/ibkr-sync] BrokerEvent inserted: id=${event?.id}`);
 
-    const executions = parseActivityXml(xml);
-    console.log(`[cron/ibkr-sync] parseActivityXml: ${executions.length} executions parsed`);
+    const parsed = parseActivityXml(xml);
+    executions = parsed.length;
+    console.log(`[cron/ibkr-sync] user=${conn.userId} parseActivityXml: ${executions} executions`);
 
-    const results = await processExecutions(executions, conn.userId);
+    const results = await processExecutions(parsed, conn.userId);
 
     const failed = results.filter((r) => r.status === "FAILED");
+    failedExecutions = failed.length;
     if (failed.length > 0) {
       syncStatus = "ERROR";
       syncError = `${failed.length} execution(s) failed. First: ${failed[0].error}`;
     }
 
-    // Mark the event as processed
     if (event) {
       await admin.from("BrokerEvent").update({
         processingStatus: syncStatus === "ERROR" ? "ERROR" : "PROCESSED",
@@ -71,15 +70,12 @@ export async function GET(req: NextRequest) {
       }).eq("id", event.id);
     }
 
-    // Extract accountId from any execution and persist to BrokerConnection
-    const accountId = executions[0]?.brokerClientAccountId ?? null;
+    const accountId = parsed[0]?.brokerClientAccountId ?? null;
 
     console.log(
-      `[cron/ibkr-sync] processExecutions complete: ${results.length - failed.length} success, ${failed.length} failed.`,
-      results.reduce((acc, r) => ({ ...acc, [r.status]: (acc[r.status] ?? 0) + 1 }), {} as Record<string, number>)
+      `[cron/ibkr-sync] user=${conn.userId} complete: ${results.length - failed.length} success, ${failed.length} failed`
     );
 
-    // Update sync timestamps + accountId
     await admin
       .from("BrokerConnection")
       .update({
@@ -90,11 +86,17 @@ export async function GET(req: NextRequest) {
       })
       .eq("id", conn.id);
 
-    console.log(`[cron/ibkr-sync] Done. lastSyncStatus=${syncStatus}`);
+    return {
+      connectionId: conn.id,
+      userId: conn.userId,
+      status: syncStatus,
+      error: syncError,
+      executions,
+      failedExecutions,
+    };
   } catch (err) {
-    syncStatus = "ERROR";
-    syncError = err instanceof Error ? err.message : String(err);
-    console.error("[cron/ibkr-sync] Error:", syncError);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error(`[cron/ibkr-sync] user=${conn.userId} error:`, errMsg);
 
     // Transient IBKR errors (report not ready yet): don't update lastSyncAt so
     // the next cron fire retries without waiting the full polling interval.
@@ -103,14 +105,67 @@ export async function GET(req: NextRequest) {
       .from("BrokerConnection")
       .update({
         ...(isTransient ? {} : { lastSyncAt: new Date().toISOString() }),
-        lastSyncStatus: syncStatus,
-        lastSyncError: syncError,
+        lastSyncStatus: "ERROR",
+        lastSyncError: errMsg,
       })
       .eq("id", conn.id);
-    return NextResponse.json({ ok: false, status: syncStatus, error: syncError, transient: isTransient });
+
+    return {
+      connectionId: conn.id,
+      userId: conn.userId,
+      status: isTransient ? "TRANSIENT_ERROR" : "ERROR",
+      error: errMsg,
+      executions,
+      failedExecutions,
+    };
+  }
+}
+
+// Secured with CRON_SECRET header — called by GitHub Actions at 13:00 & 20:00 UTC daily.
+// Iterates ALL active BrokerConnections; one failed connection does not block the others.
+export async function GET(req: NextRequest) {
+  const authHeader = req.headers.get("Authorization");
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  return NextResponse.json({ ok: true, status: syncStatus, error: syncError });
+  const admin = createAdminClient();
+
+  const { data: conns, error: connErr } = await admin
+    .from("BrokerConnection")
+    .select("id, userId, flexTokenEncrypted, flexQueryIdActivity")
+    .eq("isActive", true);
+
+  if (connErr) {
+    console.error("[cron/ibkr-sync] DB error loading connections:", connErr.message);
+    return NextResponse.json({ error: "DB error" }, { status: 500 });
+  }
+  if (!conns || conns.length === 0) {
+    return NextResponse.json({ skipped: true, reason: "No active connections", processed: 0 });
+  }
+
+  console.log(`[cron/ibkr-sync] processing ${conns.length} active connection(s)`);
+
+  // Sequential, not parallel: IBKR rate-limits per-token and we already have a
+  // 60s maxDuration cap. Sequential keeps the loop predictable and lets each
+  // connection's error surface independently in logs.
+  const results: ConnectionResult[] = [];
+  for (const conn of conns as ConnectionRow[]) {
+    results.push(await syncOneConnection(admin, conn));
+  }
+
+  const success = results.filter((r) => r.status === "SUCCESS").length;
+  const errored = results.filter((r) => r.status === "ERROR").length;
+  const transient = results.filter((r) => r.status === "TRANSIENT_ERROR").length;
+
+  return NextResponse.json({
+    ok: errored === 0,
+    total: results.length,
+    success,
+    errored,
+    transient,
+    results,
+  });
 }
 
 export const POST = GET;

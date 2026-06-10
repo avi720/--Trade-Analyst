@@ -12,34 +12,26 @@
  * submissions), recomputing yields the same value.
  */
 
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { calcActualR, resultFromR } from './fifo'
-
-interface ClosedTradeRow {
-  status: string
-  realizedPnl: number | null
-  avgEntryPrice: number
-  stopPrice: number | null
-  totalQuantityOpened: number
-}
+import type { Database } from '@/lib/db/types'
 
 /**
  * Reads the trade, and if it is Closed with a stopPrice set, recomputes and
  * persists actualR + result. No-op for open trades or trades without a stop.
  */
 export async function recomputeActualR(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  admin: any,
+  admin: SupabaseClient<Database>,
   tradeId: string,
   userId: string,
 ): Promise<void> {
-  const { data } = await admin
+  const { data: t } = await admin
     .from('Trade')
     .select('status, realizedPnl, avgEntryPrice, stopPrice, totalQuantityOpened')
     .eq('id', tradeId)
     .eq('userId', userId)
     .maybeSingle()
 
-  const t = data as ClosedTradeRow | null
   if (!t || t.status !== 'Closed' || t.stopPrice == null) return
 
   const realizedPnl = t.realizedPnl ?? 0
@@ -48,10 +40,9 @@ export async function recomputeActualR(
 
   const result = resultFromR(actualR, realizedPnl)
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await admin
     .from('Trade')
-    .update({ actualR, result } as any)
+    .update({ actualR, result })
     .eq('id', tradeId)
     .eq('userId', userId)
 }

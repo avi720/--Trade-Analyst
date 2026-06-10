@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
-  const buf = generateTemplate()
+  const buf = await generateTemplate()
   return new NextResponse(buf, {
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
   }
 
   const buffer = await (file as File).arrayBuffer()
-  const { legs, errors: parseErrors } = parseExcelBuffer(buffer)
+  const { legs, errors: parseErrors } = await parseExcelBuffer(buffer)
 
   if (legs.length === 0) {
     return NextResponse.json(

@@ -5,18 +5,10 @@ import { buildExecutions, extractAnnotations } from '@/lib/trade/manual-entry'
 import { processExecutions } from '@/lib/ibkr/process-executions'
 import { recomputeActualR } from '@/lib/trade/recompute-actual-r'
 import type { ManualLeg } from '@/lib/trade/manual-entry'
-import { CLOSE_REASON_KEYS, type CloseReasonKey } from '@/lib/constants/trade-options'
+import { validateCloseShape, validateCloseAgainstTrade, modifiedStopNote, type ClosePayloadShape } from '@/lib/trade/validate-close'
+import type { TablesUpdate } from '@/lib/db/types'
 
-interface ClosePayload {
-  closePrice: number
-  closeDate: string
-  closeTime: string
-  closeCommission?: number
-  closeReason: CloseReasonKey
-  modifiedStopPrice?: number | null
-  wouldChange?: string
-  executionQuality?: number | null
-}
+type ClosePayload = ClosePayloadShape
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -38,27 +30,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  // Validate close payload server-side
-  if (!Number.isFinite(close.closePrice) || close.closePrice <= 0) {
-    return NextResponse.json({ error: 'closePrice must be positive' }, { status: 422 })
-  }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(close.closeDate)) {
-    return NextResponse.json({ error: 'closeDate must be YYYY-MM-DD' }, { status: 422 })
-  }
-  if (!/^\d{2}:\d{2}$/.test(close.closeTime)) {
-    return NextResponse.json({ error: 'closeTime must be HH:MM' }, { status: 422 })
-  }
-  if (!CLOSE_REASON_KEYS.includes(close.closeReason)) {
-    return NextResponse.json({ error: 'Invalid closeReason' }, { status: 422 })
-  }
-  if (close.closeReason === 'original_stop' && (open.stopPrice == null || !Number.isFinite(open.stopPrice))) {
-    return NextResponse.json({ error: 'closeReason=original_stop requires stopPrice on the open leg' }, { status: 422 })
-  }
-  if (close.closeReason === 'target' && (open.targetPrice == null || !Number.isFinite(open.targetPrice))) {
-    return NextResponse.json({ error: 'closeReason=target requires targetPrice on the open leg' }, { status: 422 })
-  }
-  if (close.closeReason === 'modified_stop' && (close.modifiedStopPrice == null || !Number.isFinite(close.modifiedStopPrice) || close.modifiedStopPrice <= 0)) {
-    return NextResponse.json({ error: 'closeReason=modified_stop requires modifiedStopPrice' }, { status: 422 })
+  // Validate close payload server-side — the open leg supplies the cross-field context.
+  {
+    const shapeErr = validateCloseShape(close)
+    if (shapeErr) return NextResponse.json({ error: shapeErr.message }, { status: shapeErr.status })
+    const ctxErr = validateCloseAgainstTrade(close, {
+      stopPrice: open.stopPrice,
+      targetPrice: open.targetPrice,
+    })
+    if (ctxErr) return NextResponse.json({ error: ctxErr.message }, { status: ctxErr.status })
   }
 
   // Build the two legs. Close-leg side is the opposite of open-leg side.
@@ -100,7 +80,7 @@ export async function POST(req: NextRequest) {
 
   // Compose annotations: open-leg annotations + close-time annotations.
   const openAnn = extractAnnotations(openLeg)
-  const trade_update: Record<string, unknown> = { ...openAnn }
+  const trade_update: TablesUpdate<'Trade'> = { ...openAnn } as TablesUpdate<'Trade'>
   trade_update.source = 'manual'
   trade_update.closeReason = close.closeReason
   if (close.wouldChange?.trim()) trade_update.wouldChange = close.wouldChange.trim()
@@ -110,17 +90,16 @@ export async function POST(req: NextRequest) {
 
   // If modified_stop, append the modified-stop price to notes (per plan).
   if (close.closeReason === 'modified_stop' && close.modifiedStopPrice != null) {
-    const stopLine = `סטופ שונה: ${close.modifiedStopPrice}`
+    const stopLine = modifiedStopNote(close.modifiedStopPrice)
     const existingNotes = (openAnn.notes as string | undefined) || ''
     trade_update.notes = existingNotes
       ? `${existingNotes}\n${stopLine}`
       : stopLine
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error: updErr } = await admin
     .from('Trade')
-    .update(trade_update as any)
+    .update(trade_update)
     .eq('id', tradeId)
     .eq('userId', user.id)
 

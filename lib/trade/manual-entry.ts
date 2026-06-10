@@ -147,8 +147,10 @@ export function buildExecutions(
  * Extracts non-empty Trade-level annotation fields from a ManualLeg.
  * The result is ready to be passed to a Supabase `.update()` call.
  */
-export function extractAnnotations(leg: ManualLeg): Record<string, unknown> {
-  const ann: Record<string, unknown> = {}
+import type { TablesUpdate } from '@/lib/db/types'
+
+export function extractAnnotations(leg: ManualLeg): TablesUpdate<'Trade'> {
+  const ann: TablesUpdate<'Trade'> = {}
   if (leg.setupType?.trim()) ann.setupType = leg.setupType.trim()
   if (leg.emotionalState?.trim()) ann.emotionalState = leg.emotionalState.trim()
   if (leg.stopPrice != null && Number.isFinite(leg.stopPrice)) ann.stopPrice = leg.stopPrice

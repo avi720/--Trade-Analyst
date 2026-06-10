@@ -1,25 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import { createAdminClient } from "@/lib/supabase/admin";
-import type { Database } from "@/lib/db/types";
-
-function createAnonClient() {
-  const cookieStore = cookies();
-  return createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll() } }
-  );
-}
+import { createClient } from "@/lib/supabase/server";
+import type { TablesUpdate, Json } from "@/lib/db/types";
 
 export async function GET() {
-  const supabase = createAnonClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const admin = createAdminClient();
-  const { data, error } = await admin
+  // RLS policy `auth.uid() = "id"` restricts this read to the caller's own row.
+  const { data, error } = await supabase
     .from("User")
     .select("id, email, name, firstName, lastName, phone, addressStreet, addressCity, addressCountry, settings")
     .eq("id", user.id)
@@ -30,7 +19,7 @@ export async function GET() {
 }
 
 export async function PATCH(req: NextRequest) {
-  const supabase = createAnonClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -45,10 +34,8 @@ export async function PATCH(req: NextRequest) {
     settings?: { display?: Record<string, unknown> };
   };
 
-  const admin = createAdminClient();
-
   // Build column-level update for profile fields
-  const profileUpdate: Record<string, unknown> = {};
+  const profileUpdate: TablesUpdate<"User"> = {};
   if (body.name !== undefined)          profileUpdate.name          = body.name;
   if (body.firstName !== undefined)     profileUpdate.firstName     = body.firstName || null;
   if (body.lastName !== undefined)      profileUpdate.lastName      = body.lastName  || null;
@@ -57,9 +44,9 @@ export async function PATCH(req: NextRequest) {
   if (body.addressCity !== undefined)   profileUpdate.addressCity   = body.addressCity   || null;
   if (body.addressCountry !== undefined) profileUpdate.addressCountry = body.addressCountry || null;
 
-  // Merge display prefs into settings JSON
+  // Merge display prefs into settings JSON — read-then-write through RLS for own row
   if (body.settings?.display) {
-    const { data: existing } = await admin
+    const { data: existing } = await supabase
       .from("User")
       .select("settings")
       .eq("id", user.id)
@@ -70,11 +57,12 @@ export async function PATCH(req: NextRequest) {
     profileUpdate.settings = {
       ...existingSettings,
       display: { ...existingDisplay, ...body.settings.display },
-    };
+    } as Json;
   }
 
-  // Ensure the User row exists for new signups that haven't visited /research yet
-  await admin.from("User").upsert(
+  // Ensure the User row exists for fresh signups that have not visited /research yet.
+  // Upsert via RLS: auth.uid() = id permits inserting own row.
+  await supabase.from("User").upsert(
     { id: user.id, email: user.email! },
     { onConflict: "id", ignoreDuplicates: true }
   );
@@ -83,8 +71,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await admin.from("User").update(profileUpdate as any).eq("id", user.id);
+  const { error } = await supabase.from("User").update(profileUpdate).eq("id", user.id);
   if (error) return NextResponse.json({ error: "Failed to update profile" }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

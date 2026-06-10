@@ -52,10 +52,9 @@ export async function POST(req: NextRequest) {
     const annotations = extractAnnotations(leg)
     if (Object.keys(annotations).length === 0) continue
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await admin
       .from('Trade')
-      .update(annotations as any)
+      .update(annotations)
       .eq('id', result.tradeId)
       .eq('userId', user.id)
   }
@@ -72,10 +71,9 @@ export async function POST(req: NextRequest) {
       .limit(1)
       .maybeSingle()
     if (firstOrder?.brokerExecId?.startsWith('MANUAL-')) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await admin
         .from('Trade')
-        .update({ source: 'manual' } as any)
+        .update({ source: 'manual' })
         .eq('id', tradeId)
         .eq('userId', user.id)
     }

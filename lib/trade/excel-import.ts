@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import type { ManualLeg } from './manual-entry'
 
 // Expected template column headers (case-insensitive, underscores/spaces normalised)
@@ -85,12 +85,12 @@ function normalizeHeader(h: string): keyof ManualLeg | null {
 }
 
 function normalizeDate(raw: unknown): string {
-  if (typeof raw === 'number') {
-    // Excel serial date
-    const d = XLSX.SSF.parse_date_code(raw)
-    const mm = String(d.m).padStart(2, '0')
-    const dd = String(d.d).padStart(2, '0')
-    return `${d.y}-${mm}-${dd}`
+  // exceljs returns Date objects for date-typed cells
+  if (raw instanceof Date) {
+    const yyyy = raw.getUTCFullYear()
+    const mm = String(raw.getUTCMonth() + 1).padStart(2, '0')
+    const dd = String(raw.getUTCDate()).padStart(2, '0')
+    return `${yyyy}-${mm}-${dd}`
   }
   const s = String(raw).trim()
   // Already YYYY-MM-DD
@@ -104,12 +104,11 @@ function normalizeDate(raw: unknown): string {
 }
 
 function normalizeTime(raw: unknown): string {
-  if (typeof raw === 'number') {
-    // Excel fraction of day
-    const totalSec = Math.round(raw * 86400)
-    const hh = Math.floor(totalSec / 3600)
-    const mm = Math.floor((totalSec % 3600) / 60)
-    return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`
+  // exceljs may surface time-only cells as Date with epoch base; rare for our template.
+  if (raw instanceof Date) {
+    const hh = String(raw.getUTCHours()).padStart(2, '0')
+    const mm = String(raw.getUTCMinutes()).padStart(2, '0')
+    return `${hh}:${mm}`
   }
   const s = String(raw).trim()
   if (/^\d{1,2}:\d{2}/.test(s)) return s.slice(0, 5).padStart(5, '0')
@@ -122,75 +121,122 @@ function normalizeSide(raw: unknown): 'BUY' | 'SELL' {
   return 'BUY'
 }
 
+// Unwrap an exceljs cell value (which can be string, number, Date, formula result wrapper, or rich text)
+function cellToPrimitive(v: ExcelJS.CellValue): unknown {
+  if (v == null) return ''
+  if (typeof v === 'object') {
+    // Formula result: { formula, result }
+    if ('result' in v && v.result !== undefined) return v.result
+    // Rich text: { richText: [{ text }, ...] }
+    if ('richText' in v && Array.isArray(v.richText)) {
+      return v.richText.map((p) => p.text).join('')
+    }
+    // Hyperlink: { text, hyperlink }
+    if ('text' in v) return v.text
+    // Date
+    if (v instanceof Date) return v
+  }
+  return v
+}
+
 export interface ParseResult {
   legs: ManualLeg[]
   errors: string[]
 }
 
-export function parseExcelBuffer(buffer: ArrayBuffer): ParseResult {
+export async function parseExcelBuffer(buffer: ArrayBuffer): Promise<ParseResult> {
   const errors: string[] = []
-  let workbook: XLSX.WorkBook
+  const workbook = new ExcelJS.Workbook()
 
   try {
-    workbook = XLSX.read(buffer, { type: 'array', cellDates: false })
+    await workbook.xlsx.load(buffer)
   } catch {
     return { legs: [], errors: ['Failed to parse Excel file'] }
   }
 
-  const sheetName = workbook.SheetNames[0]
-  if (!sheetName) return { legs: [], errors: ['No sheets found in workbook'] }
+  const sheet = workbook.worksheets[0]
+  if (!sheet) return { legs: [], errors: ['No sheets found in workbook'] }
 
-  const sheet = workbook.Sheets[sheetName]
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { raw: true, defval: '' })
+  // Collect rows as arrays. row.values has a leading null (exceljs is 1-indexed),
+  // so we strip the [0] slot. Header is row 1; data rows are 2..rowCount.
+  const headerRow = sheet.getRow(1)
+  const rawHeaders: string[] = []
+  // headerRow.values can be sparse; getCell is safe across columns.
+  // Walk by actualCellCount range — collect every column from 1..columnCount.
+  const columnCount = sheet.columnCount
+  for (let c = 1; c <= columnCount; c++) {
+    const cell = headerRow.getCell(c)
+    const val = cellToPrimitive(cell.value)
+    rawHeaders.push(val == null ? '' : String(val))
+  }
 
-  if (rows.length === 0) return { legs: [], errors: ['Sheet is empty'] }
+  if (rawHeaders.every((h) => !h.trim())) {
+    return { legs: [], errors: ['Sheet is empty'] }
+  }
 
-  // Map raw column names → ManualLeg keys
-  const sampleRow = rows[0]
-  const colMap: Record<string, keyof ManualLeg> = {}
-  for (const rawCol of Object.keys(sampleRow)) {
-    const mapped = normalizeHeader(rawCol)
-    if (mapped) colMap[rawCol] = mapped
+  // Map raw column index → ManualLeg field
+  const colMap: Record<number, keyof ManualLeg> = {}
+  for (let c = 0; c < rawHeaders.length; c++) {
+    const h = rawHeaders[c]
+    if (!h.trim()) continue
+    const mapped = normalizeHeader(h)
+    if (mapped) colMap[c + 1] = mapped // store 1-indexed for getCell()
   }
 
   const required: Array<keyof ManualLeg> = ['ticker', 'date', 'side', 'quantity', 'price', 'currency']
   const mappedFields = new Set(Object.values(colMap))
-  const missing = required.filter(f => !mappedFields.has(f))
+  const missing = required.filter((f) => !mappedFields.has(f))
   if (missing.length > 0) {
     return { legs: [], errors: [`Missing required columns: ${missing.join(', ')}`] }
   }
 
+  const lastRow = sheet.rowCount
+  if (lastRow < 2) return { legs: [], errors: ['Sheet is empty'] }
+
+  // Reverse the colMap to: field → 1-indexed column
+  const fieldToCol: Partial<Record<keyof ManualLeg, number>> = {}
+  for (const [colStr, field] of Object.entries(colMap)) {
+    fieldToCol[field] = Number(colStr)
+  }
+
+  const get = (row: ExcelJS.Row, field: keyof ManualLeg): unknown => {
+    const c = fieldToCol[field]
+    if (!c) return ''
+    return cellToPrimitive(row.getCell(c).value)
+  }
+
   const legs: ManualLeg[] = []
 
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i]
-    const get = (field: keyof ManualLeg): unknown => {
-      const col = Object.entries(colMap).find(([, v]) => v === field)?.[0]
-      return col ? row[col] : ''
-    }
+  for (let r = 2; r <= lastRow; r++) {
+    const row = sheet.getRow(r)
 
-    const rawTicker = String(get('ticker') ?? '').trim().toUpperCase().replace(/[^A-Z.]/g, '')
+    // Skip blank rows entirely — exceljs reports rowCount including trailing blanks.
+    const ticker = String(get(row, 'ticker') ?? '').trim()
+    const dateVal = get(row, 'date')
+    if (!ticker && (dateVal == null || String(dateVal).trim() === '')) continue
+
+    const rawTicker = ticker.toUpperCase().replace(/[^A-Z.]/g, '')
     if (!rawTicker) {
-      errors.push(`Row ${i + 2}: ticker is empty — skipped`)
+      errors.push(`Row ${r}: ticker is empty — skipped`)
       continue
     }
 
-    const qty = parseFloat(String(get('quantity'))) || 0
-    const price = parseFloat(String(get('price'))) || 0
-    const commission = parseFloat(String(get('commission') ?? '0')) || 0
+    const qty = parseFloat(String(get(row, 'quantity'))) || 0
+    const price = parseFloat(String(get(row, 'price'))) || 0
+    const commission = parseFloat(String(get(row, 'commission') ?? '0')) || 0
 
-    if (qty <= 0) { errors.push(`Row ${i + 2}: quantity must be positive`); continue }
-    if (price <= 0) { errors.push(`Row ${i + 2}: price must be positive`); continue }
+    if (qty <= 0) { errors.push(`Row ${r}: quantity must be positive`); continue }
+    if (price <= 0) { errors.push(`Row ${r}: price must be positive`); continue }
 
     // Optional numeric fields
-    const rawStop = String(get('stopPrice') ?? '').trim()
-    const rawTarget = String(get('targetPrice') ?? '').trim()
+    const rawStop = String(get(row, 'stopPrice') ?? '').trim()
+    const rawTarget = String(get(row, 'targetPrice') ?? '').trim()
     const stopParsed = rawStop ? parseFloat(rawStop) : NaN
     const targetParsed = rawTarget ? parseFloat(rawTarget) : NaN
 
     // Optional string fields
     const str = (field: keyof ManualLeg): string | undefined => {
-      const v = String(get(field) ?? '').trim()
+      const v = String(get(row, field) ?? '').trim()
       return v || undefined
     }
 
@@ -200,13 +246,13 @@ export function parseExcelBuffer(buffer: ArrayBuffer): ParseResult {
 
     legs.push({
       ticker: rawTicker,
-      date: normalizeDate(get('date')),
-      time: normalizeTime(get('time')),
-      side: normalizeSide(get('side')),
+      date: normalizeDate(dateVal),
+      time: normalizeTime(get(row, 'time')),
+      side: normalizeSide(get(row, 'side')),
       quantity: qty,
       price,
       commission,
-      currency: String(get('currency') ?? 'USD').trim().toUpperCase() || 'USD',
+      currency: String(get(row, 'currency') ?? 'USD').trim().toUpperCase() || 'USD',
       // Optional order-level
       commissionCurrency: str('commissionCurrency')?.toUpperCase(),
       orderType: str('orderType'),
@@ -226,8 +272,9 @@ export function parseExcelBuffer(buffer: ArrayBuffer): ParseResult {
   return { legs, errors }
 }
 
-export function generateTemplate(): ArrayBuffer {
-  const wb = XLSX.utils.book_new()
+export async function generateTemplate(): Promise<ArrayBuffer> {
+  const wb = new ExcelJS.Workbook()
+  const ws = wb.addWorksheet('Trades')
 
   const header = [
     // Required
@@ -246,10 +293,15 @@ export function generateTemplate(): ArrayBuffer {
     'פריצת תבנית - דגל שורי', 'רגוע', 145.00, 165.00, 'Strong volume', 'Waited for confirmation',
   ]
 
-  const ws = XLSX.utils.aoa_to_sheet([header, example])
-  ws['!cols'] = header.map(() => ({ wch: 16 }))
-  XLSX.utils.book_append_sheet(wb, ws, 'Trades')
+  ws.addRow(header)
+  ws.addRow(example)
+  ws.columns = header.map(() => ({ width: 16 }))
 
-  const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
-  return buf
+  const buf = await wb.xlsx.writeBuffer()
+  // exceljs returns a Node Buffer or ArrayBuffer depending on runtime.
+  // Normalise to ArrayBuffer so the route handler can hand it to NextResponse.
+  if (buf instanceof ArrayBuffer) return buf
+  // Node Buffer path: wrap the underlying ArrayBuffer + offset/length into a fresh view
+  const u8 = buf as unknown as { buffer: ArrayBuffer; byteOffset: number; byteLength: number }
+  return u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength)
 }

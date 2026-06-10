@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import type { TablesUpdate } from '@/lib/db/types'
 
-const SOFT_FIELDS = new Set([
+type SoftField =
+  | 'notes'
+  | 'setupType'
+  | 'emotionalState'
+  | 'executionQuality'
+  | 'stopPrice'
+  | 'targetPrice'
+  | 'didRight'
+  | 'wouldChange'
+
+const SOFT_FIELDS = new Set<SoftField>([
   'notes',
   'setupType',
   'emotionalState',
@@ -31,10 +42,10 @@ export async function PATCH(
   }
 
   // Whitelist: only allow soft fields
-  const update: Record<string, unknown> = {}
+  const update: TablesUpdate<'Trade'> = {}
   for (const key of Object.keys(body)) {
-    if (SOFT_FIELDS.has(key)) {
-      update[key] = body[key]
+    if (SOFT_FIELDS.has(key as SoftField)) {
+      ;(update as Record<string, unknown>)[key] = body[key]
     }
   }
 
@@ -42,10 +53,9 @@ export async function PATCH(
     return NextResponse.json({ error: 'No valid fields' }, { status: 400 })
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await supabase
     .from('Trade')
-    .update(update as any)
+    .update(update)
     .eq('id', params.id)
     .eq('userId', user.id)
 

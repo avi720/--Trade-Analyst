@@ -2,19 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { processExecutions } from '@/lib/ibkr/process-executions'
-import { CLOSE_REASON_KEYS, type CloseReasonKey } from '@/lib/constants/trade-options'
+import { validateCloseShape, validateCloseAgainstTrade, modifiedStopNote, type ClosePayloadShape } from '@/lib/trade/validate-close'
 import type { NormalizedExecution } from '@/types/trade'
+import type { TablesUpdate } from '@/lib/db/types'
 
-interface ClosePayload {
-  closePrice: number
-  closeDate: string
-  closeTime: string
-  closeCommission?: number
-  closeReason: CloseReasonKey
-  modifiedStopPrice?: number | null
-  wouldChange?: string
-  executionQuality?: number | null
-}
+type ClosePayload = ClosePayloadShape
 
 export async function POST(
   req: NextRequest,
@@ -33,17 +25,9 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  if (!Number.isFinite(body.closePrice) || body.closePrice <= 0) {
-    return NextResponse.json({ error: 'closePrice must be positive' }, { status: 422 })
-  }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(body.closeDate)) {
-    return NextResponse.json({ error: 'closeDate must be YYYY-MM-DD' }, { status: 422 })
-  }
-  if (!/^\d{2}:\d{2}$/.test(body.closeTime)) {
-    return NextResponse.json({ error: 'closeTime must be HH:MM' }, { status: 422 })
-  }
-  if (!CLOSE_REASON_KEYS.includes(body.closeReason)) {
-    return NextResponse.json({ error: 'Invalid closeReason' }, { status: 422 })
+  {
+    const err = validateCloseShape(body)
+    if (err) return NextResponse.json({ error: err.message }, { status: err.status })
   }
 
   const admin = createAdminClient()
@@ -69,14 +53,13 @@ export async function POST(
     return NextResponse.json({ error: 'Trade has no open quantity to close' }, { status: 409 })
   }
 
-  if (body.closeReason === 'original_stop' && trade.stopPrice == null) {
-    return NextResponse.json({ error: 'closeReason=original_stop requires the trade to have a stopPrice' }, { status: 422 })
-  }
-  if (body.closeReason === 'target' && trade.targetPrice == null) {
-    return NextResponse.json({ error: 'closeReason=target requires the trade to have a targetPrice' }, { status: 422 })
-  }
-  if (body.closeReason === 'modified_stop' && (body.modifiedStopPrice == null || !Number.isFinite(body.modifiedStopPrice) || body.modifiedStopPrice <= 0)) {
-    return NextResponse.json({ error: 'closeReason=modified_stop requires modifiedStopPrice' }, { status: 422 })
+  // Cross-field guards against the loaded trade row.
+  {
+    const err = validateCloseAgainstTrade(body, {
+      stopPrice: trade.stopPrice,
+      targetPrice: trade.targetPrice,
+    })
+    if (err) return NextResponse.json({ error: err.message }, { status: err.status })
   }
 
   // Build a single closing execution with the opposite side of the trade direction.
@@ -111,21 +94,20 @@ export async function POST(
   }
 
   // Patch close-time annotations on the Trade.
-  const update: Record<string, unknown> = { closeReason: body.closeReason }
+  const update: TablesUpdate<'Trade'> = { closeReason: body.closeReason }
   if (body.wouldChange?.trim()) update.wouldChange = body.wouldChange.trim()
   if (body.executionQuality != null && Number.isFinite(body.executionQuality)) {
     update.executionQuality = body.executionQuality
   }
   if (body.closeReason === 'modified_stop' && body.modifiedStopPrice != null) {
-    const stopLine = `סטופ שונה: ${body.modifiedStopPrice}`
+    const stopLine = modifiedStopNote(body.modifiedStopPrice)
     const existingNotes = (trade.notes as string | null) ?? ''
     update.notes = existingNotes ? `${existingNotes}\n${stopLine}` : stopLine
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error: updErr } = await admin
     .from('Trade')
-    .update(update as any)
+    .update(update)
     .eq('id', trade.id)
     .eq('userId', user.id)
 
