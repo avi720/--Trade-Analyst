@@ -1,3 +1,7 @@
+// PARKED — Massive on-demand refresh. See lib/massive/client.ts header for context.
+// Has no UI caller today (the open-positions dashboard that used to call this was
+// removed in TECH-DEBT.md T14). Route stays mounted for the planned re-enable.
+
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";

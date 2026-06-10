@@ -1,3 +1,5 @@
+// PARKED — Massive price sync. See lib/massive/client.ts header for context.
+
 // Shared price-sync logic used by both the cron route and the on-demand refresh endpoint.
 
 import { createAdminClient } from "@/lib/supabase/admin";

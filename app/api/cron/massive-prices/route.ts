@@ -1,3 +1,8 @@
+// PARKED — Massive price-sync cron. See lib/massive/client.ts header.
+// No GitHub Actions workflow targets this endpoint today; calling it manually
+// with a valid CRON_SECRET will return ok:true with skipped:true for each user
+// (because lastPriceSyncAt + pricePollingIntervalMin gating fires first).
+
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";

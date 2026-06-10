@@ -1,3 +1,7 @@
+// PARKED — Massive polling-interval settings. See lib/massive/client.ts header.
+// The corresponding settings panel was hidden from app/(dashboard)/settings/page.tsx;
+// route remains mounted for the planned re-enable.
+
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerClient } from "@supabase/ssr";

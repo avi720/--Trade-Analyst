@@ -1,3 +1,19 @@
+/**
+ * PARKED — Massive price sync (see docs/TECH-DEBT.md T13).
+ *
+ * The price sync is currently disabled in production: no GitHub Actions workflow
+ * fires the cron endpoint, MASSIVE_API_KEY is not set in Vercel, and the only
+ * UI caller (open-positions-dashboard.tsx) was removed in T14. This code is
+ * kept because the price sync is planned to return — leaving it avoids
+ * re-writing it when that happens.
+ *
+ * To re-enable: add .github/workflows/massive-prices.yml, set MASSIVE_API_KEY,
+ * restore the sync dot in components/sync-indicator.tsx, and rebuild the
+ * positions view that consumes lastKnownPrice / lastPriceUpdateAt.
+ *
+ * Do not call this from any new code path until the re-enable steps are done.
+ */
+
 // Massive snapshot client — fetches last known prices for US equities.
 // Uses the all-tickers snapshot endpoint (one HTTP call per cron run).
 // Free tier: 5 calls/min, 15 min delayed data.
