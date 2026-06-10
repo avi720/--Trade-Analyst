@@ -140,20 +140,19 @@ ID convention: `T##` numbered globally across phases. Where a finding was confir
 
 ### Phase 3 — Polish (consistency / hygiene)
 
-#### [ ] T10. `CLAUDE.md` Phase History table links to handoff documents that do not exist
+#### [x] T10. `CLAUDE.md` Phase History table links to handoff documents that do not exist
 - **Where:** `CLAUDE.md:144-153` (Phase History table) — links `docs/phase-1-handoff.md` through `docs/phase-8-handoff.md`. `docs/` contains only `qa-test-user.md` and this audit doc.
 - **Issue:** **Confirmed by `ls docs/`.** A new contributor (or a future Claude session) following the table will hit eight 404s on the canonical onboarding path. The table claims to be "reference material only" but it is the only narrative of how the project got here.
 - **Acceptance:** Either the eight referenced files exist with the documented per-phase content, or the table is replaced with a single line acknowledging that phase logs live in git history (e.g., "Phase logs are in git history; see `git log --grep='Phase'` for context"). Verified by every link in the section either resolving to a file with body content or being removed.
 
-#### [ ] T11. `components/research-dashboard.tsx` has grown to 1237 lines in a single file
+#### [x] T11. `components/research-dashboard.tsx` has grown to 1237 lines in a single file
 - **Where:** `components/research-dashboard.tsx` (1237 lines). Holds chart components (LineChart, BarChart, ScatterChart variants), filter state, metric cards, layout shell, and tooltip wiring all in one client component.
 - **Issue:** The file is the largest non-page artefact in the repo by a factor of ~2. Any iteration on a single chart loads the whole file into editor context; reviewers reading a PR have to scroll past unrelated chart code. The internal coupling is shallow — chart components are independent and could ship as separate `.tsx` files behind one re-export.
 - **Acceptance:** `components/research-dashboard.tsx` (or its replacement entry point) is ≤ 400 lines and re-exports / composes chart blocks from sibling files in `components/research/` (or equivalent). Each chart block lives in its own file ≤ 250 lines. Verified by `wc -l components/research-dashboard.tsx components/research/*.tsx` and by `npm run test:run -- research-charts` still being green.
 
 #### [ ] T12. Middleware and DashboardLayout both query `User.firstName` on every authenticated request
 - **Where:** `middleware.ts:48-58` (signup-redirect guard) and `app/(dashboard)/layout.tsx:34-42` (post-Google-signin funnel) both run `supabase.from('User').select('firstName').eq('id', user.id).maybeSingle()`.
-- **Issue:** **Confirmed by reading both files.** Two round-trips per authenticated request where one would do. Not user-visible at single-user scale, but the duplication will compound under the multi-user load implied by T2 — and it's the kind of "looks correct, runs twice" pattern that future refactors copy.
-- **Acceptance:** The `firstName` lookup happens in exactly one place. Either the middleware sets a cookie that the layout reads, or one of the two checks is removed and its behaviour folded into the other. Verified by `grep -rn "select('firstName')" middleware.ts app/` returning a single hit, and by a manual sign-in-then-incomplete-profile run still redirecting through `/signup` correctly.
+- **Issue:** **Confirmed by reading both files.** Two round-trips per authenticated request where one would do. Not user-visible at single-user scale, but the duplication will compound under the multi-user load implied by T2 — and it's the kind of "looks correct, runs twice" pattern that future refactors copy. ~~**Invalid in context 2026-06-10** — re-reading both files shows the checks are *mutually exclusive*, not duplicate: middleware only queries `firstName` when `pathname` matches `/signup` (line 48: `if (user && isSignupPage)`), while the layout only runs for paths inside the `(dashboard)` group (`/research`, `/search`, `/manual-import`, `/profile`, `/settings`, `/dashboard`). No request fires both. The two are complementary guards — middleware blocks returning visitors from re-entering `/signup`; layout funnels half-onboarded visitors into `/signup`. The original "two round-trips per request" claim was wrong. **Separate optimisation landed**: the layout used to always run `select firstName` + `upsert` (two trips) on every dashboard page; it now reads first and only inserts when the row genuinely doesn't exist. Saves one trip per page on returning users.~~
 
 #### [ ] T13. Parked Massive price-sync code ships dormant
 - **Where:** `lib/massive/client.ts` (56 LOC), `lib/massive/sync.ts` (59 LOC), `app/api/cron/massive-prices/route.ts` (68 LOC), `app/api/massive/refresh/route.ts` (46 LOC), `app/api/massive/settings/route.ts` (43 LOC). Total ≈ 272 LOC. Plus references from `components/open-positions-dashboard.tsx:93` (the `fetch('/api/massive/refresh', …)` call) and `components/sync-indicator.tsx:89-95` (commented-out `DASHBOARD-FUTURE` block).
@@ -165,12 +164,12 @@ ID convention: `T##` numbered globally across phases. Where a finding was confir
 - **Issue:** The component and page still compile into the production bundle; the dashboard is reachable by any internal `<Link href="/dashboard">` (which the middleware would now redirect — but the code is still alive in the tree). `CLAUDE.md` says "the dashboard component code is kept, not deleted" deliberately, but the parked state is indistinguishable from "we forgot". Gated on Open Question 2.
 - **Acceptance:** Depending on Open Question 2: (a) if the live dashboard is coming back, the redirect chain is removed and `/dashboard` is reachable, with a smoke test asserting it renders open positions; or (b) if it is not coming back, `app/(dashboard)/dashboard/`, `components/open-positions-dashboard.tsx`, and the four redirect call sites are removed. Verified by either reaching `/dashboard` and seeing positions, or by `git ls-files | grep -ci open-positions-dashboard` returning 0.
 
-#### [ ] T15. `__tests__/polygon-client.test.ts` references the pre-rename module name
+#### [x] T15. `__tests__/polygon-client.test.ts` references the pre-rename module name
 - **Where:** `__tests__/polygon-client.test.ts:2` imports from `@/lib/massive/client`.
 - **Issue:** **Confirmed.** The file tests `lib/massive/client.ts` but its name still says polygon, left over from the Polygon → Massive rename documented in `CLAUDE.md`. Cosmetic, but misleading to anyone scanning the test directory.
 - **Acceptance:** The test file is renamed to `__tests__/massive-client.test.ts` (or removed entirely if T13 chooses option (b)). Verified by `ls __tests__/ | grep polygon` returning empty and `npm run test:run` still green.
 
-#### [ ] T16. Pre-Next.js Vite build artefacts sit at `dist/`
+#### [x] T16. Pre-Next.js Vite build artefacts sit at `dist/`
 - **Where:** `dist/index.html`, `dist/assets/index-DUe5cJxi.js`, `dist/assets/index-De8F1fso.css`.
 - **Issue:** **Confirmed.** `dist/` is the Vite output directory from the pre-Next.js bootstrap (the HTML still has `<div id="root">` and a Vite-style hashed asset reference). Next.js builds to `.next/`. `.gitignore:9` excludes `dist/`, so it is not tracked, but the directory exists on disk and will confuse anyone running a fresh `find . -name index.html`. Trivial cleanup.
 - **Acceptance:** `dist/` is removed from the working tree (since it is `.gitignore`d, removal is local-only and not a commit). Verified by `test -d dist && echo present || echo gone` printing `gone`.

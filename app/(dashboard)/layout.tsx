@@ -15,29 +15,38 @@ export default async function DashboardLayout({
 
   if (!user) redirect('/login')
 
-  // Ensure our app User row exists (no-op if already present).
-  // Runs as the authenticated user — RLS allows upsert of own row.
-  const userRow: TablesInsert<'User'> = {
-    id: user.id,
-    email: user.email!,
-    settings: {},
-  }
-  const { error: upsertError } = await supabase
-    .from('User')
-    .upsert(userRow, { onConflict: 'id', ignoreDuplicates: true })
-
-  if (upsertError) {
-    console.error('[layout] User upsert failed:', upsertError)
-  }
-
-  // Funnel users with incomplete profiles (e.g. fresh Google sign-ins) into the signup wizard
-  const { data: profile } = await supabase
+  // Read first. On a hit we already have the firstName for the signup-funnel
+  // guard below and avoid the upsert entirely. On a miss the row genuinely
+  // does not exist yet (first dashboard visit after auth) — insert it. Do not
+  // upsert on every request: `settings: {}` would clobber the user's saved
+  // display preferences.
+  const { data: existing } = await supabase
     .from('User')
     .select('firstName')
     .eq('id', user.id)
     .maybeSingle()
 
-  if (!profile?.firstName) {
+  let firstName: string | null | undefined = existing?.firstName
+
+  if (!existing) {
+    const userRow: TablesInsert<'User'> = {
+      id: user.id,
+      email: user.email!,
+      settings: {},
+    }
+    const { data: inserted, error: insertError } = await supabase
+      .from('User')
+      .insert(userRow)
+      .select('firstName')
+      .single()
+    if (insertError) {
+      console.error('[layout] User insert failed:', insertError)
+    }
+    firstName = inserted?.firstName
+  }
+
+  // Funnel users with incomplete profiles (e.g. fresh Google sign-ins) into the signup wizard
+  if (!firstName) {
     redirect('/signup')
   }
 

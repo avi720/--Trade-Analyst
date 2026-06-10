@@ -140,20 +140,31 @@ If you add a new env var, add the **name** to `.env.example` and document its pu
 
 ## Phase history
 
-Detailed phase build logs (file-by-file changes, test counts, decisions in flight) live in `docs/`. The **invariants** that survive each phase have been pulled into the sections above; the build logs are reference material only.
+The project shipped in eight phases plus several post-Phase-8 refactors. The **invariants** that survive each phase have been pulled into the sections above; the phase logs themselves were not persisted as separate files — read them out of git history when needed:
 
-| Phase | Scope | Handoff |
-|---|---|---|
-| 1 | Bootstrap + auth + layout | [docs/phase-1-handoff.md](docs/phase-1-handoff.md) |
-| 2 | DB models + FIFO logic | [docs/phase-2-handoff.md](docs/phase-2-handoff.md) |
-| 3 | IBKR Flex Web Service integration | [docs/phase-3-handoff.md](docs/phase-3-handoff.md) |
-| 4 | Polygon (now Massive) price sync | [docs/phase-4-handoff.md](docs/phase-4-handoff.md) |
-| 5 | Real-time open-positions dashboard (now hidden) | [docs/phase-5-handoff.md](docs/phase-5-handoff.md) |
-| 6 | Research dashboard (analytics + charts) | [docs/phase-6-handoff.md](docs/phase-6-handoff.md) |
-| 7 | AI chat sidebar "חנן" (Gemini) | [docs/phase-7-handoff.md](docs/phase-7-handoff.md) |
-| 8 | Trade search + soft-field editing + manual / Excel import | [docs/phase-8-handoff.md](docs/phase-8-handoff.md) |
+```bash
+git log --oneline --reverse main          # all phase commits in order
+git log --grep='Phase'                    # commits that named a phase
+git log --all --oneline -- lib/trade/     # FIFO evolution (Phase 2)
+git log --all --oneline -- lib/ibkr/      # IBKR Flex integration (Phase 3)
+git log --all --oneline -- lib/massive/   # Massive (formerly Polygon) price sync (Phase 4)
+git log --all --oneline -- components/research-dashboard.tsx  # Research dashboard (Phase 6)
+git log --all --oneline -- lib/chat/      # Chat sidebar "חנן" (Phase 7)
+git log --all --oneline -- components/trade-search.tsx components/trade-excel-import.tsx  # Search + manual / Excel (Phase 8)
+```
 
-Refactors after Phase 7: Activity-only Flex query + CSV export. Refactor after Phase 8: Polygon→Massive rename + price-sync disabled + `/dashboard` hidden behind `/research` redirects. Post-Phase-8 cleanup: IBKR Order columns trimmed (tax/tradeDate/exchange/proceeds/brokerTradeId removed; netCash/commissionCurrency/orderTime properly extracted from rawPayload); manual import expanded to card-based UI with 20 ManualLeg fields + updated Excel template.
+| Phase | Scope |
+|---|---|
+| 1 | Bootstrap + auth + layout |
+| 2 | DB models + FIFO logic |
+| 3 | IBKR Flex Web Service integration |
+| 4 | Polygon (now Massive) price sync |
+| 5 | Real-time open-positions dashboard (now hidden) |
+| 6 | Research dashboard (analytics + charts) |
+| 7 | AI chat sidebar "חנן" (Gemini) |
+| 8 | Trade search + soft-field editing + manual / Excel import |
+
+Refactors after Phase 7: Activity-only Flex query + CSV export. Refactor after Phase 8: Polygon→Massive rename + price-sync disabled + `/dashboard` hidden behind `/research` redirects. Post-Phase-8 cleanup: IBKR Order columns trimmed (tax/tradeDate/exchange/proceeds/brokerTradeId removed; netCash/commissionCurrency/orderTime properly extracted from rawPayload); manual import expanded to card-based UI with 20 ManualLeg fields + updated Excel template. Tech-debt remediation rounds (Phase 1 + 2 of `docs/TECH-DEBT.md`): xlsx → exceljs swap, multi-user cron iteration, `@supabase/ssr` upgrade with `as any` shim removal, shared close-validation helper + close-route test coverage, concurrency integration tests.
 
 ## QA / testing
 
