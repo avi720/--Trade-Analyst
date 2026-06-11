@@ -20,7 +20,7 @@ DB schema changes go through the Supabase MCP `apply_migration` tool. To regener
 
 ## Architecture
 
-**Trade Analysis** is a Hebrew RTL trading journal with AI assistant ("חנן"), built on Next.js 14 App Router + Supabase.
+**Trade Analysis** is a Hebrew RTL trading journal with AI assistant ("חנן"), built on Next.js 16 App Router + React 19 + Supabase.
 
 Multi-user SaaS — public signup via `/signup`. Architecture is multi-user at the DB level: every app table has a `userId` FK and RLS policies of the form `auth.uid() = "userId"` (or `= "id"` on `User`). Do not add single-user shortcuts.
 

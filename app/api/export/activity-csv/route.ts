@@ -11,7 +11,7 @@ import type { Database } from "@/lib/db/types";
 // Returns the latest Activity Flex data as a downloadable CSV.
 // Fetches fresh data from IBKR (same query used for backfill/sync).
 export async function GET() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

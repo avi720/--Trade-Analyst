@@ -8,7 +8,7 @@ import type { Database } from "@/lib/db/types";
 
 // Tests the Activity Flex Query connection
 export async function POST() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

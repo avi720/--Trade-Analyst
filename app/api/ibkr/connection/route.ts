@@ -6,7 +6,7 @@ import type { Database } from "@/lib/db/types";
 
 // Returns current BrokerConnection status — never returns the encrypted token
 export async function GET() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

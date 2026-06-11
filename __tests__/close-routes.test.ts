@@ -133,7 +133,7 @@ describe('POST /api/trades/[id]/close', () => {
   it('returns 401 when not authenticated', async () => {
     setAuthFail()
     const res = await closeManualTrade(makeRequest(validClose), {
-      params: { id: TEST_TRADE_ID },
+      params: Promise.resolve({ id: TEST_TRADE_ID }),
     })
     expect(res.status).toBe(401)
   })
@@ -145,14 +145,14 @@ describe('POST /api/trades/[id]/close', () => {
       body: '{not json',
       headers: { 'Content-Type': 'application/json' },
     })
-    const res = await closeManualTrade(req, { params: { id: TEST_TRADE_ID } })
+    const res = await closeManualTrade(req, { params: Promise.resolve({ id: TEST_TRADE_ID }) })
     expect(res.status).toBe(400)
   })
 
   it('returns 422 when closePrice ≤ 0', async () => {
     setAuthOk()
     const res = await closeManualTrade(makeRequest({ ...validClose, closePrice: 0 }), {
-      params: { id: TEST_TRADE_ID },
+      params: Promise.resolve({ id: TEST_TRADE_ID }),
     })
     expect(res.status).toBe(422)
     const body = await res.json()
@@ -163,7 +163,7 @@ describe('POST /api/trades/[id]/close', () => {
     setAuthOk()
     const res = await closeManualTrade(
       makeRequest({ ...validClose, closeDate: '2026/05/01' }),
-      { params: { id: TEST_TRADE_ID } },
+      { params: Promise.resolve({ id: TEST_TRADE_ID }) },
     )
     expect(res.status).toBe(422)
   })
@@ -172,7 +172,7 @@ describe('POST /api/trades/[id]/close', () => {
     setAuthOk()
     const res = await closeManualTrade(
       makeRequest({ ...validClose, closeTime: '3:30' }),
-      { params: { id: TEST_TRADE_ID } },
+      { params: Promise.resolve({ id: TEST_TRADE_ID }) },
     )
     expect(res.status).toBe(422)
   })
@@ -181,7 +181,7 @@ describe('POST /api/trades/[id]/close', () => {
     setAuthOk()
     const res = await closeManualTrade(
       makeRequest({ ...validClose, closeReason: 'HOLD' }),
-      { params: { id: TEST_TRADE_ID } },
+      { params: Promise.resolve({ id: TEST_TRADE_ID }) },
     )
     expect(res.status).toBe(422)
   })
@@ -190,7 +190,7 @@ describe('POST /api/trades/[id]/close', () => {
     setAuthOk()
     const res = await closeManualTrade(
       makeRequest({ ...validClose, closeReason: 'modified_stop' }),
-      { params: { id: TEST_TRADE_ID } },
+      { params: Promise.resolve({ id: TEST_TRADE_ID }) },
     )
     expect(res.status).toBe(422)
     const body = await res.json()
@@ -201,7 +201,7 @@ describe('POST /api/trades/[id]/close', () => {
     setAuthOk()
     setAdminWithTrade(null)
     const res = await closeManualTrade(makeRequest(validClose), {
-      params: { id: 'unknown' },
+      params: Promise.resolve({ id: 'unknown' }),
     })
     expect(res.status).toBe(404)
   })
@@ -210,7 +210,7 @@ describe('POST /api/trades/[id]/close', () => {
     setAuthOk()
     setAdminWithTrade({ ...openTrade, source: 'broker' })
     const res = await closeManualTrade(makeRequest(validClose), {
-      params: { id: TEST_TRADE_ID },
+      params: Promise.resolve({ id: TEST_TRADE_ID }),
     })
     expect(res.status).toBe(403)
     const body = await res.json()
@@ -221,7 +221,7 @@ describe('POST /api/trades/[id]/close', () => {
     setAuthOk()
     setAdminWithTrade({ ...openTrade, status: 'Closed' })
     const res = await closeManualTrade(makeRequest(validClose), {
-      params: { id: TEST_TRADE_ID },
+      params: Promise.resolve({ id: TEST_TRADE_ID }),
     })
     expect(res.status).toBe(409)
   })
@@ -231,7 +231,7 @@ describe('POST /api/trades/[id]/close', () => {
     setAdminWithTrade({ ...openTrade, stopPrice: null })
     const res = await closeManualTrade(
       makeRequest({ ...validClose, closeReason: 'original_stop' }),
-      { params: { id: TEST_TRADE_ID } },
+      { params: Promise.resolve({ id: TEST_TRADE_ID }) },
     )
     expect(res.status).toBe(422)
     const body = await res.json()
@@ -243,7 +243,7 @@ describe('POST /api/trades/[id]/close', () => {
     setAdminWithTrade({ ...openTrade, targetPrice: null })
     const res = await closeManualTrade(
       makeRequest({ ...validClose, closeReason: 'target' }),
-      { params: { id: TEST_TRADE_ID } },
+      { params: Promise.resolve({ id: TEST_TRADE_ID }) },
     )
     expect(res.status).toBe(422)
     const body = await res.json()
@@ -254,7 +254,7 @@ describe('POST /api/trades/[id]/close', () => {
     setAuthOk()
     setAdminWithTrade(openTrade)
     const res = await closeManualTrade(makeRequest(validClose), {
-      params: { id: TEST_TRADE_ID },
+      params: Promise.resolve({ id: TEST_TRADE_ID }),
     })
     expect(res.status).toBe(200)
     const body = await res.json()
@@ -269,7 +269,7 @@ describe('POST /api/trades/[id]/close', () => {
       { brokerExecId: 'MANUAL-CLOSE-x', status: 'FAILED', error: 'boom' },
     ])
     const res = await closeManualTrade(makeRequest(validClose), {
-      params: { id: TEST_TRADE_ID },
+      params: Promise.resolve({ id: TEST_TRADE_ID }),
     })
     expect(res.status).toBe(500)
   })

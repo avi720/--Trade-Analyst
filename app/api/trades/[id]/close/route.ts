@@ -10,8 +10,9 @@ type ClosePayload = ClosePayloadShape
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) {
@@ -36,7 +37,7 @@ export async function POST(
   const { data: trade, error: tradeErr } = await admin
     .from('Trade')
     .select('id, userId, ticker, direction, status, source, totalQuantity, stopPrice, targetPrice, notes')
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('userId', user.id)
     .maybeSingle()
 

@@ -25,8 +25,9 @@ const SOFT_FIELDS = new Set<SoftField>([
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const supabase = await createClient()
 
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -56,7 +57,7 @@ export async function PATCH(
   const { error } = await supabase
     .from('Trade')
     .update(update)
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('userId', user.id)
 
   if (error) {
@@ -68,8 +69,9 @@ export async function PATCH(
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const supabase = await createClient()
 
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -82,7 +84,7 @@ export async function DELETE(
   const { data: trade, error: fetchError } = await supabase
     .from('Trade')
     .select('id, source')
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('userId', user.id)
     .maybeSingle()
 
@@ -99,7 +101,7 @@ export async function DELETE(
   const { error: ordersError } = await supabase
     .from('Order')
     .delete()
-    .eq('tradeId', params.id)
+    .eq('tradeId', id)
     .eq('userId', user.id)
 
   if (ordersError) {
@@ -109,7 +111,7 @@ export async function DELETE(
   const { error: tradeError } = await supabase
     .from('Trade')
     .delete()
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('userId', user.id)
 
   if (tradeError) {

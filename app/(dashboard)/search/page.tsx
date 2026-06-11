@@ -4,8 +4,9 @@ import { TradeSearch } from '@/components/trade-search'
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Record<string, string>
+  searchParams: Promise<Record<string, string>>
 }) {
+  const resolvedSearchParams = await searchParams
   const supabase = await createClient()
 
   const { data: trades } = await supabase
@@ -18,7 +19,7 @@ export default async function SearchPage({
   return (
     <>
       <h1 className="sr-only">חיפוש</h1>
-      <TradeSearch trades={trades ?? []} initialParams={searchParams} />
+      <TradeSearch trades={trades ?? []} initialParams={resolvedSearchParams} />
     </>
   )
 }
