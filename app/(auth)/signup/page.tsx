@@ -50,7 +50,7 @@ type Step3Fields = z.infer<typeof step3Schema>
 // ─── Shared styles ────────────────────────────────────────────────────────────
 
 const inputCls = (err?: string) =>
-  'w-full bg-[#080808] border rounded px-3 py-2 text-sm text-[#E0E0E0] placeholder-[#444444] focus:outline-none transition-colors ' +
+  'w-full bg-[#080808] border rounded px-3 py-2 text-sm text-[#E0E0E0] placeholder-[#444444] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2 transition-colors ' +
   (err ? 'border-[#FF4D4D]' : 'border-[#222222] focus:border-[#444444]')
 
 const labelCls = 'block text-sm text-[#B0B0B0] mb-1'
@@ -331,12 +331,16 @@ export default function SignupPage() {
 
                 <form onSubmit={form1.handleSubmit(onStep1Submit)} className="space-y-4">
                 <div>
-                  <label className={labelCls}>דואר אלקטרוני</label>
+                  <label htmlFor="signup-email" className={labelCls}>דואר אלקטרוני</label>
                   <input
+                    id="signup-email"
                     {...form1.register('email')}
                     type="email"
                     dir="ltr"
                     placeholder="your@email.com"
+                    autoComplete="email"
+                    required
+                    aria-invalid={!!form1.formState.errors.email}
                     className={inputCls(form1.formState.errors.email?.message)}
                   />
                   {form1.formState.errors.email && (
@@ -345,27 +349,36 @@ export default function SignupPage() {
                 </div>
 
                 <div>
-                  <label className={labelCls}>סיסמה</label>
+                  <label htmlFor="signup-password" className={labelCls}>סיסמה</label>
                   <input
+                    id="signup-password"
                     {...form1.register('password')}
                     type="password"
                     dir="ltr"
                     placeholder="••••••••"
+                    autoComplete="new-password"
+                    required
+                    aria-describedby="signup-password-hint"
+                    aria-invalid={!!form1.formState.errors.password}
                     className={inputCls(form1.formState.errors.password?.message)}
                   />
                   {form1.formState.errors.password && (
                     <p className={errorCls}>{form1.formState.errors.password.message}</p>
                   )}
-                  <p className="text-[#B0B0B0] text-sm mt-1">לפחות 8 תווים, אות ומספר</p>
+                  <p id="signup-password-hint" className="text-[#B0B0B0] text-sm mt-1">לפחות 8 תווים, אות ומספר</p>
                 </div>
 
                 <div>
-                  <label className={labelCls}>אימות סיסמה</label>
+                  <label htmlFor="signup-confirm-password" className={labelCls}>אימות סיסמה</label>
                   <input
+                    id="signup-confirm-password"
                     {...form1.register('confirmPassword')}
                     type="password"
                     dir="ltr"
                     placeholder="••••••••"
+                    autoComplete="new-password"
+                    required
+                    aria-invalid={!!form1.formState.errors.confirmPassword}
                     className={inputCls(form1.formState.errors.confirmPassword?.message)}
                   />
                   {form1.formState.errors.confirmPassword && (
@@ -423,10 +436,14 @@ export default function SignupPage() {
           <form onSubmit={form2.handleSubmit(onStep2Submit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={labelCls}>שם פרטי</label>
+                <label htmlFor="signup-first-name" className={labelCls}>שם פרטי</label>
                 <input
+                  id="signup-first-name"
                   {...form2.register('firstName')}
                   placeholder="ישראל"
+                  autoComplete="given-name"
+                  required
+                  aria-invalid={!!form2.formState.errors.firstName}
                   className={inputCls(form2.formState.errors.firstName?.message)}
                 />
                 {form2.formState.errors.firstName && (
@@ -434,10 +451,14 @@ export default function SignupPage() {
                 )}
               </div>
               <div>
-                <label className={labelCls}>שם משפחה</label>
+                <label htmlFor="signup-last-name" className={labelCls}>שם משפחה</label>
                 <input
+                  id="signup-last-name"
                   {...form2.register('lastName')}
                   placeholder="ישראלי"
+                  autoComplete="family-name"
+                  required
+                  aria-invalid={!!form2.formState.errors.lastName}
                   className={inputCls(form2.formState.errors.lastName?.message)}
                 />
                 {form2.formState.errors.lastName && (
@@ -447,12 +468,16 @@ export default function SignupPage() {
             </div>
 
             <div>
-              <label className={labelCls}>טלפון</label>
+              <label htmlFor="signup-phone" className={labelCls}>טלפון</label>
               <input
+                id="signup-phone"
                 {...form2.register('phone')}
                 type="tel"
                 dir="ltr"
                 placeholder="050-1234567"
+                autoComplete="tel"
+                required
+                aria-invalid={!!form2.formState.errors.phone}
                 className={inputCls(form2.formState.errors.phone?.message)}
               />
               {form2.formState.errors.phone && (
@@ -461,10 +486,14 @@ export default function SignupPage() {
             </div>
 
             <div>
-              <label className={labelCls}>מדינה</label>
+              <label htmlFor="signup-country" className={labelCls}>מדינה</label>
               <input
+                id="signup-country"
                 {...form2.register('addressCountry')}
                 placeholder="ישראל"
+                autoComplete="country-name"
+                required
+                aria-invalid={!!form2.formState.errors.addressCountry}
                 className={inputCls(form2.formState.errors.addressCountry?.message)}
               />
               {form2.formState.errors.addressCountry && (
@@ -489,12 +518,14 @@ export default function SignupPage() {
             </div>
 
             <div>
-              <label className={labelCls}>
+              <label htmlFor="signup-street" className={labelCls}>
                 כתובת <span className="text-[#B0B0B0] text-sm">(אופציונלי)</span>
               </label>
               <input
+                id="signup-street"
                 {...form2.register('addressStreet')}
                 placeholder="רחוב הרצל 1"
+                autoComplete="street-address"
                 className={inputCls(form2.formState.errors.addressStreet?.message)}
               />
             </div>

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff, AlertTriangle } from "lucide-react";
 
 const inputCls =
-  "w-full bg-[#0d0d0d] border border-[#222222] rounded-md px-3 py-2.5 text-sm text-[#E0E0E0] placeholder-[#444444] focus:outline-none focus:border-[#FFB800] transition-colors font-mono";
+  "w-full bg-[#0d0d0d] border border-[#222222] rounded-md px-3 py-2.5 text-sm text-[#E0E0E0] placeholder-[#444444] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2 focus:border-[#FFB800] transition-colors font-mono";
 
 const labelCls = "block text-xs font-medium text-[#B0B0B0] mb-1.5 uppercase tracking-wider";
 
@@ -266,7 +266,7 @@ export function TabSecurity({ userEmail }: { userEmail: string }) {
               value={deleteConfirm}
               onChange={(e) => setDeleteConfirm(e.target.value)}
               placeholder="מחק"
-              className="w-full bg-[#0d0d0d] border border-[#FF4D4D]/40 rounded-md px-3 py-2.5 text-sm text-[#E0E0E0] placeholder-[#444444] focus:outline-none focus:border-[#FF4D4D] transition-colors"
+              className="w-full bg-[#0d0d0d] border border-[#FF4D4D]/40 rounded-md px-3 py-2.5 text-sm text-[#E0E0E0] placeholder-[#444444] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2 focus:border-[#FF4D4D] transition-colors"
             />
             {deleteError && <ErrorBanner message={deleteError} />}
             <div className="flex gap-3">

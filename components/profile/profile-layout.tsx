@@ -56,6 +56,7 @@ export function ProfileLayout({ userEmail, userName, userProfile, userDisplay }:
 
   return (
     <div className="flex h-full min-h-0">
+      <h1 className="sr-only">פרופיל המשתמש</h1>
       {/* Sidebar — appears on RIGHT in RTL */}
       <aside className="w-56 border-l border-[#222222] bg-[#0d0d0d] shrink-0 flex flex-col">
         {/* Profile avatar + info */}
@@ -102,8 +103,10 @@ export function ProfileLayout({ userEmail, userName, userProfile, userDisplay }:
         </nav>
       </aside>
 
-      {/* Content area — appears on LEFT in RTL */}
-      <main className="flex-1 overflow-y-auto">
+      {/* Content area — appears on LEFT in RTL. Use a <section> here because the
+          parent dashboard layout already provides the page's single <main>. */}
+      <section aria-labelledby="profile-section-title" className="flex-1 overflow-y-auto">
+        <h2 id="profile-section-title" className="sr-only">{TABS.find(t => t.id === activeTab)?.label ?? 'פרופיל'}</h2>
         <div className="max-w-2xl px-8 py-8">
           {activeTab === "account" && (
             <TabAccount
@@ -116,7 +119,7 @@ export function ProfileLayout({ userEmail, userName, userProfile, userDisplay }:
           {activeTab === "display" && <TabDisplay initialDisplay={userDisplay} />}
           {activeTab === "broker" && <TabBroker />}
         </div>
-      </main>
+      </section>
     </div>
   );
 }

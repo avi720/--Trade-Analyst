@@ -270,7 +270,7 @@ export function TabBroker() {
               value={flexToken}
               onChange={(e) => setFlexToken(e.target.value)}
               placeholder={conn ? "••••••••  (נדרש להזין מחדש לשינויים)" : "הדבק את ה-Flex Token כאן"}
-              className="w-full bg-[#111111] border border-[#222222] rounded px-3 py-2 text-sm text-[#E0E0E0] placeholder-[#888888] focus:outline-none focus:border-[#FFB800] font-mono"
+              className="w-full bg-[#111111] border border-[#222222] rounded px-3 py-2 text-sm text-[#E0E0E0] placeholder-[#888888] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2 focus:border-[#FFB800] font-mono"
             />
           </div>
 
@@ -281,7 +281,7 @@ export function TabBroker() {
               value={queryIdActivity}
               onChange={(e) => setQueryIdActivity(e.target.value)}
               placeholder="123456"
-              className="w-full bg-[#111111] border border-[#222222] rounded px-3 py-2 text-sm text-[#E0E0E0] placeholder-[#888888] focus:outline-none focus:border-[#FFB800] font-mono"
+              className="w-full bg-[#111111] border border-[#222222] rounded px-3 py-2 text-sm text-[#E0E0E0] placeholder-[#888888] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2 focus:border-[#FFB800] font-mono"
             />
           </div>
 

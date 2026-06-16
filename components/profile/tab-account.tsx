@@ -22,7 +22,7 @@ interface TabAccountProps {
 }
 
 const inputCls =
-  "w-full bg-[#0d0d0d] border border-[#222222] rounded-md px-3 py-2.5 text-sm text-[#E0E0E0] placeholder-[#444444] focus:outline-none focus:border-[#FFB800] transition-colors";
+  "w-full bg-[#0d0d0d] border border-[#222222] rounded-md px-3 py-2.5 text-sm text-[#E0E0E0] placeholder-[#444444] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2 focus:border-[#FFB800] transition-colors";
 
 const labelCls = "block text-xs font-medium text-[#B0B0B0] mb-1.5 uppercase tracking-wider";
 
@@ -115,23 +115,27 @@ export function TabAccount({ userEmail, initialName, initialProfile }: TabAccoun
           <h3 className="text-xs font-medium text-[#B0B0B0] uppercase tracking-wider mb-4">שם</h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className={labelCls}>שם פרטי</label>
+              <label htmlFor="profile-first-name" className={labelCls}>שם פרטי</label>
               <input
+                id="profile-first-name"
                 type="text"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 placeholder="ישראל"
                 className={inputCls}
+                autoComplete="given-name"
               />
             </div>
             <div>
-              <label className={labelCls}>שם משפחה</label>
+              <label htmlFor="profile-last-name" className={labelCls}>שם משפחה</label>
               <input
+                id="profile-last-name"
                 type="text"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 placeholder="ישראלי"
                 className={inputCls}
+                autoComplete="family-name"
               />
             </div>
           </div>
@@ -144,14 +148,16 @@ export function TabAccount({ userEmail, initialName, initialProfile }: TabAccoun
         <div className="panel p-5">
           <h3 className="text-xs font-medium text-[#B0B0B0] uppercase tracking-wider mb-4">פרטי קשר</h3>
           <div>
-            <label className={labelCls}>מספר טלפון</label>
+            <label htmlFor="profile-phone" className={labelCls}>מספר טלפון</label>
             <input
+              id="profile-phone"
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="+972-50-000-0000"
               className={inputCls}
               dir="ltr"
+              autoComplete="tel"
             />
           </div>
         </div>
@@ -161,34 +167,40 @@ export function TabAccount({ userEmail, initialName, initialProfile }: TabAccoun
           <h3 className="text-xs font-medium text-[#B0B0B0] uppercase tracking-wider mb-4">כתובת מגורים</h3>
           <div className="space-y-4">
             <div>
-              <label className={labelCls}>רחוב ומספר</label>
+              <label htmlFor="profile-street" className={labelCls}>רחוב ומספר</label>
               <input
+                id="profile-street"
                 type="text"
                 value={addressStreet}
                 onChange={(e) => setAddressStreet(e.target.value)}
                 placeholder="רחוב הרצל 1"
                 className={inputCls}
+                autoComplete="street-address"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className={labelCls}>עיר</label>
+                <label htmlFor="profile-city" className={labelCls}>עיר</label>
                 <input
+                  id="profile-city"
                   type="text"
                   value={addressCity}
                   onChange={(e) => setAddressCity(e.target.value)}
                   placeholder="תל אביב"
                   className={inputCls}
+                  autoComplete="address-level2"
                 />
               </div>
               <div>
-                <label className={labelCls}>מדינה</label>
+                <label htmlFor="profile-country" className={labelCls}>מדינה</label>
                 <input
+                  id="profile-country"
                   type="text"
                   value={addressCountry}
                   onChange={(e) => setAddressCountry(e.target.value)}
                   placeholder="ישראל"
                   className={inputCls}
+                  autoComplete="country-name"
                 />
               </div>
             </div>

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { CloseFieldsInput, emptyCloseFields, type CloseFieldsValue } from './inputs/close-fields-input'
 import type { RawTrade } from './trade-search'
+import { useModalDialog } from '@/lib/utils/use-modal-dialog'
 
 interface Props {
   trade: RawTrade
@@ -11,7 +12,7 @@ interface Props {
 }
 
 const inputCls =
-  'w-full bg-[#080808] border border-[#222222] rounded px-2 py-1.5 text-sm text-[#E0E0E0] placeholder-[#444444] focus:outline-none focus:border-[#444444]'
+  'w-full bg-[#080808] border border-[#222222] rounded px-2 py-1.5 text-sm text-[#E0E0E0] placeholder-[#444444] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2 focus:border-[#444444]'
 const selectCls = inputCls + ' cursor-pointer'
 const labelCls = 'block text-sm font-mono text-[#B0B0B0] mb-1'
 
@@ -19,6 +20,7 @@ export function ManualCloseModal({ trade, onClose, onClosed }: Props) {
   const [value, setValue] = useState<CloseFieldsValue>(emptyCloseFields())
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const dialogRef = useModalDialog(onClose)
 
   const hasStop = trade.stopPrice != null
   const hasTarget = trade.targetPrice != null
@@ -72,13 +74,27 @@ export function ManualCloseModal({ trade, onClose, onClosed }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative bg-[#111111] border border-[#222222] rounded-lg w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="manual-close-title"
+        tabIndex={-1}
+        className="relative bg-[#111111] border border-[#222222] rounded-lg w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto shadow-2xl"
+      >
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#222222]">
           <span className="text-sm text-[#B0B0B0] font-mono">סגירה ידנית</span>
-          <h2 className="font-mono font-bold text-[#FFB800] text-lg">
+          <h2 id="manual-close-title" className="font-mono font-bold text-[#FFB800] text-lg">
             {trade.ticker} — {trade.direction} ({trade.totalQuantity})
           </h2>
-          <button onClick={onClose} className="text-[#B0B0B0] hover:text-[#E0E0E0] text-xl leading-none">×</button>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="סגור חלון סגירה ידנית"
+            className="w-11 h-11 flex items-center justify-center text-[#B0B0B0] hover:text-[#E0E0E0] text-2xl leading-none rounded transition-colors"
+          >
+            ×
+          </button>
         </div>
 
         <div className="p-5 flex flex-col gap-4">

@@ -27,6 +27,21 @@ body {
   margin: 0;
 }
 
+/* Global keyboard-focus ring — amber outline on any focusable element that
+   does not opt out. Mouse focus is unaffected (`:focus-visible` is only the
+   keyboard-focus subset). Component-level rings (e.g., date inputs) win via
+   specificity / declaration order. */
+a:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

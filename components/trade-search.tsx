@@ -247,7 +247,7 @@ export function TradeSearch({ trades, initialParams }: Props) {
   const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
   const pageItems = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
-  const inputCls = 'bg-[#080808] border border-[#222222] rounded px-2 py-1 text-sm text-[#E0E0E0] placeholder-[#888888] focus:outline-none focus:border-[#444444]'
+  const inputCls = 'bg-[#080808] border border-[#222222] rounded px-2 py-1 text-sm text-[#E0E0E0] placeholder-[#888888] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2 focus:border-[#444444]'
   const selectCls = inputCls + ' cursor-pointer'
 
   return (

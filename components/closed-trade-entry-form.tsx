@@ -24,7 +24,7 @@ const EMPTY_OPEN = (): ManualLeg => ({
 })
 
 const inputCls =
-  'w-full bg-[#080808] border border-[#222222] rounded px-2 py-1.5 text-sm text-[#E0E0E0] placeholder-[#444444] focus:outline-none focus:border-[#444444]'
+  'w-full bg-[#080808] border border-[#222222] rounded px-2 py-1.5 text-sm text-[#E0E0E0] placeholder-[#444444] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2 focus:border-[#444444]'
 const selectCls = inputCls + ' cursor-pointer'
 const labelCls = 'block text-sm font-mono text-[#B0B0B0] mb-1'
 

@@ -33,6 +33,16 @@ function lsRemove(key: string) {
 
 export function ChatSidebar() {
   const { isOpen, toggleChat, contextData } = useChatContext()
+
+  // Escape closes the panel (non-modal — no focus trap).
+  useEffect(() => {
+    if (!isOpen) return
+    function handle(e: KeyboardEvent) {
+      if (e.key === 'Escape') toggleChat()
+    }
+    document.addEventListener('keydown', handle)
+    return () => document.removeEventListener('keydown', handle)
+  }, [isOpen, toggleChat])
   const [messages, setMessages] = useState<UIMessage[]>([])
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [contextMode, setContextMode] = useState<ContextMode>('smart')
@@ -130,6 +140,9 @@ export function ChatSidebar() {
     <>
       {/* Slide-in panel */}
       <aside
+        role="complementary"
+        aria-label="צ'אט עם חנן"
+        aria-hidden={!isOpen}
         className={`
           fixed top-0 left-0 h-full w-80 bg-[#111111] border-r border-[#222222]
           flex flex-col z-40 transition-transform duration-300
@@ -232,7 +245,7 @@ export function ChatSidebar() {
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
               disabled={isLoading}
               placeholder="שאל את חנן..."
-              className="flex-1 bg-[#1A1A1A] border border-[#333333] rounded text-[#E0E0E0] text-sm px-3 py-2 placeholder-[#888888] focus:outline-none focus:border-[#FFB800]/50 disabled:opacity-50"
+              className="flex-1 bg-[#1A1A1A] border border-[#333333] rounded text-[#E0E0E0] text-sm px-3 py-2 placeholder-[#888888] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2 focus:border-[#FFB800]/50 disabled:opacity-50"
             />
             <button
               onClick={handleSend}

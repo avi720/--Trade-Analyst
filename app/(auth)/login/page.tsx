@@ -99,6 +99,12 @@ export default function LoginPage() {
           </button>
         </form>
 
+        <p className="text-center text-sm text-[#B0B0B0] mt-4">
+          <Link href="/forgot-password" className="text-[#B0B0B0] hover:text-[#FFB800] hover:underline">
+            שכחתי סיסמה
+          </Link>
+        </p>
+
         <p className="text-center text-sm text-[#B0B0B0] mt-6">
           עדיין אין לך חשבון?{' '}
           <Link href="/signup" className="text-[#FFB800] hover:underline">

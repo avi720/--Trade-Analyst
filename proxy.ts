@@ -29,9 +29,11 @@ export async function proxy(request: NextRequest) {
   const isLoginPage    = pathname === '/login'
   const isSignupPage   = pathname === '/signup' || pathname.startsWith('/signup/')
   const isAuthCallback = pathname.startsWith('/auth/')
+  const isForgotPwd    = pathname === '/forgot-password'
+  const isResetPwd     = pathname === '/reset-password'
 
-  // Unauthenticated: allow login and signup pages only
-  if (!user && !isLoginPage && !isSignupPage && !isAuthCallback) {
+  // Unauthenticated: allow login, signup, and password-reset pages
+  if (!user && !isLoginPage && !isSignupPage && !isAuthCallback && !isForgotPwd && !isResetPwd) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)

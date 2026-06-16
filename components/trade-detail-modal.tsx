@@ -6,6 +6,7 @@ import type { RawTrade } from './trade-search'
 import { SetupTypeInput } from './inputs/setup-type-input'
 import { EmotionalStateInput } from './inputs/emotional-state-input'
 import { fmtLocalDateTime } from '@/lib/utils/format-date'
+import { useModalDialog } from '@/lib/utils/use-modal-dialog'
 
 interface Order {
   id: string
@@ -110,7 +111,9 @@ export function TradeDetailModal({ trade, mode = 'edit', onClose, onSaved }: Pro
     }
   }
 
-  const inputCls = 'w-full bg-[#080808] border border-[#222222] rounded px-2 py-1.5 text-sm text-[#E0E0E0] placeholder-[#444444] focus:outline-none focus:border-[#444444]' + (readOnly ? ' opacity-70 cursor-not-allowed' : '')
+  const dialogRef = useModalDialog(onClose)
+
+  const inputCls = 'w-full bg-[#080808] border border-[#222222] rounded px-2 py-1.5 text-sm text-[#E0E0E0] placeholder-[#444444] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2 focus:border-[#444444]' + (readOnly ? ' opacity-70 cursor-not-allowed' : '')
   const selectCls = inputCls + (readOnly ? '' : ' cursor-pointer')
   const labelCls = 'text-sm text-[#B0B0B0] font-mono block mb-1'
 
@@ -118,16 +121,30 @@ export function TradeDetailModal({ trade, mode = 'edit', onClose, onSaved }: Pro
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
 
-      <div className="relative bg-[#111111] border border-[#222222] rounded-lg w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="trade-detail-title"
+        tabIndex={-1}
+        className="relative bg-[#111111] border border-[#222222] rounded-lg w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto shadow-2xl"
+      >
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#222222]">
           <span className="text-sm text-[#B0B0B0] font-mono">
             {trade.status === 'Open' ? 'פתוח' : 'סגור'} · {readOnly ? 'צפייה' : 'עריכה'}
             {trade.source === 'manual' && <span className="text-[#FFB800]"> · ידני</span>}
           </span>
-          <h2 className="font-mono font-bold text-[#FFB800] text-lg">
+          <h2 id="trade-detail-title" className="font-mono font-bold text-[#FFB800] text-lg">
             {trade.ticker} — {trade.direction}
           </h2>
-          <button onClick={onClose} className="text-[#B0B0B0] hover:text-[#E0E0E0] text-xl leading-none">×</button>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="סגור חלון פרטי טרייד"
+            className="w-11 h-11 flex items-center justify-center text-[#B0B0B0] hover:text-[#E0E0E0] text-2xl leading-none rounded transition-colors"
+          >
+            ×
+          </button>
         </div>
 
         <div className="p-5 flex flex-col gap-5">
