@@ -59,8 +59,8 @@ export function CityCombobox({
   }
 
   const inputCls =
-    'w-full bg-[#080808] border rounded px-3 py-2 text-sm text-[#E0E0E0] placeholder-[#444444] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2 transition-colors ' +
-    (error ? 'border-[#FF4D4D]' : 'border-[#222222] focus:border-[#444444]')
+    'w-full bg-bg-dark border rounded px-3 py-2 text-sm text-text-main placeholder-text-mute outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2 transition-colors ' +
+    (error ? 'border-red' : 'border-border focus:border-shade-2')
 
   return (
     <div ref={containerRef} className="relative">
@@ -83,15 +83,15 @@ export function CityCombobox({
       />
 
       {open && !loading && filtered.length > 0 && (
-        <ul className="absolute z-50 w-full mt-1 max-h-56 overflow-y-auto bg-[#111111] border border-[#222222] rounded shadow-lg">
+        <ul className="absolute z-50 w-full mt-1 max-h-56 overflow-y-auto bg-panel border border-border rounded shadow-lg">
           {filtered.map(city => (
             <li
               key={city}
               onMouseDown={() => handleSelect(city)}
               className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
                 city === value
-                  ? 'bg-[#1A1200] text-[#FFB800]'
-                  : 'text-[#E0E0E0] hover:bg-[#1a1a1a]'
+                  ? 'bg-amber-tint text-amber'
+                  : 'text-text-main hover:bg-input-bg'
               }`}
               dir="rtl"
             >

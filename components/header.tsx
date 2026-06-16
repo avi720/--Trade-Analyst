@@ -33,11 +33,11 @@ export function Header({ userEmail }: HeaderProps) {
   }
 
   return (
-    <header className="border-b border-[#222222] bg-[#111111] px-6 h-14 flex items-center justify-between flex-shrink-0">
+    <header className="border-b border-border bg-panel px-6 h-14 flex items-center justify-between flex-shrink-0">
       {/* App name — right side in RTL */}
       <div className="flex items-center gap-3">
         <TradeLogoIcon size={32} />
-        <span className="font-mono font-semibold text-[#FFB800] text-lg tracking-tight">
+        <span className="font-mono font-semibold text-amber text-lg tracking-tight">
           Trade Analysis
         </span>
       </div>
@@ -50,10 +50,10 @@ export function Header({ userEmail }: HeaderProps) {
             href={tab.href}
             aria-current={pathname === tab.href || pathname.startsWith(tab.href + '/') ? 'page' : undefined}
             className={cn(
-              'px-4 py-2 rounded-md text-sm font-medium transition-colors border-b-2',
+              'px-4 py-2 rounded-md text-sm transition-colors border-b-2',
               pathname === tab.href || pathname.startsWith(tab.href + '/')
-                ? 'bg-[#1A1A1A] text-[#E0E0E0] border-[#FFB800]'
-                : 'text-[#B0B0B0] hover:text-[#E0E0E0] hover:bg-[#1A1A1A] border-transparent'
+                ? 'bg-input-bg text-amber font-bold border-amber'
+                : 'text-text-dim font-medium hover:text-text-main hover:bg-panel-3 border-transparent'
             )}
           >
             {tab.label}
@@ -66,7 +66,7 @@ export function Header({ userEmail }: HeaderProps) {
         <button
           onClick={toggleChat}
           aria-label="פתח/סגור עוזר AI חנן"
-          className="px-3 py-1.5 rounded-md text-sm font-mono text-[#FFB800] hover:bg-[#1A1A1A] transition-colors border border-[#333333]"
+          className="px-3 py-1.5 rounded-md text-sm font-mono text-amber hover:bg-input-bg transition-colors border border-shade"
         >
           חנן ה-AI <span aria-hidden="true">▶</span>
         </button>
@@ -79,9 +79,9 @@ export function Header({ userEmail }: HeaderProps) {
             aria-haspopup="menu"
             aria-expanded={dropdownOpen}
             aria-label={userEmail ? `תפריט משתמש: ${userEmail}` : 'תפריט משתמש'}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-[#B0B0B0] hover:text-[#E0E0E0] hover:bg-[#1A1A1A] transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-text-dim hover:text-text-main hover:bg-input-bg transition-colors"
           >
-            <span className="w-6 h-6 rounded-full bg-[#222222] flex items-center justify-center text-xs font-mono text-[#FFB800]">
+            <span className="w-6 h-6 rounded-full bg-border flex items-center justify-center text-xs font-mono text-amber">
               {userEmail?.[0]?.toUpperCase() ?? 'U'}
             </span>
             <svg aria-hidden="true" className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -95,21 +95,21 @@ export function Header({ userEmail }: HeaderProps) {
                 className="fixed inset-0 z-10"
                 onClick={() => setDropdownOpen(false)}
               />
-              <div className="absolute left-0 mt-1 w-48 bg-[#111111] border border-[#222222] rounded-md shadow-lg z-20 py-1">
-                <div className="px-3 py-2 text-sm text-[#B0B0B0] border-b border-[#222222] font-mono truncate">
+              <div className="absolute left-0 mt-1 w-48 bg-panel border border-border rounded-md shadow-lg z-20 py-1">
+                <div className="px-3 py-2 text-sm text-text-dim border-b border-border font-mono truncate">
                   {userEmail}
                 </div>
                 <Link
                   href="/profile"
-                  className="block px-3 py-2 text-sm text-[#E0E0E0] hover:bg-[#1A1A1A]"
+                  className="block px-3 py-2 text-sm text-text-main hover:bg-input-bg"
                   onClick={() => setDropdownOpen(false)}
                 >
                   פרופיל והגדרות
                 </Link>
-                <div className="border-t border-[#222222] mt-1 pt-1">
+                <div className="border-t border-border mt-1 pt-1">
                   <button
                     onClick={handleSignOut}
-                    className="block w-full text-right px-3 py-2 text-sm text-[#FF4D4D] hover:bg-[#1A1A1A]"
+                    className="block w-full text-right px-3 py-2 text-sm text-red hover:bg-input-bg"
                   >
                     התנתק
                   </button>

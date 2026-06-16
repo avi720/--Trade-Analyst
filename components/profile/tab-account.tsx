@@ -22,9 +22,9 @@ interface TabAccountProps {
 }
 
 const inputCls =
-  "w-full bg-[#0d0d0d] border border-[#222222] rounded-md px-3 py-2.5 text-sm text-[#E0E0E0] placeholder-[#444444] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2 focus:border-[#FFB800] transition-colors";
+  "w-full bg-panel-2 border border-border rounded-md px-3 py-2.5 text-sm text-text-main placeholder-text-mute outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2 focus:border-amber transition-colors";
 
-const labelCls = "block text-xs font-medium text-[#B0B0B0] mb-1.5 uppercase tracking-wider";
+const labelCls = "block text-xs font-medium text-text-dim mb-1.5 uppercase tracking-wider";
 
 export function TabAccount({ userEmail, initialName, initialProfile }: TabAccountProps) {
   const router = useRouter();
@@ -90,20 +90,20 @@ export function TabAccount({ userEmail, initialName, initialProfile }: TabAccoun
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold text-[#E0E0E0]">פרטים אישיים</h2>
-        <p className="text-sm text-[#B0B0B0] mt-1">שם, פרטי קשר וכתובת מגורים</p>
+        <h2 className="text-lg font-semibold text-text-main">פרטים אישיים</h2>
+        <p className="text-sm text-text-dim mt-1">שם, פרטי קשר וכתובת מגורים</p>
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* Email — read-only */}
         <div className="panel p-5">
-          <h3 className="text-xs font-medium text-[#B0B0B0] uppercase tracking-wider mb-4">כתובת אימייל</h3>
+          <h3 className="text-xs font-medium text-text-dim uppercase tracking-wider mb-4">כתובת אימייל</h3>
           <div className="flex items-center justify-between gap-4">
-            <p className="text-sm text-[#E0E0E0] font-mono">{userEmail}</p>
+            <p className="text-sm text-text-main font-mono">{userEmail}</p>
             <button
               type="button"
               onClick={() => router.push("/profile?tab=security")}
-              className="text-xs text-[#FFB800] hover:text-[#e6a600] transition-colors whitespace-nowrap"
+              className="text-xs text-amber hover:text-amber-dark transition-colors whitespace-nowrap"
             >
               שינוי אימייל ←
             </button>
@@ -112,7 +112,7 @@ export function TabAccount({ userEmail, initialName, initialProfile }: TabAccoun
 
         {/* Name */}
         <div className="panel p-5">
-          <h3 className="text-xs font-medium text-[#B0B0B0] uppercase tracking-wider mb-4">שם</h3>
+          <h3 className="text-xs font-medium text-text-dim uppercase tracking-wider mb-4">שם</h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="profile-first-name" className={labelCls}>שם פרטי</label>
@@ -140,13 +140,13 @@ export function TabAccount({ userEmail, initialName, initialProfile }: TabAccoun
             </div>
           </div>
           {initialName && (
-            <p className="mt-3 text-sm text-[#B0B0B0]">שם תצוגה נוכחי: <span className="text-[#B0B0B0]">{initialName}</span></p>
+            <p className="mt-3 text-sm text-text-dim">שם תצוגה נוכחי: <span className="text-text-dim">{initialName}</span></p>
           )}
         </div>
 
         {/* Contact */}
         <div className="panel p-5">
-          <h3 className="text-xs font-medium text-[#B0B0B0] uppercase tracking-wider mb-4">פרטי קשר</h3>
+          <h3 className="text-xs font-medium text-text-dim uppercase tracking-wider mb-4">פרטי קשר</h3>
           <div>
             <label htmlFor="profile-phone" className={labelCls}>מספר טלפון</label>
             <input
@@ -164,7 +164,7 @@ export function TabAccount({ userEmail, initialName, initialProfile }: TabAccoun
 
         {/* Address */}
         <div className="panel p-5">
-          <h3 className="text-xs font-medium text-[#B0B0B0] uppercase tracking-wider mb-4">כתובת מגורים</h3>
+          <h3 className="text-xs font-medium text-text-dim uppercase tracking-wider mb-4">כתובת מגורים</h3>
           <div className="space-y-4">
             <div>
               <label htmlFor="profile-street" className={labelCls}>רחוב ומספר</label>
@@ -208,9 +208,9 @@ export function TabAccount({ userEmail, initialName, initialProfile }: TabAccoun
         </div>
 
         {/* Save */}
-        {saveError && <p className="text-[#FF4D4D] text-sm">{saveError}</p>}
+        {saveError && <p className="text-red text-sm">{saveError}</p>}
         {saveOk && (
-          <div className="flex items-center gap-2 text-[#2CC84A] text-sm">
+          <div className="flex items-center gap-2 text-green text-sm">
             <CountdownCircle remaining={toastSecondsLeft} total={TOAST_DURATION} />
             <span>הפרופיל עודכן בהצלחה ✓</span>
           </div>
@@ -218,7 +218,7 @@ export function TabAccount({ userEmail, initialName, initialProfile }: TabAccoun
         <button
           type="submit"
           disabled={saving}
-          className="px-5 py-2.5 bg-[#FFB800] text-black text-sm font-semibold rounded-md hover:bg-[#e6a600] disabled:opacity-50 transition-colors"
+          className="px-5 py-2.5 bg-amber text-black text-sm font-semibold rounded-md hover:bg-amber-dark disabled:opacity-50 transition-colors"
         >
           {saving ? "שומר..." : "שמור שינויים"}
         </button>

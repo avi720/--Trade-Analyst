@@ -35,29 +35,29 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#080808]">
+    <div className="min-h-screen flex items-center justify-center bg-bg-dark">
       <div className="panel p-8 w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
             <TradeLogoIcon size={56} />
           </div>
-          <h1 className="text-2xl font-bold text-[#E0E0E0] font-mono">
+          <h1 className="text-2xl font-bold text-text-main font-mono">
             Trade Analysis
           </h1>
-          <p className="text-[#B0B0B0] text-sm mt-1">יומן מסחר חכם</p>
+          <p className="text-text-dim text-sm mt-1">יומן מסחר חכם</p>
         </div>
 
         <GoogleSignInButton label="התחבר עם Google" />
 
         <div className="flex items-center gap-3 my-5">
-          <div className="flex-1 h-px bg-[#222222]" />
-          <span className="text-[#B0B0B0] text-sm">או</span>
-          <div className="flex-1 h-px bg-[#222222]" />
+          <div className="flex-1 h-px bg-border" />
+          <span className="text-text-dim text-sm">או</span>
+          <div className="flex-1 h-px bg-border" />
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="email" className="block text-sm text-[#B0B0B0] mb-1">אימייל</label>
+            <label htmlFor="email" className="block text-sm text-text-dim mb-1">אימייל</label>
             <input
               id="email"
               type="email"
@@ -72,7 +72,7 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm text-[#B0B0B0] mb-1">סיסמה</label>
+            <label htmlFor="password" className="block text-sm text-text-dim mb-1">סיסמה</label>
             <input
               id="password"
               type="password"
@@ -87,27 +87,27 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <p className="text-[#FF4D4D] text-sm text-center">{error}</p>
+            <p className="text-red text-sm text-center">{error}</p>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 px-4 bg-[#FFB800] text-black font-semibold rounded-md hover:bg-[#cc9300] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-2 px-4 bg-amber text-black font-semibold rounded-md hover:bg-amber-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'מתחבר...' : 'כניסה'}
           </button>
         </form>
 
-        <p className="text-center text-sm text-[#B0B0B0] mt-4">
-          <Link href="/forgot-password" className="text-[#B0B0B0] hover:text-[#FFB800] hover:underline">
+        <p className="text-center text-sm text-text-dim mt-4">
+          <Link href="/forgot-password" className="text-text-dim hover:text-amber hover:underline">
             שכחתי סיסמה
           </Link>
         </p>
 
-        <p className="text-center text-sm text-[#B0B0B0] mt-6">
+        <p className="text-center text-sm text-text-dim mt-6">
           עדיין אין לך חשבון?{' '}
-          <Link href="/signup" className="text-[#FFB800] hover:underline">
+          <Link href="/signup" className="text-amber hover:underline">
             הירשם כאן
           </Link>
         </p>

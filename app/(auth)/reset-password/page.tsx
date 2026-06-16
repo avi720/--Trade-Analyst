@@ -43,17 +43,17 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#080808]">
+    <div className="min-h-screen flex items-center justify-center bg-bg-dark">
       <div className="panel p-8 w-full max-w-sm">
         <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-[#E0E0E0] font-mono">איפוס סיסמה</h1>
-          <p className="text-[#B0B0B0] text-sm mt-2">בחר סיסמה חדשה</p>
+          <h1 className="text-2xl font-bold text-text-main font-mono">איפוס סיסמה</h1>
+          <p className="text-text-dim text-sm mt-2">בחר סיסמה חדשה</p>
         </div>
 
         {!done ? (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="reset-password" className="block text-sm text-[#B0B0B0] mb-1">
+              <label htmlFor="reset-password" className="block text-sm text-text-dim mb-1">
                 סיסמה חדשה
               </label>
               <input
@@ -68,13 +68,13 @@ export default function ResetPasswordPage() {
                 aria-describedby="reset-password-hint"
                 dir="ltr"
               />
-              <p id="reset-password-hint" className="text-[#B0B0B0] text-sm mt-1">
+              <p id="reset-password-hint" className="text-text-dim text-sm mt-1">
                 לפחות 8 תווים, אות ומספר
               </p>
             </div>
 
             <div>
-              <label htmlFor="reset-confirm" className="block text-sm text-[#B0B0B0] mb-1">
+              <label htmlFor="reset-confirm" className="block text-sm text-text-dim mb-1">
                 אישור סיסמה
               </label>
               <input
@@ -90,20 +90,20 @@ export default function ResetPasswordPage() {
               />
             </div>
 
-            {error && <p className="text-[#FF4D4D] text-sm text-center">{error}</p>}
+            {error && <p className="text-red text-sm text-center">{error}</p>}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2 px-4 bg-[#FFB800] text-black font-semibold rounded-md hover:bg-[#cc9300] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-2 px-4 bg-amber text-black font-semibold rounded-md hover:bg-amber-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'מעדכן...' : 'עדכן סיסמה'}
             </button>
           </form>
         ) : (
-          <div className="border border-[#2CC84A]/30 bg-[#0d1f12] rounded-md p-5 text-center">
-            <p className="text-[#2CC84A] font-semibold">הסיסמה עודכנה בהצלחה ✓</p>
-            <p className="text-[#B0B0B0] text-sm mt-1">מעביר אותך לדאשבורד...</p>
+          <div className="border border-green/30 bg-green-tint rounded-md p-5 text-center">
+            <p className="text-green font-semibold">הסיסמה עודכנה בהצלחה ✓</p>
+            <p className="text-text-dim text-sm mt-1">מעביר אותך לדאשבורד...</p>
           </div>
         )}
       </div>

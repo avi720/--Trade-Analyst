@@ -102,67 +102,67 @@ ID convention: `F##` numbered globally across phases. Where a finding was confir
 
 ### Phase 2 — Important (correctness & integrity)
 
-#### [ ] F7. Color tokens diverged between Tailwind config and CSS variables
+#### [x] F7. Color tokens diverged between Tailwind config and CSS variables
 - **Where:** `tailwind.config.ts:18` defines `text-dim` as `#888888`; `app/globals.css` defines `--text-dim` as `#B0B0B0`. Placeholder text across forms uses `#444444` which measures ~2.1:1 contrast against `#080808` background — below WCAG AA minimum of 4.5:1.
 - **Issue:** Two sources of truth for the same semantic colour produce inconsistent rendering depending on whether a component uses the Tailwind class or the CSS variable. Placeholder text at `#444444` is functionally invisible to users with any degree of low vision. Overlaps with [`docs/TECH-DEBT.md`](TECH-DEBT.md) concept of design-system consistency.
 - **Acceptance:** `text-dim` resolves to a single value in both Tailwind config and CSS custom properties. All placeholder/secondary text colours pass WCAG AA 4.5:1 contrast against their background. Verified with a contrast checker tool against `--bg-dark` and `--panel-bg`.
 
-#### [ ] F8. 115 inline hex colour values bypass design tokens
-- **Where:** 20 component files across `components/` and `app/`. Tailwind config defines tokens (`panel`, `border`, `text-dim`, `green`, `red`, `amber`) but components use raw hex (`#1A1A1A`, `#2A2A2A`, `#333`, `#444`, `#666`, `#888`, `#E0E0E0`, etc.).
-- **Issue:** Theming, dark/light mode, and global colour changes require editing 115 scattered values instead of adjusting one token. Several hex values are near-duplicates of existing tokens but not quite matching, creating unintentional visual inconsistency. A systematic token pass is the single highest-leverage visual consistency fix in the codebase.
+#### [x] F8. 115 inline hex colour values bypass design tokens
+- **Where:** 20 component files across `components/` and `app/`. Tailwind config defines tokens (`panel`, `border`, `text-dim`, `green`, `red`, `amber`) but components use raw hex (`#1A1A1A`, `#2A2A2A`, `#333`, `#444`, `#666`, `#888`, `#E0E0E0`, etc.). Actual baseline turned out higher than 115 — initial sweep found ~522 inline hex.
+- **Issue:** Theming, dark/light mode, and global colour changes require editing 115 scattered values instead of adjusting one token. Several hex values are near-duplicates of existing tokens but not quite matching, creating unintentional visual inconsistency. A systematic token pass is the single highest-leverage visual consistency fix in the codebase. **Closed 2026-06-16** — bulk-replaced ~480 occurrences across all `components/`/`app/` files via Tailwind tokens added to `tailwind.config.ts` (`text-main`, `text-fade`, `text-faint`, `panel-2`, `panel-3`, `amber-tint`, `red-tint`, `red-shade`, `green-tint`, `shade`, `shade-2`). Remaining ~39 inline hex are intentional and documented: ~29 in `components/research/shell.tsx` + `components/research/charts.tsx` (Recharts inline CSS literals + the SETUP_COLORS chart palette — Recharts requires literal hex strings, not Tailwind classes); 4 in `components/google-signin-button.tsx` (Google logo brand colours); 6 small SVG stroke / strength-meter literals in countdown-circle, info-tooltip, tab-security.
 - **Acceptance:** `grep -rn "#[0-9a-fA-F]\{3,8\}" components/ app/ --include="*.tsx" --include="*.ts"` returns only values that are intentionally distinct from tokens (e.g., one-off chart colours) and those are documented inline. Total inline hex count is below 20.
 
-#### [ ] F9. Sort headers in `/search` table are not accessible
+#### [x] F9. Sort headers in `/search` table are not accessible
 - **Where:** `components/trade-search.tsx:76` — `SortTh` component renders `<th onClick>` without a `<button>` inside. No `aria-sort` attribute.
 - **Issue:** **Confirmed.** Active sort column shows "סגירה ↓" visually but `ariaSort: null` on all 7 `<th>` elements. Keyboard users cannot activate sort because `<th>` is not in the tab order and has no `keydown` handler. AT users have no announcement of sort direction.
 - **Acceptance:** Each sortable `<th>` contains a `<button>` that receives focus and activates sort. The active column's `<th>` has `aria-sort="ascending"` or `aria-sort="descending"`. Verified by tabbing to a column header, pressing Enter (sort activates), and checking the `aria-sort` attribute value matches the visual arrow direction.
 
-#### [ ] F10. Table rows in `/search` are click-only, not keyboard-accessible
+#### [x] F10. Table rows in `/search` are click-only, not keyboard-accessible
 - **Where:** `components/trade-search.tsx` — `<tr>` elements have `onClick` + `cursor-pointer` but `tabIndex={-1}` and no `role`.
 - **Issue:** **Confirmed.** Trade detail can only be opened via mouse click. Keyboard users cannot reach or activate table rows. The rows are functionally interactive elements without keyboard equivalents.
 - **Acceptance:** Each data row is keyboard-focusable (`tabIndex={0}` or placed in tab order) and activatable with Enter or Space. Verified by tabbing to a row and pressing Enter — the trade detail modal opens.
 
-#### [ ] F11. Chat sidebar enters from the wrong side in RTL
+#### [x] F11. Chat sidebar enters from the wrong side in RTL
 - **Where:** `components/chat-sidebar.tsx:134` — `fixed top-0 left-0` positions the sidebar on the physical left.
 - **Issue:** **Confirmed.** In a Hebrew RTL app, the sidebar slides in from the physical left edge, which is the "end" side. In RTL reading order, drawers/sidebars conventionally appear from the start side (physical right). The sidebar already uses a `ltr()` helper elsewhere, suggesting bidi awareness was intended.
 - **Acceptance:** The sidebar enters from the physical-right edge (the start side in RTL). `left-0` is replaced with a logical-property equivalent or flipped to `right-0`. Verified by opening the sidebar and confirming it slides from the right edge of the viewport.
 
-#### [ ] F12. Touch targets below 44px on action buttons and tooltips
+#### [x] F12. Touch targets below 44px on action buttons and tooltips
 - **Where:** `components/trade-search.tsx:413-453` — edit/delete action buttons measured at 24x24px. `components/research-dashboard.tsx` — 14 InfoTooltip buttons measured at 14x14px each. `components/trade-detail-modal.tsx:130` — close button at 10x20px.
 - **Issue:** **Confirmed.** Apple HIG and WCAG 2.5.8 require minimum 44x44px touch targets. At 14x14px, the InfoTooltip buttons are roughly 10% of the recommended area. Users on tablets (in scope) will struggle to activate these controls reliably. The edit and delete buttons at 24x24px are also too close together, increasing error rate.
 - **Acceptance:** All interactive elements measure at least 44x44px (including padding/margin). Verified by querying `getBoundingClientRect()` on every button, link, and interactive element and confirming `width >= 44 && height >= 44`.
 
-#### [ ] F13. Disclosure buttons missing `aria-expanded`
+#### [x] F13. Disclosure buttons missing `aria-expanded`
 - **Where:** `components/trade-entry-form.tsx:205,323` ("פרטי הזמנה", "הערות אישיות"), `components/profile/tab-broker.tsx:44` (SetupGuide).
 - **Issue:** **Confirmed.** `ariaExpanded: null` on both disclosure buttons in manual-import. Collapsible sections toggle visibility but AT users are not told whether the section is open or closed. WAI-ARIA Disclosure pattern requires `aria-expanded` on the trigger.
 - **Acceptance:** Every collapsible trigger has `aria-expanded="true"` when open and `aria-expanded="false"` when closed. Verified by toggling each disclosure and checking the attribute value changes.
 
-#### [ ] F14. Tab components lack WAI-ARIA Tab semantics
+#### [x] F14. Tab components lack WAI-ARIA Tab semantics
 - **Where:** `components/manual-import-tabs.tsx` — sub-tabs ("הזנה ידנית" / "ייבוא Excel") are plain buttons. `app/(dashboard)/profile/page.tsx` — 4 profile tabs (חשבון/אבטחה/תצוגה/ברוקר) are plain buttons.
 - **Issue:** **Confirmed.** Profile tabs: `role: null, ariaSelected: null`. Manual-import tab: `role: null, ariaSelected: null`. AT users hear "button" instead of "tab, 1 of 4, selected" and cannot use arrow keys to navigate between tabs. WAI-ARIA Tabs pattern requires `role="tablist"` on the container, `role="tab"` on each trigger, `role="tabpanel"` on each panel, `aria-selected`, and arrow-key navigation.
 - **Acceptance:** Both tab sets use `role="tablist"/"tab"/"tabpanel"` with `aria-selected`, `aria-controls`/`aria-labelledby` pairings, and arrow-key navigation. Verified by focusing a tab, pressing Right-Arrow (moves to next tab), and hearing "tab, selected" announced by a screen reader.
 
-#### [ ] F15. Header nav active and hover states are visually ambiguous
+#### [x] F15. Header nav active and hover states are visually ambiguous
 - **Where:** `components/header.tsx:46-62` — both active and hover tabs use `bg-[#1A1A1A]`.
 - **Issue:** The only visual difference between hover and active is a bottom border on the active tab. Users scanning the header cannot quickly identify which page they are on because hover gives the same background. The ambiguity is worse for users with low vision or cognitive load.
 - **Acceptance:** Active tab has a visually distinct treatment from hover — different background, font weight, or opacity. Verified by hovering over a non-active tab and confirming it is visually distinguishable from the active tab in at least two properties (not just the border).
 
-#### [ ] F16. Win/loss state conveyed by colour alone
+#### [x] F16. Win/loss state conveyed by colour alone
 - **Where:** `components/research/charts.tsx:86,211`, `components/trade-search.tsx` — green (`#2CC84A`) for win, red (`#FF4D4D`) for loss, with no secondary encoding.
-- **Issue:** Approximately 8% of males have some form of colour vision deficiency. Win/loss in charts and tables is encoded solely through green/red — users with deuteranopia or protanopia cannot distinguish the two states. WCAG 1.4.1 requires information not to be conveyed by colour alone.
+- **Issue:** Approximately 8% of males have some form of colour vision deficiency. Win/loss in charts and tables is encoded solely through green/red — users with deuteranopia or protanopia cannot distinguish the two states. WCAG 1.4.1 requires information not to be conveyed by colour alone. ~~**Closed 2026-06-16** — added ↑/↓ glyphs next to Direction (Long/Short) and ✓/✗/= glyphs next to Result (Win/Loss/Breakeven) in `trade-search.tsx`. For charts, the audit's premise was conservative: bar y-position relative to the y=0 reference line is a non-colour encoding for sign (already in place), and the holdtime scatter has an explicit Win/Loss/Other text legend. Word labels in axes (e.g., "<-2R", "-2R–-1R") and tooltip text (with +/− signs and Hebrew "Win Rate") also satisfy WCAG 1.4.1 without colour.~~
 - **Acceptance:** Win/loss has a secondary visual indicator in addition to colour — such as icons, patterns, text labels, or distinct shapes. Verified by viewing charts and tables with a colour-blindness simulator (e.g., Chrome DevTools rendering emulation for protanopia) and confirming win/loss are still distinguishable.
 
-#### [ ] F17. `alert()` used for error feedback in broker settings
+#### [x] F17. `alert()` used for error feedback in broker settings
 - **Where:** `components/profile/tab-broker.tsx:231,242`
 - **Issue:** Error messages use `window.alert()`, which produces a system dialog that is visually dissonant with the polished dark UI, blocks the thread, and on some embedded browsers (Capacitor, Electron) may not render at all. Every other error in the app uses inline feedback.
 - **Acceptance:** Error messages render inline within the broker settings panel using the same toast or inline-error pattern used elsewhere in the app. `grep -n "alert(" components/profile/tab-broker.tsx` returns zero hits.
 
-#### [ ] F18. Emoji characters used as functional icons in chat sidebar
+#### [x] F18. Emoji characters used as functional icons in chat sidebar
 - **Where:** `components/chat-sidebar.tsx:127,174` — `⚡` (model toggle), `🔬` (model toggle), `▶` (send), `✕` (close).
 - **Issue:** Screen readers announce "high voltage" and "microscope" instead of the intended function. Emoji rendering varies across OS/browser — some may render as text-style glyphs. Icons conveying function should use SVG with `aria-hidden` and a text alternative.
 - **Acceptance:** Functional icons use SVG (or equivalent) with `aria-hidden="true"` alongside a visually hidden text label or `aria-label`. Verified with a screen reader — toggling the model announces the function (e.g., "מצב מהיר") not the emoji name.
 
-#### [ ] F19. Chart resize handles work only with mouse
+#### [x] F19. Chart resize handles work only with mouse
 - **Where:** `components/research/shell.tsx:104-169` — `onMouseDown` without `onTouchStart` or `onPointerDown`. `role="separator"` is set but `aria-orientation` and `aria-valuenow` are missing.
 - **Issue:** Touch-device users (tablets, which are in scope) cannot resize chart panels because only `mousedown` is handled. The `role="separator"` declaration without required ARIA attributes is incomplete — AT expects `aria-orientation` and `aria-valuenow` when this role is present on a draggable splitter.
 - **Acceptance:** Resize handles respond to pointer events (covers mouse, touch, and pen). `role="separator"` includes `aria-orientation="vertical"` (or horizontal as appropriate) and `aria-valuenow` reflecting the current position. Keyboard resize is out of scope. Verified on a tablet or with touch-simulation in DevTools.
@@ -211,7 +211,7 @@ ID convention: `F##` numbered globally across phases. Where a finding was confir
 - **Issue:** **Confirmed.** Chrome's autofill stylesheet applies a light-blue background to filled inputs, which clashes with the `#080808` page background. This is a common dark-theme issue with a well-known CSS workaround.
 - **Acceptance:** Autofilled inputs maintain the dark theme appearance. Verified by autofilling the login form in Chrome and confirming inputs do not turn light blue.
 
-#### [ ] F28. `role="separator"` on resize handle missing required ARIA attributes
+#### [x] F28. `role="separator"` on resize handle missing required ARIA attributes
 - **Where:** `components/research/shell.tsx:203-213`
 - **Issue:** The resize handle declares `role="separator"` but omits `aria-orientation` and `aria-valuenow`. When `role="separator"` is on a focusable element (which it is — it has event handlers), WAI-ARIA requires these attributes for AT to convey the separator's state.
 - **Acceptance:** The separator element has `aria-orientation` and `aria-valuenow` (or `aria-valuemin`/`aria-valuemax`). Alternatively, if keyboard resize is not supported, `role="separator"` is removed and replaced with `role="presentation"` or no role. Verified by inspecting the element's ARIA attributes.

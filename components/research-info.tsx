@@ -15,8 +15,8 @@ import type React from 'react'
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mb-2 last:mb-0">
-      <div className="text-[#FFB800] font-semibold">{title}</div>
-      <div className="text-[#E0E0E0]">{children}</div>
+      <div className="text-amber font-semibold">{title}</div>
+      <div className="text-text-main">{children}</div>
     </div>
   )
 }

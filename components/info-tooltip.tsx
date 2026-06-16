@@ -73,7 +73,7 @@ export function InfoTooltip({ label, children, align: alignProp = 'start' }: Pro
         aria-label={label}
         aria-expanded={open}
         onClick={() => setOpen(o => !o)}
-        className="text-[#888888] hover:text-[#FFB800] transition-colors flex items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2"
+        className="min-w-11 min-h-11 -m-3 text-text-mute hover:text-amber transition-colors flex items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2"
       >
         <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
           <circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" strokeWidth="1.4" />
@@ -87,7 +87,7 @@ export function InfoTooltip({ label, children, align: alignProp = 'start' }: Pro
           role="dialog"
           aria-label={label}
           dir="rtl"
-          className={`absolute z-50 top-6 ${align === 'end' ? 'left-0' : 'right-0'} w-[22rem] max-w-[88vw] p-3.5 text-sm leading-relaxed text-[#E0E0E0] font-sans shadow-xl rounded`}
+          className={`absolute z-50 top-6 ${align === 'end' ? 'left-0' : 'right-0'} w-[22rem] max-w-[88vw] p-3.5 text-sm leading-relaxed text-text-main font-sans shadow-xl rounded`}
           style={{ background: '#0E0E0E', border: '1px solid #333333', visibility: measured ? 'visible' : 'hidden' }}
         >
           {children}

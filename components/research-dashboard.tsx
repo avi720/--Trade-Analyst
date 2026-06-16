@@ -209,14 +209,14 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
 
   // Metric card color helpers
   const winRateColor =
-    stats.totalTrades === 0 ? 'text-[#E0E0E0]' :
-    stats.winRate >= 0.5    ? 'text-[#2CC84A]' :
-    stats.winRate >= 0.4    ? 'text-[#FFB800]' : 'text-[#FF4D4D]'
+    stats.totalTrades === 0 ? 'text-text-main' :
+    stats.winRate >= 0.5    ? 'text-green' :
+    stats.winRate >= 0.4    ? 'text-amber' : 'text-red'
 
   const pfColor =
-    stats.totalTrades === 0 ? 'text-[#E0E0E0]' :
-    stats.profitFactor >= 1.5 ? 'text-[#2CC84A]' :
-    stats.profitFactor < 1    ? 'text-[#FF4D4D]' : 'text-[#FFB800]'
+    stats.totalTrades === 0 ? 'text-text-main' :
+    stats.profitFactor >= 1.5 ? 'text-green' :
+    stats.profitFactor < 1    ? 'text-red' : 'text-amber'
 
   const tickerDefaultHeight = Math.max(220, chartData.ticker.length * 28 + 40)
 
@@ -290,7 +290,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
           <MetricCard
             label="R ממוצע"
             value={stats.rTradeCount === 0 ? '—' : `${stats.avgR >= 0 ? '+' : ''}${stats.avgR.toFixed(2)}R`}
-            color={stats.rTradeCount === 0 ? undefined : stats.avgR > 0 ? 'text-[#2CC84A]' : stats.avgR < 0 ? 'text-[#FF4D4D]' : 'text-[#E0E0E0]'}
+            color={stats.rTradeCount === 0 ? undefined : stats.avgR > 0 ? 'text-green' : stats.avgR < 0 ? 'text-red' : 'text-text-main'}
             info={METRIC_INFO.avgR}
           />
           <MetricCard
@@ -302,33 +302,33 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
           <MetricCard
             label="Expectancy"
             value={stats.rTradeCount === 0 ? '—' : `${stats.expectancy >= 0 ? '+' : ''}${stats.expectancy.toFixed(2)}R`}
-            color={stats.rTradeCount === 0 ? undefined : stats.expectancy > 0 ? 'text-[#2CC84A]' : 'text-[#FF4D4D]'}
+            color={stats.rTradeCount === 0 ? undefined : stats.expectancy > 0 ? 'text-green' : 'text-red'}
             info={METRIC_INFO.expectancy}
           />
           <MetricCard
             label="Max Drawdown"
             value={stats.totalTrades === 0 ? '—' : formatUsd(stats.maxDrawdown)}
-            color={stats.maxDrawdown < 0 ? 'text-[#FF4D4D]' : 'text-[#E0E0E0]'}
+            color={stats.maxDrawdown < 0 ? 'text-red' : 'text-text-main'}
             info={METRIC_INFO.maxDrawdown}
           />
           <MetricCard
             label="סה״כ P&L"
             value={stats.totalTrades === 0 ? '—' : formatUsd(stats.totalPnl)}
-            color={stats.totalPnl > 0 ? 'text-[#2CC84A]' : stats.totalPnl < 0 ? 'text-[#FF4D4D]' : 'text-[#E0E0E0]'}
+            color={stats.totalPnl > 0 ? 'text-green' : stats.totalPnl < 0 ? 'text-red' : 'text-text-main'}
             info={METRIC_INFO.totalPnl}
           />
           <dl className="panel p-4">
-            <dt className="text-[#B0B0B0] text-sm font-sans mb-1 flex items-center justify-between gap-2">
+            <dt className="text-text-dim text-sm font-sans mb-1 flex items-center justify-between gap-2">
               <span>ממוצע רווח / הפסד</span>
               <InfoTooltip label="מידע על ממוצע רווח / הפסד">{METRIC_INFO.avgWinLoss}</InfoTooltip>
             </dt>
             {stats.totalTrades === 0 ? (
-              <dd className="text-[#E0E0E0] text-xl font-mono font-bold m-0">—</dd>
+              <dd className="text-text-main text-xl font-mono font-bold m-0">—</dd>
             ) : (
               <dd className="text-xl font-mono font-bold m-0 truncate">
-                <span className="text-[#2CC84A]">{ltr(formatUsd(stats.avgWin))}</span>
-                <span className="text-[#B0B0B0] mx-1">/</span>
-                <span className="text-[#FF4D4D]">{ltr(formatUsd(stats.avgLoss))}</span>
+                <span className="text-green">{ltr(formatUsd(stats.avgWin))}</span>
+                <span className="text-text-dim mx-1">/</span>
+                <span className="text-red">{ltr(formatUsd(stats.avgLoss))}</span>
               </dd>
             )}
           </dl>
@@ -336,29 +336,29 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
 
         {/* ── Chart visibility toggle ──────────────────────────────────────────── */}
         <div className="mb-4 flex flex-wrap items-center gap-3">
-          <span className="text-[#B0B0B0] text-sm font-sans">גרפים מוצגים:</span>
+          <span className="text-text-dim text-sm font-sans">גרפים מוצגים:</span>
           <button
             onClick={() => setTogglePanelOpen(p => !p)}
             aria-expanded={togglePanelOpen}
             aria-label={togglePanelOpen ? 'סגור עריכת גרפים מוצגים' : 'ערוך גרפים מוצגים'}
-            className="text-[#FFB800] text-xs font-sans hover:opacity-80 transition-opacity rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2"
+            className="text-amber text-xs font-sans hover:opacity-80 transition-opacity rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2"
           >
             {togglePanelOpen ? <>סגור <span aria-hidden="true">✕</span></> : <>ערוך <span aria-hidden="true">✎</span></>}
           </button>
           <button
             onClick={resetChartSizes}
             aria-label="אפס גדלי גרפים לברירת מחדל"
-            className="text-[#B0B0B0] text-sm font-sans hover:text-[#FFB800] transition-colors rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2"
+            className="text-text-dim text-sm font-sans hover:text-amber transition-colors rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2"
           >
             אפס גדלים ↺
           </button>
           {togglePanelOpen && CHART_IDS.map(id => (
-            <label key={id} className="flex items-center gap-1.5 cursor-pointer text-sm font-sans text-[#E0E0E0]">
+            <label key={id} className="flex items-center gap-1.5 cursor-pointer text-sm font-sans text-text-main">
               <input
                 type="checkbox"
                 checked={chartVisible[id]}
                 onChange={e => setChartVisible(prev => ({ ...prev, [id]: e.target.checked }))}
-                className="accent-[#FFB800]"
+                className="accent-amber"
               />
               {CHART_LABELS[id]}
             </label>
@@ -368,7 +368,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
         {/* ── Charts / empty state ─────────────────────────────────────────────── */}
         {filteredTrades.length === 0 ? (
           <div className="panel p-16 text-center" role="status">
-            <p className="text-[#B0B0B0] font-sans text-base">
+            <p className="text-text-dim font-sans text-base">
               {closedTrades.length === 0
                 ? 'אין טריידים סגורים במערכת'
                 : 'אין טריידים סגורים בטווח זה'}

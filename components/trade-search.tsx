@@ -52,12 +52,12 @@ function fmtR(r: number | null): string {
 }
 
 function resultColor(result: string | null, status: string): string {
-  if (status === 'Open') return 'text-[#FFB800]'
+  if (status === 'Open') return 'text-amber'
   switch (result) {
-    case 'Win': return 'text-[#2CC84A]'
-    case 'Loss': return 'text-[#FF4D4D]'
-    case 'Breakeven': return 'text-[#FFB800]'
-    default: return 'text-[#B0B0B0]'
+    case 'Win': return 'text-green'
+    case 'Loss': return 'text-red'
+    case 'Breakeven': return 'text-amber'
+    default: return 'text-text-dim'
   }
 }
 
@@ -66,18 +66,39 @@ function resultLabel(result: string | null, status: string): string {
   return result ?? '—'
 }
 
+/** Non-color icon for status — supplements the green/red text so colorblind
+ *  users have a second visual cue (WCAG 1.4.1). */
+function resultGlyph(result: string | null, status: string): string {
+  if (status === 'Open') return '◌'
+  switch (result) {
+    case 'Win': return '✓'
+    case 'Loss': return '✗'
+    case 'Breakeven': return '='
+    default: return ''
+  }
+}
+
 function SortTh({
   col, label, current, dir, onSort,
 }: {
   col: SortCol; label: string; current: SortCol; dir: 'asc' | 'desc'; onSort: (c: SortCol) => void
 }) {
   const active = current === col
+  const ariaSort: 'ascending' | 'descending' | 'none' =
+    active ? (dir === 'desc' ? 'descending' : 'ascending') : 'none'
   return (
     <th
-      onClick={() => onSort(col)}
-      className="cursor-pointer select-none px-3 py-2 text-right text-sm font-mono text-[#B0B0B0] hover:text-[#E0E0E0] whitespace-nowrap"
+      aria-sort={ariaSort}
+      scope="col"
+      className="px-0 py-0 text-right text-sm font-mono text-text-dim whitespace-nowrap"
     >
-      {label} <span className="opacity-60">{active ? (dir === 'desc' ? '↓' : '↑') : '↕'}</span>
+      <button
+        type="button"
+        onClick={() => onSort(col)}
+        className="w-full text-right cursor-pointer select-none px-3 py-2 hover:text-text-main focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-[-2px]"
+      >
+        {label} <span aria-hidden="true" className="opacity-60">{active ? (dir === 'desc' ? '↓' : '↑') : '↕'}</span>
+      </button>
     </th>
   )
 }
@@ -247,7 +268,7 @@ export function TradeSearch({ trades, initialParams }: Props) {
   const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
   const pageItems = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
-  const inputCls = 'bg-[#080808] border border-[#222222] rounded px-2 py-1 text-sm text-[#E0E0E0] placeholder-[#888888] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2 focus:border-[#444444]'
+  const inputCls = 'bg-bg-dark border border-border rounded px-2 py-1 text-sm text-text-main placeholder-text-mute outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2 focus:border-shade-2'
   const selectCls = inputCls + ' cursor-pointer'
 
   return (
@@ -266,7 +287,7 @@ export function TradeSearch({ trades, initialParams }: Props) {
               className={inputCls + ' w-44'}
             />
             <div className="flex items-center gap-1">
-              <span className="text-sm text-[#B0B0B0]">מ:</span>
+              <span className="text-sm text-text-dim">מ:</span>
               <div className="relative">
                 <input
                   type="date" aria-label="מתאריך" lang="en-GB" dir="ltr"
@@ -276,14 +297,14 @@ export function TradeSearch({ trades, initialParams }: Props) {
                 />
                 {!from && (
                   <span aria-hidden="true"
-                    className="absolute top-1/2 right-2 -translate-y-1/2 pointer-events-none text-sm font-mono text-[#B0B0B0] tracking-tight">
+                    className="absolute top-1/2 right-2 -translate-y-1/2 pointer-events-none text-sm font-mono text-text-dim tracking-tight">
                     DD / MM / YYYY
                   </span>
                 )}
               </div>
             </div>
             <div className="flex items-center gap-1">
-              <span className="text-sm text-[#B0B0B0]">עד:</span>
+              <span className="text-sm text-text-dim">עד:</span>
               <div className="relative">
                 <input
                   type="date" aria-label="עד תאריך" lang="en-GB" dir="ltr"
@@ -293,7 +314,7 @@ export function TradeSearch({ trades, initialParams }: Props) {
                 />
                 {!to && (
                   <span aria-hidden="true"
-                    className="absolute top-1/2 right-2 -translate-y-1/2 pointer-events-none text-sm font-mono text-[#B0B0B0] tracking-tight">
+                    className="absolute top-1/2 right-2 -translate-y-1/2 pointer-events-none text-sm font-mono text-text-dim tracking-tight">
                     DD / MM / YYYY
                   </span>
                 )}
@@ -318,12 +339,12 @@ export function TradeSearch({ trades, initialParams }: Props) {
           {/* Row 2 */}
           <div className="flex flex-wrap gap-2 items-center">
             <div role="group" aria-labelledby="search-r-label" className="flex items-center gap-2">
-              <span id="search-r-label" className="text-sm text-[#B0B0B0]">סינון לפי R</span>
-              <span className="text-sm text-[#B0B0B0] font-sans">מ:</span>
+              <span id="search-r-label" className="text-sm text-text-dim">סינון לפי R</span>
+              <span className="text-sm text-text-dim font-sans">מ:</span>
               <input type="number" step="0.1" aria-label="R מינימלי" value={rMin}
                 onChange={e => bump(() => setRMin(e.target.value))}
                 className={inputCls + ' w-20'} placeholder="—" dir="ltr" />
-              <span className="text-sm text-[#B0B0B0] font-sans">עד:</span>
+              <span className="text-sm text-text-dim font-sans">עד:</span>
               <input type="number" step="0.1" aria-label="R מקסימלי" value={rMax}
                 onChange={e => bump(() => setRMax(e.target.value))}
                 className={inputCls + ' w-20'} placeholder="—" dir="ltr" />
@@ -334,11 +355,11 @@ export function TradeSearch({ trades, initialParams }: Props) {
               <option value="All">פתוחים וסגורים</option>
             </select>
             {hasFilters && (
-              <button onClick={clearFilters} className="text-sm text-[#B0B0B0] hover:text-[#FF4D4D] transition-colors px-2 py-1 border border-[#222222] rounded">
+              <button onClick={clearFilters} className="text-sm text-text-dim hover:text-red transition-colors px-2 py-1 border border-border rounded">
                 נקה סינון
               </button>
             )}
-            <span className="text-sm text-[#B0B0B0] mr-auto font-mono">
+            <span className="text-sm text-text-dim mr-auto font-mono">
               {filtered.length} / {effectiveTrades.length} טריידים
             </span>
           </div>
@@ -348,7 +369,7 @@ export function TradeSearch({ trades, initialParams }: Props) {
         <div className="panel overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[#222222]">
+              <tr className="border-b border-border">
                 <SortTh col="ticker"     label="טיקר"   current={sortCol} dir={sortDir} onSort={handleSort} />
                 <SortTh col="direction"  label="כיוון"  current={sortCol} dir={sortDir} onSort={handleSort} />
                 <SortTh col="setupType"  label="סטאפ"   current={sortCol} dir={sortDir} onSort={handleSort} />
@@ -356,15 +377,15 @@ export function TradeSearch({ trades, initialParams }: Props) {
                 <SortTh col="closedAt"   label="סגירה"  current={sortCol} dir={sortDir} onSort={handleSort} />
                 <SortTh col="actualR"    label="R"      current={sortCol} dir={sortDir} onSort={handleSort} />
                 <SortTh col="realizedPnl" label="P&L"  current={sortCol} dir={sortDir} onSort={handleSort} />
-                <th className="px-3 py-2 text-right text-sm font-mono text-[#B0B0B0]">עמ׳</th>
-                <th className="px-3 py-2 text-right text-sm font-mono text-[#B0B0B0]">תוצאה</th>
-                <th className="px-3 py-2 text-right text-sm font-mono text-[#B0B0B0]">פעולות</th>
+                <th className="px-3 py-2 text-right text-sm font-mono text-text-dim">עמ׳</th>
+                <th className="px-3 py-2 text-right text-sm font-mono text-text-dim">תוצאה</th>
+                <th className="px-3 py-2 text-right text-sm font-mono text-text-dim">פעולות</th>
               </tr>
             </thead>
             <tbody>
               {pageItems.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="px-3 py-8 text-center text-[#B0B0B0] text-sm">
+                  <td colSpan={10} className="px-3 py-8 text-center text-text-dim text-sm">
                     לא נמצאו טריידים
                   </td>
                 </tr>
@@ -375,49 +396,59 @@ export function TradeSearch({ trades, initialParams }: Props) {
                   <tr
                     key={t.id}
                     onClick={() => setSelected({ trade: t, mode: 'view' })}
-                    className="border-b border-[#1A1A1A] hover:bg-[#141414] cursor-pointer transition-colors"
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        setSelected({ trade: t, mode: 'view' })
+                      }
+                    }}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`פתח פרטי טרייד ${t.ticker} ${t.direction}`}
+                    className="border-b border-input-bg hover:bg-panel-3 cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-[-2px]"
                   >
-                    <td className="px-3 py-2 font-mono font-semibold text-[#E0E0E0] whitespace-nowrap">
+                    <td className="px-3 py-2 font-mono font-semibold text-text-main whitespace-nowrap">
                       {t.ticker}
-                      {t.source === 'manual' && <span className="text-[#FFB800] text-[10px] mr-1">●</span>}
+                      {t.source === 'manual' && <span className="text-amber text-[10px] mr-1">●</span>}
                     </td>
-                    <td className={cn('px-3 py-2 font-mono text-xs', t.direction === 'Long' ? 'text-[#2CC84A]' : 'text-[#FF4D4D]')}>
-                      {t.direction}
+                    <td className={cn('px-3 py-2 font-mono text-xs', t.direction === 'Long' ? 'text-green' : 'text-red')}>
+                      <span aria-hidden="true">{t.direction === 'Long' ? '↑' : '↓'}</span> {t.direction}
                     </td>
-                    <td className="px-3 py-2 text-[#B0B0B0] text-sm">{t.setupType ?? '—'}</td>
-                    <td className="px-3 py-2 font-mono text-sm text-[#B0B0B0] whitespace-nowrap">{fmtDate(t.openedAt)}</td>
-                    <td className="px-3 py-2 font-mono text-sm text-[#B0B0B0] whitespace-nowrap">{fmtDate(t.closedAt)}</td>
+                    <td className="px-3 py-2 text-text-dim text-sm">{t.setupType ?? '—'}</td>
+                    <td className="px-3 py-2 font-mono text-sm text-text-dim whitespace-nowrap">{fmtDate(t.openedAt)}</td>
+                    <td className="px-3 py-2 font-mono text-sm text-text-dim whitespace-nowrap">{fmtDate(t.closedAt)}</td>
                     <td
                       title={t.actualR == null ? 'אין stop price מוגדר' : undefined}
                       className={cn('px-3 py-2 font-mono text-xs whitespace-nowrap',
-                        t.actualR != null && t.actualR > 0 ? 'text-[#2CC84A]' :
-                        t.actualR != null && t.actualR < 0 ? 'text-[#FF4D4D]' : 'text-[#B0B0B0]'
+                        t.actualR != null && t.actualR > 0 ? 'text-green' :
+                        t.actualR != null && t.actualR < 0 ? 'text-red' : 'text-text-dim'
                       )}
                     >
                       {fmtR(t.actualR)}
                     </td>
                     <td className={cn('px-3 py-2 font-mono text-xs whitespace-nowrap',
-                      t.realizedPnl != null && t.realizedPnl > 0 ? 'text-[#2CC84A]' :
-                      t.realizedPnl != null && t.realizedPnl < 0 ? 'text-[#FF4D4D]' : 'text-[#B0B0B0]'
+                      t.realizedPnl != null && t.realizedPnl > 0 ? 'text-green' :
+                      t.realizedPnl != null && t.realizedPnl < 0 ? 'text-red' : 'text-text-dim'
                     )}>
                       {t.realizedPnl != null ? formatUsd(t.realizedPnl) : '—'}
                     </td>
-                    <td className="px-3 py-2 font-mono text-sm text-[#B0B0B0]">
+                    <td className="px-3 py-2 font-mono text-sm text-text-dim">
                       {t.totalCommission != null ? formatUsd(-Math.abs(t.totalCommission)) : '—'}
                     </td>
                     <td className={cn('px-3 py-2 text-xs font-mono', resultColor(t.result, t.status))}>
-                      {resultLabel(t.result, t.status)}
+                      <span aria-hidden="true">{resultGlyph(t.result, t.status)}</span> {resultLabel(t.result, t.status)}
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap" onClick={e => e.stopPropagation()}>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1.5">
                         <button
                           type="button"
                           onClick={() => setSelected({ trade: t, mode: 'edit' })}
+                          aria-label={`עריכת הערות של ${t.ticker}`}
                           title="עריכת הערות"
-                          className="text-[#B0B0B0] hover:text-[#FFB800] transition-colors p-1 border border-[#222222] rounded"
+                          className="w-11 h-11 inline-flex items-center justify-center text-text-dim hover:text-amber transition-colors border border-border rounded"
                         >
                           {/* pencil icon */}
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                             <path d="M12 20h9" />
                             <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
                           </svg>
@@ -426,11 +457,12 @@ export function TradeSearch({ trades, initialParams }: Props) {
                           <button
                             type="button"
                             onClick={() => setClosing(t)}
+                            aria-label={`סגירת טרייד ${t.ticker}`}
                             title="סגירת טרייד"
-                            className="text-[#B0B0B0] hover:text-[#2CC84A] transition-colors p-1 border border-[#222222] rounded"
+                            className="w-11 h-11 inline-flex items-center justify-center text-text-dim hover:text-green transition-colors border border-border rounded"
                           >
                             {/* dollar/close icon */}
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                               <line x1="12" y1="1" x2="12" y2="23" />
                               <path d="M17 5H9.5a3.5 3.5 0 1 0 0 7h5a3.5 3.5 0 1 1 0 7H6" />
                             </svg>
@@ -440,11 +472,12 @@ export function TradeSearch({ trades, initialParams }: Props) {
                           <button
                             type="button"
                             onClick={() => { setDeleteError(''); setDeleting(t) }}
+                            aria-label={`מחיקת טרייד ${t.ticker}`}
                             title="מחיקת טרייד"
-                            className="text-[#B0B0B0] hover:text-[#FF4D4D] transition-colors p-1 border border-[#222222] rounded"
+                            className="w-11 h-11 inline-flex items-center justify-center text-text-dim hover:text-red transition-colors border border-border rounded"
                           >
                             {/* trash icon */}
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                               <polyline points="3 6 5 6 21 6" />
                               <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
                               <path d="M10 11v6M14 11v6" />
@@ -467,17 +500,17 @@ export function TradeSearch({ trades, initialParams }: Props) {
             <button
               onClick={() => setPage(p => Math.max(0, p - 1))}
               disabled={page === 0}
-              className="px-3 py-1 text-sm font-mono border border-[#222222] rounded text-[#B0B0B0] hover:text-[#E0E0E0] hover:border-[#444444] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="px-4 min-h-11 text-sm font-mono border border-border rounded text-text-dim hover:text-text-main hover:border-shade-2 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               ← הקודם
             </button>
-            <span className="text-sm text-[#B0B0B0] font-mono">
+            <span className="text-sm text-text-dim font-mono">
               {page + 1} / {pageCount}
             </span>
             <button
               onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
               disabled={page >= pageCount - 1}
-              className="px-3 py-1 text-sm font-mono border border-[#222222] rounded text-[#B0B0B0] hover:text-[#E0E0E0] hover:border-[#444444] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="px-4 min-h-11 text-sm font-mono border border-border rounded text-text-dim hover:text-text-main hover:border-shade-2 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               הבא →
             </button>
@@ -526,31 +559,31 @@ export function TradeSearch({ trades, initialParams }: Props) {
         <div className="fixed inset-0 z-50 flex items-center justify-center" dir="rtl">
           <div className="absolute inset-0 bg-black/60" onClick={() => !deletingBusy && setDeleting(null)} />
           <div role="dialog" aria-modal="true" aria-labelledby="delete-trade-title"
-            className="relative bg-[#111111] border border-[#222222] rounded-lg w-full max-w-md mx-4 shadow-2xl">
-            <div className="px-5 py-4 border-b border-[#222222]">
-              <h3 id="delete-trade-title" className="text-base font-sans font-semibold text-[#E0E0E0]">
+            className="relative bg-panel border border-border rounded-lg w-full max-w-md mx-4 shadow-2xl">
+            <div className="px-5 py-4 border-b border-border">
+              <h3 id="delete-trade-title" className="text-base font-sans font-semibold text-text-main">
                 מחיקת טרייד
               </h3>
             </div>
             <div className="px-5 py-4 space-y-3">
-              <p className="text-sm text-[#E0E0E0]">
-                האם למחוק את הטרייד <span className="font-mono font-semibold text-[#FFB800]">{deleting.ticker}</span>?
+              <p className="text-sm text-text-main">
+                האם למחוק את הטרייד <span className="font-mono font-semibold text-amber">{deleting.ticker}</span>?
               </p>
-              <p className="text-sm text-[#B0B0B0]">
+              <p className="text-sm text-text-dim">
                 כל ה-Orders המשויכים יימחקו גם הם. פעולה זו אינה הפיכה.
               </p>
               {deleteError && (
-                <p className="text-sm text-[#FF4D4D] bg-[#1A0A0A] border border-[#FF4D4D]/40 rounded px-3 py-2">
+                <p className="text-sm text-red bg-red-tint border border-red/40 rounded px-3 py-2">
                   מחיקה נכשלה: {deleteError}
                 </p>
               )}
             </div>
-            <div className="px-5 py-4 border-t border-[#222222] flex items-center justify-end gap-2">
+            <div className="px-5 py-4 border-t border-border flex items-center justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setDeleting(null)}
                 disabled={deletingBusy}
-                className="px-3 py-1.5 text-sm font-sans text-[#B0B0B0] hover:text-[#E0E0E0] border border-[#333333] rounded transition-colors disabled:opacity-50"
+                className="px-3 py-1.5 text-sm font-sans text-text-dim hover:text-text-main border border-shade rounded transition-colors disabled:opacity-50"
               >
                 ביטול
               </button>
@@ -558,7 +591,7 @@ export function TradeSearch({ trades, initialParams }: Props) {
                 type="button"
                 onClick={confirmDelete}
                 disabled={deletingBusy}
-                className="px-3 py-1.5 text-sm font-sans text-white bg-[#FF4D4D] hover:bg-[#FF6666] rounded transition-colors disabled:opacity-50"
+                className="px-3 py-1.5 text-sm font-sans text-white bg-red hover:bg-red/80 rounded transition-colors disabled:opacity-50"
               >
                 {deletingBusy ? 'מוחק…' : 'מחק'}
               </button>

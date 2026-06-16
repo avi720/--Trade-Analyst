@@ -101,7 +101,7 @@ export function ChartCard({
     if (saved?.h && saved.h >= MIN_CHART_H) inner.style.height = saved.h + 'px'
   }, [chartId])
 
-  function handleMouseDown(e: React.MouseEvent<HTMLSpanElement>) {
+  function handlePointerDown(e: React.PointerEvent<HTMLSpanElement>) {
     e.preventDefault()
     const panel = panelRef.current
     const inner = innerRef.current
@@ -109,6 +109,9 @@ export function ChartCard({
     const p = panel
     const i = inner
     const startX = e.clientX
+    const handle = e.currentTarget
+    const pointerId = e.pointerId
+    try { handle.setPointerCapture(pointerId) } catch { /* ignore */ }
 
     function findScroller(start: HTMLElement): HTMLElement {
       let el: HTMLElement | null = start.parentElement
@@ -138,7 +141,7 @@ export function ChartCard({
       if (scrollTimer) { clearInterval(scrollTimer); scrollTimer = null }
     }
 
-    function updateSize(ev: MouseEvent) {
+    function updateSize(ev: PointerEvent) {
       const innerRect = i.getBoundingClientRect()
       const newH = Math.max(MIN_CHART_H, ev.clientY - innerRect.top)
       i.style.height = newH + 'px'
@@ -147,8 +150,8 @@ export function ChartCard({
       }
     }
 
-    let lastMoveEv: MouseEvent | null = null
-    function onMove(ev: MouseEvent) {
+    let lastMoveEv: PointerEvent | null = null
+    function onMove(ev: PointerEvent) {
       lastMoveEv = ev
       updateSize(ev)
       const vh = window.innerHeight
@@ -159,13 +162,16 @@ export function ChartCard({
     }
     function onUp() {
       stopScroll()
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
+      try { handle.releasePointerCapture(pointerId) } catch { /* ignore */ }
       saveChartSize(chartId, { h: i.offsetHeight })
       onWidthDragEnd?.()
     }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
   }
 
   return (
@@ -175,7 +181,7 @@ export function ChartCard({
       className="panel p-4 flex flex-col gap-3 relative min-w-0"
     >
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h2 className="text-[#B0B0B0] text-sm font-sans flex items-center gap-2">
+        <h2 className="text-text-dim text-sm font-sans flex items-center gap-2">
           <span>{title}</span>
           {info && <InfoTooltip label={`מידע על ${title}`}>{info}</InfoTooltip>}
         </h2>
@@ -200,11 +206,14 @@ export function ChartCard({
       {/* Custom resize handle. For left-side charts (second in pair, RTL) the
           handle moves to the bottom-right (the inner edge, toward the center)
           so the user expands the chart toward the visible center of the page. */}
+      {/* Resize grip: mouse/touch/pen drag changes width + height. No
+          keyboard equivalent is provided (out of scope per UI-AUDIT F19),
+          so we use a non-semantic role rather than role="separator". */}
       <span
-        onMouseDown={handleMouseDown}
+        onPointerDown={handlePointerDown}
         aria-label="שינוי גודל גרף"
-        role="separator"
-        className={`absolute bottom-1 ${pairPosition === 'second' ? 'right-1' : 'left-1'} w-3.5 h-3.5 cursor-nwse-resize text-[#666] hover:text-[#FFB800] select-none`}
+        role="presentation"
+        className={`absolute bottom-1 ${pairPosition === 'second' ? 'right-1' : 'left-1'} w-3.5 h-3.5 cursor-nwse-resize text-text-fade hover:text-amber select-none touch-none`}
         style={{ lineHeight: 1 }}
       >
         <svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true" style={pairPosition === 'second' ? { transform: 'scaleX(-1)' } : undefined}>
@@ -342,7 +351,7 @@ export function DayHourInner({
   return (
     <div ref={wrapperRef} className="flex flex-col gap-2 h-full">
       <div>
-        <h3 className="text-[#B0B0B0] text-sm font-sans mb-1">לפי יום שבוע</h3>
+        <h3 className="text-text-dim text-sm font-sans mb-1">לפי יום שבוע</h3>
         <ResponsiveContainer width="100%" height={subH}>
           <BarChart data={dayofweek} margin={{ top: 0, right: 5, bottom: 0, left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
@@ -359,7 +368,7 @@ export function DayHourInner({
       </div>
       {hasHour && (
         <div>
-          <h3 className="text-[#B0B0B0] text-sm font-sans mb-1">לפי שעה</h3>
+          <h3 className="text-text-dim text-sm font-sans mb-1">לפי שעה</h3>
           <ResponsiveContainer width="100%" height={subH}>
             <BarChart data={hour} margin={{ top: 0, right: 5, bottom: 0, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
@@ -393,11 +402,11 @@ export function DayHourInner({
 export function MetricCard({ label, value, color, info }: { label: string; value: string; color?: string; info?: React.ReactNode }) {
   return (
     <dl className="panel p-4">
-      <dt className="text-[#B0B0B0] text-sm font-sans mb-1 flex items-center justify-between gap-2">
+      <dt className="text-text-dim text-sm font-sans mb-1 flex items-center justify-between gap-2">
         <span>{label}</span>
         {info && <InfoTooltip label={`מידע על ${label}`}>{info}</InfoTooltip>}
       </dt>
-      <dd className={`text-xl font-mono font-bold truncate m-0 ${color ?? 'text-[#E0E0E0]'}`}>{ltr(value)}</dd>
+      <dd className={`text-xl font-mono font-bold truncate m-0 ${color ?? 'text-text-main'}`}>{ltr(value)}</dd>
     </dl>
   )
 }

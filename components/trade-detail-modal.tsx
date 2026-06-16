@@ -113,9 +113,9 @@ export function TradeDetailModal({ trade, mode = 'edit', onClose, onSaved }: Pro
 
   const dialogRef = useModalDialog(onClose)
 
-  const inputCls = 'w-full bg-[#080808] border border-[#222222] rounded px-2 py-1.5 text-sm text-[#E0E0E0] placeholder-[#444444] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2 focus:border-[#444444]' + (readOnly ? ' opacity-70 cursor-not-allowed' : '')
+  const inputCls = 'w-full bg-bg-dark border border-border rounded px-2 py-1.5 text-sm text-text-main placeholder-text-mute outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2 focus:border-shade-2' + (readOnly ? ' opacity-70 cursor-not-allowed' : '')
   const selectCls = inputCls + (readOnly ? '' : ' cursor-pointer')
-  const labelCls = 'text-sm text-[#B0B0B0] font-mono block mb-1'
+  const labelCls = 'text-sm text-text-dim font-mono block mb-1'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -127,21 +127,21 @@ export function TradeDetailModal({ trade, mode = 'edit', onClose, onSaved }: Pro
         aria-modal="true"
         aria-labelledby="trade-detail-title"
         tabIndex={-1}
-        className="relative bg-[#111111] border border-[#222222] rounded-lg w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto shadow-2xl"
+        className="relative bg-panel border border-border rounded-lg w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto shadow-2xl"
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#222222]">
-          <span className="text-sm text-[#B0B0B0] font-mono">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <span className="text-sm text-text-dim font-mono">
             {trade.status === 'Open' ? 'פתוח' : 'סגור'} · {readOnly ? 'צפייה' : 'עריכה'}
-            {trade.source === 'manual' && <span className="text-[#FFB800]"> · ידני</span>}
+            {trade.source === 'manual' && <span className="text-amber"> · ידני</span>}
           </span>
-          <h2 id="trade-detail-title" className="font-mono font-bold text-[#FFB800] text-lg">
+          <h2 id="trade-detail-title" className="font-mono font-bold text-amber text-lg">
             {trade.ticker} — {trade.direction}
           </h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="סגור חלון פרטי טרייד"
-            className="w-11 h-11 flex items-center justify-center text-[#B0B0B0] hover:text-[#E0E0E0] text-2xl leading-none rounded transition-colors"
+            className="w-11 h-11 flex items-center justify-center text-text-dim hover:text-text-main text-2xl leading-none rounded transition-colors"
           >
             ×
           </button>
@@ -160,24 +160,24 @@ export function TradeDetailModal({ trade, mode = 'edit', onClose, onSaved }: Pro
               ['עמ׳', trade.totalCommission != null ? `$${Math.abs(trade.totalCommission).toFixed(2)}` : '—'],
               ['תוצאה', trade.result ?? '—'],
             ].map(([label, val]) => (
-              <div key={label} className="bg-[#0D0D0D] border border-[#1A1A1A] rounded p-2">
-                <div className="text-sm text-[#B0B0B0] font-mono">{label}</div>
-                <div className="text-[#E0E0E0] font-mono text-sm mt-0.5">{val}</div>
+              <div key={label} className="bg-panel-2 border border-input-bg rounded p-2">
+                <div className="text-sm text-text-dim font-mono">{label}</div>
+                <div className="text-text-main font-mono text-sm mt-0.5">{val}</div>
               </div>
             ))}
           </div>
 
           <div>
-            <h3 className="text-sm font-mono text-[#B0B0B0] mb-2">ביצועים (Orders)</h3>
+            <h3 className="text-sm font-mono text-text-dim mb-2">ביצועים (Orders)</h3>
             {loadingOrders ? (
-              <div className="text-sm text-[#B0B0B0] font-mono">טוען…</div>
+              <div className="text-sm text-text-dim font-mono">טוען…</div>
             ) : orders.length === 0 ? (
-              <div className="text-sm text-[#B0B0B0] font-mono">אין ביצועים</div>
+              <div className="text-sm text-text-dim font-mono">אין ביצועים</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-xs font-mono">
                   <thead>
-                    <tr className="border-b border-[#1A1A1A] text-[#B0B0B0]">
+                    <tr className="border-b border-input-bg text-text-dim">
                       <th className="text-right py-1 px-2">תאריך/שעה</th>
                       <th className="text-right py-1 px-2">צד</th>
                       <th className="text-right py-1 px-2">כמות</th>
@@ -188,13 +188,13 @@ export function TradeDetailModal({ trade, mode = 'edit', onClose, onSaved }: Pro
                   </thead>
                   <tbody>
                     {orders.map(o => (
-                      <tr key={o.id} className="border-b border-[#0D0D0D]">
-                        <td className="py-1 px-2 text-[#B0B0B0]">{fmtDate(o.executedAt)}</td>
-                        <td className={`py-1 px-2 ${o.side === 'BUY' ? 'text-[#2CC84A]' : 'text-[#FF4D4D]'}`}>{o.side}</td>
-                        <td className="py-1 px-2 text-[#E0E0E0]">{o.quantity}</td>
-                        <td className="py-1 px-2 text-[#E0E0E0]">${o.price.toFixed(2)}</td>
-                        <td className="py-1 px-2 text-[#B0B0B0]">{o.commission != null ? `$${o.commission.toFixed(2)}` : '—'}</td>
-                        <td className="py-1 px-2 text-[#B0B0B0]">{o.currency ?? '—'}</td>
+                      <tr key={o.id} className="border-b border-panel-2">
+                        <td className="py-1 px-2 text-text-dim">{fmtDate(o.executedAt)}</td>
+                        <td className={`py-1 px-2 ${o.side === 'BUY' ? 'text-green' : 'text-red'}`}>{o.side}</td>
+                        <td className="py-1 px-2 text-text-main">{o.quantity}</td>
+                        <td className="py-1 px-2 text-text-main">${o.price.toFixed(2)}</td>
+                        <td className="py-1 px-2 text-text-dim">{o.commission != null ? `$${o.commission.toFixed(2)}` : '—'}</td>
+                        <td className="py-1 px-2 text-text-dim">{o.currency ?? '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -204,7 +204,7 @@ export function TradeDetailModal({ trade, mode = 'edit', onClose, onSaved }: Pro
           </div>
 
           <div>
-            <h3 className="text-sm font-mono text-[#B0B0B0] mb-3">{readOnly ? 'הערות אישיות' : 'עריכה'}</h3>
+            <h3 className="text-sm font-mono text-text-dim mb-3">{readOnly ? 'הערות אישיות' : 'עריכה'}</h3>
             <fieldset disabled={readOnly} className="flex flex-col gap-3">
               <SetupTypeInput
                 value={setupType}
@@ -250,7 +250,7 @@ export function TradeDetailModal({ trade, mode = 'edit', onClose, onSaved }: Pro
           </div>
 
           {saveError && (
-            <div className="text-xs text-[#FF4D4D] font-mono">{saveError}</div>
+            <div className="text-xs text-red font-mono">{saveError}</div>
           )}
 
           <div className="flex gap-2 justify-start">
@@ -258,14 +258,14 @@ export function TradeDetailModal({ trade, mode = 'edit', onClose, onSaved }: Pro
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="px-4 py-2 bg-[#FFB800] text-black text-sm font-mono font-semibold rounded hover:bg-[#e0a200] disabled:opacity-50 transition-colors"
+                className="px-4 py-2 bg-amber text-black text-sm font-mono font-semibold rounded hover:bg-amber-dark disabled:opacity-50 transition-colors"
               >
                 {saving ? 'שומר…' : 'שמור'}
               </button>
             )}
             <button
               onClick={onClose}
-              className="px-4 py-2 border border-[#222222] text-[#B0B0B0] text-sm font-mono rounded hover:text-[#E0E0E0] hover:border-[#444444] transition-colors"
+              className="px-4 py-2 border border-border text-text-dim text-sm font-mono rounded hover:text-text-main hover:border-shade-2 transition-colors"
             >
               {readOnly ? 'סגור' : 'ביטול'}
             </button>

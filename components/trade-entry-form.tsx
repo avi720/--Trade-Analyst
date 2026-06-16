@@ -30,9 +30,9 @@ interface Result {
 }
 
 const inputCls =
-  'w-full bg-[#080808] border border-[#222222] rounded px-2 py-1.5 text-sm text-[#E0E0E0] placeholder-[#444444] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2 focus:border-[#444444]'
+  'w-full bg-bg-dark border border-border rounded px-2 py-1.5 text-sm text-text-main placeholder-text-mute outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2 focus:border-shade-2'
 const selectCls = inputCls + ' cursor-pointer'
-const labelCls = 'block text-sm font-mono text-[#B0B0B0] mb-1'
+const labelCls = 'block text-sm font-mono text-text-dim mb-1'
 
 interface LegCardProps {
   leg: ManualLeg
@@ -48,21 +48,21 @@ function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCar
   const [showAnnotations, setShowAnnotations] = useState(false)
 
   return (
-    <div className="bg-[#111111] border border-[#222222] rounded-lg overflow-hidden">
+    <div className="bg-panel border border-border rounded-lg overflow-hidden">
       {/* Card header */}
-      <div className="flex items-center justify-between px-4 py-2 bg-[#0D0D0D] border-b border-[#1A1A1A]">
+      <div className="flex items-center justify-between px-4 py-2 bg-panel-2 border-b border-input-bg">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-mono text-[#444444]">#{index + 1}</span>
+          <span className="text-xs font-mono text-text-faint">#{index + 1}</span>
           {leg.ticker && (
-            <span className="text-xs font-mono font-semibold text-[#FFB800] bg-[#FFB800]/10 px-2 py-0.5 rounded">
+            <span className="text-xs font-mono font-semibold text-amber bg-amber/10 px-2 py-0.5 rounded">
               {leg.ticker}
             </span>
           )}
           <span
             className={`text-xs font-mono px-2 py-0.5 rounded ${
               leg.side === 'BUY'
-                ? 'text-[#2CC84A] bg-[#2CC84A]/10'
-                : 'text-[#FF4D4D] bg-[#FF4D4D]/10'
+                ? 'text-green bg-green/10'
+                : 'text-red bg-red/10'
             }`}
           >
             {leg.side === 'BUY' ? 'Long' : 'Short'}
@@ -72,7 +72,7 @@ function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCar
           type="button"
           onClick={onRemove}
           disabled={!canRemove}
-          className="text-[#B0B0B0] hover:text-[#FF4D4D] disabled:opacity-20 text-xl leading-none transition-colors"
+          className="text-text-dim hover:text-red disabled:opacity-20 text-xl leading-none transition-colors"
           title="הסר ביצוע"
         >
           ×
@@ -83,7 +83,7 @@ function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCar
         {/* ── Section 1: ביצוע (always visible) ── */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <div>
-            <label htmlFor={`leg-${index}-ticker`} className={labelCls}>טיקר <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+            <label htmlFor={`leg-${index}-ticker`} className={labelCls}>טיקר <span className="text-amber" aria-hidden="true">*</span></label>
             <input
               id={`leg-${index}-ticker`}
               type="text"
@@ -97,7 +97,7 @@ function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCar
             />
           </div>
           <div>
-            <label htmlFor={`leg-${index}-side`} className={labelCls}>צד <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+            <label htmlFor={`leg-${index}-side`} className={labelCls}>צד <span className="text-amber" aria-hidden="true">*</span></label>
             <select
               id={`leg-${index}-side`}
               value={leg.side}
@@ -110,7 +110,7 @@ function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCar
             </select>
           </div>
           <div>
-            <label htmlFor={`leg-${index}-date`} className={labelCls}>תאריך ביצוע <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+            <label htmlFor={`leg-${index}-date`} className={labelCls}>תאריך ביצוע <span className="text-amber" aria-hidden="true">*</span></label>
             <input
               id={`leg-${index}-date`}
               type="date"
@@ -121,7 +121,7 @@ function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCar
             />
           </div>
           <div>
-            <label htmlFor={`leg-${index}-time`} className={labelCls}>שעת ביצוע <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+            <label htmlFor={`leg-${index}-time`} className={labelCls}>שעת ביצוע <span className="text-amber" aria-hidden="true">*</span></label>
             <input
               id={`leg-${index}-time`}
               type="time"
@@ -131,13 +131,13 @@ function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCar
               aria-required="true"
             />
             {toUtcPreview(leg.date, leg.time, timezone) && (
-              <span className="text-[10px] font-mono text-[#B0B0B0] mt-0.5 block">
+              <span className="text-[10px] font-mono text-text-dim mt-0.5 block">
                 = {toUtcPreview(leg.date, leg.time, timezone)}
               </span>
             )}
           </div>
           <div>
-            <label htmlFor={`leg-${index}-quantity`} className={labelCls}>כמות <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+            <label htmlFor={`leg-${index}-quantity`} className={labelCls}>כמות <span className="text-amber" aria-hidden="true">*</span></label>
             <input
               id={`leg-${index}-quantity`}
               type="number"
@@ -151,7 +151,7 @@ function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCar
             />
           </div>
           <div>
-            <label htmlFor={`leg-${index}-price`} className={labelCls}>מחיר <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+            <label htmlFor={`leg-${index}-price`} className={labelCls}>מחיר <span className="text-amber" aria-hidden="true">*</span></label>
             <input
               id={`leg-${index}-price`}
               type="number"
@@ -165,7 +165,7 @@ function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCar
             />
           </div>
           <div>
-            <label htmlFor={`leg-${index}-commission`} className={labelCls}>עמלה <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+            <label htmlFor={`leg-${index}-commission`} className={labelCls}>עמלה <span className="text-amber" aria-hidden="true">*</span></label>
             <input
               id={`leg-${index}-commission`}
               type="number"
@@ -179,7 +179,7 @@ function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCar
             />
           </div>
           <div>
-            <label htmlFor={`leg-${index}-currency`} className={labelCls}>מטבע <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+            <label htmlFor={`leg-${index}-currency`} className={labelCls}>מטבע <span className="text-amber" aria-hidden="true">*</span></label>
             <select
               id={`leg-${index}-currency`}
               value={leg.currency}
@@ -201,17 +201,18 @@ function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCar
         </div>
 
         {/* ── Section 2: פרטי הזמנה (collapsible) ── */}
-        <div className="border border-[#1A1A1A] rounded">
+        <div className="border border-input-bg rounded">
           <button
             type="button"
             onClick={() => setShowOrderDetails(v => !v)}
-            className="w-full flex items-center justify-between px-3 py-2 text-xs font-mono text-[#666666] hover:text-[#E0E0E0] transition-colors"
+            aria-expanded={showOrderDetails}
+            className="w-full flex items-center justify-between px-3 py-2 text-xs font-mono text-text-fade hover:text-text-main transition-colors"
           >
             <span>פרטי הזמנה</span>
-            <span className="text-[#444444] text-[10px]">{showOrderDetails ? '▲' : '▼'}</span>
+            <span aria-hidden="true" className="text-text-faint text-[10px]">{showOrderDetails ? '▲' : '▼'}</span>
           </button>
           {showOrderDetails && (
-            <div className="px-3 pb-3 pt-3 grid grid-cols-2 sm:grid-cols-3 gap-3 border-t border-[#1A1A1A]">
+            <div className="px-3 pb-3 pt-3 grid grid-cols-2 sm:grid-cols-3 gap-3 border-t border-input-bg">
               <div>
                 <label htmlFor={`leg-${index}-commission-currency`} className={labelCls}>מטבע עמלה</label>
                 <select
@@ -252,7 +253,7 @@ function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCar
                   />
                   {!leg.orderPlacedDate && (
                     <span aria-hidden="true"
-                      className="absolute top-1/2 right-2 -translate-y-1/2 pointer-events-none text-sm font-mono text-[#444444] tracking-tight">
+                      className="absolute top-1/2 right-2 -translate-y-1/2 pointer-events-none text-sm font-mono text-text-faint tracking-tight">
                       DD / MM / YYYY
                     </span>
                   )}
@@ -268,7 +269,7 @@ function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCar
                   className={inputCls}
                 />
                 {leg.orderPlacedDate && toUtcPreview(leg.orderPlacedDate, leg.orderPlacedTime ?? '', timezone) && (
-                  <span className="text-[10px] font-mono text-[#B0B0B0] mt-0.5 block">
+                  <span className="text-[10px] font-mono text-text-dim mt-0.5 block">
                     = {toUtcPreview(leg.orderPlacedDate, leg.orderPlacedTime ?? '', timezone)}
                   </span>
                 )}
@@ -319,17 +320,18 @@ function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCar
         </div>
 
         {/* ── Section 3: הערות אישיות (collapsible) ── */}
-        <div className="border border-[#1A1A1A] rounded">
+        <div className="border border-input-bg rounded">
           <button
             type="button"
             onClick={() => setShowAnnotations(v => !v)}
-            className="w-full flex items-center justify-between px-3 py-2 text-xs font-mono text-[#666666] hover:text-[#E0E0E0] transition-colors"
+            aria-expanded={showAnnotations}
+            className="w-full flex items-center justify-between px-3 py-2 text-xs font-mono text-text-fade hover:text-text-main transition-colors"
           >
             <span>הערות אישיות</span>
-            <span className="text-[#444444] text-[10px]">{showAnnotations ? '▲' : '▼'}</span>
+            <span aria-hidden="true" className="text-text-faint text-[10px]">{showAnnotations ? '▲' : '▼'}</span>
           </button>
           {showAnnotations && (
-            <div className="px-3 pb-3 pt-3 flex flex-col gap-3 border-t border-[#1A1A1A]">
+            <div className="px-3 pb-3 pt-3 flex flex-col gap-3 border-t border-input-bg">
               <SetupTypeInput
                 value={leg.setupType}
                 onChange={v => onChange({ setupType: v })}
@@ -427,16 +429,16 @@ export function TradeEntryForm() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="font-mono text-[#E0E0E0] text-sm">הזנת ביצועים ידנית</h2>
-        <span className="text-sm text-[#B0B0B0] font-mono">כל כרטיס = ביצוע אחד (leg)</span>
+        <h2 className="font-mono text-text-main text-sm">הזנת ביצועים ידנית</h2>
+        <span className="text-sm text-text-dim font-mono">כל כרטיס = ביצוע אחד (leg)</span>
       </div>
 
-      <div className="flex items-center gap-2 text-sm font-mono text-[#B0B0B0]">
+      <div className="flex items-center gap-2 text-sm font-mono text-text-dim">
         <span>אזור זמן:</span>
         <select
           value={timezone}
           onChange={e => setTimezone(e.target.value)}
-          className="bg-[#080808] border border-[#222222] rounded px-2 py-1 text-xs text-[#E0E0E0] cursor-pointer"
+          className="bg-bg-dark border border-border rounded px-2 py-1 text-xs text-text-main cursor-pointer"
         >
           {TRADE_TIMEZONES.map(tz => (
             <option key={tz.value} value={tz.value}>{tz.label}</option>
@@ -462,7 +464,7 @@ export function TradeEntryForm() {
         <button
           type="button"
           onClick={addLeg}
-          className="text-sm font-mono text-[#B0B0B0] hover:text-[#FFB800] border border-[#222222] rounded px-3 py-1.5 transition-colors"
+          className="text-sm font-mono text-text-dim hover:text-amber border border-border rounded px-3 py-1.5 transition-colors"
         >
           + הוסף ביצוע
         </button>
@@ -470,36 +472,36 @@ export function TradeEntryForm() {
           type="button"
           onClick={handleSubmit}
           disabled={submitting || legs.length === 0}
-          className="px-4 py-1.5 bg-[#FFB800] text-black text-sm font-mono font-semibold rounded hover:bg-[#e0a200] disabled:opacity-50 transition-colors mr-auto"
+          className="px-4 py-1.5 bg-amber text-black text-sm font-mono font-semibold rounded hover:bg-amber-dark disabled:opacity-50 transition-colors mr-auto"
         >
           {submitting ? 'שולח…' : 'שלח לעיבוד'}
         </button>
       </div>
 
       {error && (
-        <div className="text-xs text-[#FF4D4D] font-mono border border-[#FF4D4D]/20 bg-[#FF4D4D]/5 rounded px-3 py-2">
+        <div className="text-xs text-red font-mono border border-red/20 bg-red/5 rounded px-3 py-2">
           {error}
         </div>
       )}
 
       {result && (
-        <div className="text-xs font-mono border border-[#222222] rounded px-3 py-2 flex flex-col gap-1">
+        <div className="text-xs font-mono border border-border rounded px-3 py-2 flex flex-col gap-1">
           <div className="flex gap-4">
-            <span className="text-[#2CC84A]">עובדו: {result.processed}</span>
-            <span className="text-[#B0B0B0]">כפולים: {result.skipped}</span>
+            <span className="text-green">עובדו: {result.processed}</span>
+            <span className="text-text-dim">כפולים: {result.skipped}</span>
             {result.failed > 0 && (
-              <span className="text-[#FF4D4D]">נכשלו: {result.failed}</span>
+              <span className="text-red">נכשלו: {result.failed}</span>
             )}
           </div>
           {result.errors.map((e, i) => (
-            <div key={i} className="text-[#FF4D4D]">
+            <div key={i} className="text-red">
               {e}
             </div>
           ))}
         </div>
       )}
 
-      <div className="text-xs text-[#444444] font-mono border-t border-[#1A1A1A] pt-3">
+      <div className="text-xs text-text-faint font-mono border-t border-input-bg pt-3">
         הביצועים עוברים דרך אותו pipeline FIFO כמו IBKR — כפולים (לפי brokerExecId) יידחו אוטומטית
       </div>
     </div>

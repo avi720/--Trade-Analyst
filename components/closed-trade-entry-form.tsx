@@ -24,9 +24,9 @@ const EMPTY_OPEN = (): ManualLeg => ({
 })
 
 const inputCls =
-  'w-full bg-[#080808] border border-[#222222] rounded px-2 py-1.5 text-sm text-[#E0E0E0] placeholder-[#444444] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2 focus:border-[#444444]'
+  'w-full bg-bg-dark border border-border rounded px-2 py-1.5 text-sm text-text-main placeholder-text-mute outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2 focus:border-shade-2'
 const selectCls = inputCls + ' cursor-pointer'
-const labelCls = 'block text-sm font-mono text-[#B0B0B0] mb-1'
+const labelCls = 'block text-sm font-mono text-text-dim mb-1'
 
 export function ClosedTradeEntryForm() {
   const [open, setOpen] = useState<ManualLeg>(EMPTY_OPEN())
@@ -97,16 +97,16 @@ export function ClosedTradeEntryForm() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="font-mono text-[#E0E0E0] text-sm">הזנת טרייד שכבר נסגר</h2>
-        <span className="text-sm text-[#B0B0B0] font-mono">פתיחה + סגירה בטופס אחד</span>
+        <h2 className="font-mono text-text-main text-sm">הזנת טרייד שכבר נסגר</h2>
+        <span className="text-sm text-text-dim font-mono">פתיחה + סגירה בטופס אחד</span>
       </div>
 
-      <div className="flex items-center gap-2 text-sm font-mono text-[#B0B0B0]">
+      <div className="flex items-center gap-2 text-sm font-mono text-text-dim">
         <span>אזור זמן:</span>
         <select
           value={timezone}
           onChange={e => setTimezone(e.target.value)}
-          className="bg-[#080808] border border-[#222222] rounded px-2 py-1 text-xs text-[#E0E0E0] cursor-pointer"
+          className="bg-bg-dark border border-border rounded px-2 py-1 text-xs text-text-main cursor-pointer"
         >
           {TRADE_TIMEZONES.map(tz => (
             <option key={tz.value} value={tz.value}>{tz.label}</option>
@@ -115,59 +115,59 @@ export function ClosedTradeEntryForm() {
       </div>
 
       {/* ── Open section ─────────────────────────────────────────────── */}
-      <div className="bg-[#111111] border border-[#222222] rounded-lg overflow-hidden">
-        <div className="px-4 py-2 bg-[#0D0D0D] border-b border-[#1A1A1A] text-xs font-mono text-[#FFB800]">
+      <div className="bg-panel border border-border rounded-lg overflow-hidden">
+        <div className="px-4 py-2 bg-panel-2 border-b border-input-bg text-xs font-mono text-amber">
           פתיחת הטרייד
         </div>
         <div className="p-4 flex flex-col gap-3">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
-              <label htmlFor="open-ticker" className={labelCls}>טיקר <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+              <label htmlFor="open-ticker" className={labelCls}>טיקר <span className="text-amber" aria-hidden="true">*</span></label>
               <input id="open-ticker" type="text"
                 value={open.ticker}
                 onChange={e => patchOpen({ ticker: e.target.value.toUpperCase().replace(/[^A-Z.]/g, '') })}
                 className={inputCls} placeholder="AAPL" aria-required="true" />
             </div>
             <div>
-              <label htmlFor="open-side" className={labelCls}>צד <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+              <label htmlFor="open-side" className={labelCls}>צד <span className="text-amber" aria-hidden="true">*</span></label>
               <select id="open-side" value={open.side} onChange={e => patchOpen({ side: e.target.value as 'BUY' | 'SELL' })} className={selectCls} aria-required="true">
                 <option value="BUY">Long</option>
                 <option value="SELL">Short</option>
               </select>
             </div>
             <div>
-              <label htmlFor="open-date" className={labelCls}>תאריך <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+              <label htmlFor="open-date" className={labelCls}>תאריך <span className="text-amber" aria-hidden="true">*</span></label>
               <input id="open-date" type="date" value={open.date} onChange={e => patchOpen({ date: e.target.value })} className={inputCls} aria-required="true" />
             </div>
             <div>
-              <label htmlFor="open-time" className={labelCls}>שעה <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+              <label htmlFor="open-time" className={labelCls}>שעה <span className="text-amber" aria-hidden="true">*</span></label>
               <input id="open-time" type="time" value={open.time} onChange={e => patchOpen({ time: e.target.value })} className={inputCls} aria-required="true" />
               {toUtcPreview(open.date, open.time, timezone) && (
-                <span className="text-[10px] font-mono text-[#B0B0B0] mt-0.5 block">
+                <span className="text-[10px] font-mono text-text-dim mt-0.5 block">
                   = {toUtcPreview(open.date, open.time, timezone)}
                 </span>
               )}
             </div>
             <div>
-              <label htmlFor="open-quantity" className={labelCls}>כמות <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+              <label htmlFor="open-quantity" className={labelCls}>כמות <span className="text-amber" aria-hidden="true">*</span></label>
               <input id="open-quantity" type="number" min="0" step="1" value={open.quantity || ''}
                 onChange={e => patchOpen({ quantity: parseFloat(e.target.value) || 0 })}
                 className={inputCls} placeholder="100" aria-required="true" />
             </div>
             <div>
-              <label htmlFor="open-price" className={labelCls}>מחיר <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+              <label htmlFor="open-price" className={labelCls}>מחיר <span className="text-amber" aria-hidden="true">*</span></label>
               <input id="open-price" type="number" min="0" step="0.01" value={open.price || ''}
                 onChange={e => patchOpen({ price: parseFloat(e.target.value) || 0 })}
                 className={inputCls} placeholder="150.00" aria-required="true" />
             </div>
             <div>
-              <label htmlFor="open-commission" className={labelCls}>עמלה <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+              <label htmlFor="open-commission" className={labelCls}>עמלה <span className="text-amber" aria-hidden="true">*</span></label>
               <input id="open-commission" type="number" min="0" step="0.01" value={open.commission || ''}
                 onChange={e => patchOpen({ commission: parseFloat(e.target.value) || 0 })}
                 className={inputCls} placeholder="1.00" aria-required="true" />
             </div>
             <div>
-              <label htmlFor="open-currency" className={labelCls}>מטבע <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+              <label htmlFor="open-currency" className={labelCls}>מטבע <span className="text-amber" aria-hidden="true">*</span></label>
               <select id="open-currency" value={open.currency}
                 onChange={e => {
                   const c = e.target.value
@@ -184,14 +184,15 @@ export function ClosedTradeEntryForm() {
           </div>
 
           {/* פרטי הזמנה */}
-          <div className="border border-[#1A1A1A] rounded">
+          <div className="border border-input-bg rounded">
             <button type="button" onClick={() => setShowOrderDetails(v => !v)}
-              className="w-full flex items-center justify-between px-3 py-2 text-xs font-mono text-[#666666] hover:text-[#E0E0E0] transition-colors">
+              aria-expanded={showOrderDetails}
+              className="w-full flex items-center justify-between px-3 py-2 text-xs font-mono text-text-fade hover:text-text-main transition-colors">
               <span>פרטי הזמנה</span>
-              <span className="text-[#444444] text-[10px]">{showOrderDetails ? '▲' : '▼'}</span>
+              <span aria-hidden="true" className="text-text-faint text-[10px]">{showOrderDetails ? '▲' : '▼'}</span>
             </button>
             {showOrderDetails && (
-              <div className="px-3 pb-3 pt-3 grid grid-cols-2 sm:grid-cols-3 gap-3 border-t border-[#1A1A1A]">
+              <div className="px-3 pb-3 pt-3 grid grid-cols-2 sm:grid-cols-3 gap-3 border-t border-input-bg">
                 <div>
                   <label htmlFor="open-commission-currency" className={labelCls}>מטבע עמלה</label>
                   <select id="open-commission-currency" value={open.commissionCurrency ?? open.currency}
@@ -219,7 +220,7 @@ export function ClosedTradeEntryForm() {
                       className={inputCls + ' date-uppercase'} dir="ltr" />
                     {!open.orderPlacedDate && (
                       <span aria-hidden="true"
-                        className="absolute top-1/2 right-2 -translate-y-1/2 pointer-events-none text-sm font-mono text-[#444444] tracking-tight">
+                        className="absolute top-1/2 right-2 -translate-y-1/2 pointer-events-none text-sm font-mono text-text-faint tracking-tight">
                         DD / MM / YYYY
                       </span>
                     )}
@@ -231,7 +232,7 @@ export function ClosedTradeEntryForm() {
                     onChange={e => patchOpen({ orderPlacedTime: e.target.value || undefined })}
                     className={inputCls} />
                   {open.orderPlacedDate && toUtcPreview(open.orderPlacedDate, open.orderPlacedTime ?? '', timezone) && (
-                    <span className="text-[10px] font-mono text-[#B0B0B0] mt-0.5 block">
+                    <span className="text-[10px] font-mono text-text-dim mt-0.5 block">
                       = {toUtcPreview(open.orderPlacedDate, open.orderPlacedTime ?? '', timezone)}
                     </span>
                   )}
@@ -267,14 +268,15 @@ export function ClosedTradeEntryForm() {
           </div>
 
           {/* הערות אישיות */}
-          <div className="border border-[#1A1A1A] rounded">
+          <div className="border border-input-bg rounded">
             <button type="button" onClick={() => setShowAnnotations(v => !v)}
-              className="w-full flex items-center justify-between px-3 py-2 text-xs font-mono text-[#666666] hover:text-[#E0E0E0] transition-colors">
+              aria-expanded={showAnnotations}
+              className="w-full flex items-center justify-between px-3 py-2 text-xs font-mono text-text-fade hover:text-text-main transition-colors">
               <span>הערות אישיות (פתיחה)</span>
-              <span className="text-[#444444] text-[10px]">{showAnnotations ? '▲' : '▼'}</span>
+              <span aria-hidden="true" className="text-text-faint text-[10px]">{showAnnotations ? '▲' : '▼'}</span>
             </button>
             {showAnnotations && (
-              <div className="px-3 pb-3 pt-3 flex flex-col gap-3 border-t border-[#1A1A1A]">
+              <div className="px-3 pb-3 pt-3 flex flex-col gap-3 border-t border-input-bg">
                 <SetupTypeInput
                   value={open.setupType}
                   onChange={v => patchOpen({ setupType: v })}
@@ -306,8 +308,8 @@ export function ClosedTradeEntryForm() {
       </div>
 
       {/* ── Close section ──────────────────────────────────────────── */}
-      <div className="bg-[#111111] border border-[#222222] rounded-lg overflow-hidden">
-        <div className="px-4 py-2 bg-[#0D0D0D] border-b border-[#1A1A1A] text-xs font-mono text-[#FFB800]">
+      <div className="bg-panel border border-border rounded-lg overflow-hidden">
+        <div className="px-4 py-2 bg-panel-2 border-b border-input-bg text-xs font-mono text-amber">
           סגירת הטרייד
         </div>
         <div className="p-4">
@@ -324,7 +326,7 @@ export function ClosedTradeEntryForm() {
 
       <div className="flex items-center gap-3">
         <button type="button" onClick={handleSubmit} disabled={submitting}
-          className="px-4 py-1.5 bg-[#FFB800] text-black text-sm font-mono font-semibold rounded hover:bg-[#e0a200] disabled:opacity-50 transition-colors mr-auto">
+          className="px-4 py-1.5 bg-amber text-black text-sm font-mono font-semibold rounded hover:bg-amber-dark disabled:opacity-50 transition-colors mr-auto">
           {submitting ? 'שולח…' : 'שמור טרייד סגור'}
         </button>
       </div>
@@ -332,8 +334,8 @@ export function ClosedTradeEntryForm() {
       {message && (
         <div className={`text-xs font-mono border rounded px-3 py-2 ${
           message.kind === 'ok'
-            ? 'text-[#2CC84A] border-[#2CC84A]/30 bg-[#2CC84A]/5'
-            : 'text-[#FF4D4D] border-[#FF4D4D]/30 bg-[#FF4D4D]/5'
+            ? 'text-green border-green/30 bg-green/5'
+            : 'text-red border-red/30 bg-red/5'
         }`}>
           {message.text}
         </div>

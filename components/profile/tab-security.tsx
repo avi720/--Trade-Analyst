@@ -5,13 +5,13 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff, AlertTriangle } from "lucide-react";
 
 const inputCls =
-  "w-full bg-[#0d0d0d] border border-[#222222] rounded-md px-3 py-2.5 text-sm text-[#E0E0E0] placeholder-[#444444] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2 focus:border-[#FFB800] transition-colors font-mono";
+  "w-full bg-panel-2 border border-border rounded-md px-3 py-2.5 text-sm text-text-main placeholder-text-mute outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2 focus:border-amber transition-colors font-mono";
 
-const labelCls = "block text-xs font-medium text-[#B0B0B0] mb-1.5 uppercase tracking-wider";
+const labelCls = "block text-xs font-medium text-text-dim mb-1.5 uppercase tracking-wider";
 
 function SuccessBanner({ message }: { message: string }) {
   return (
-    <div className="flex items-center gap-2 text-[#2CC84A] text-sm bg-[#0d1f12] border border-[#2CC84A]/20 rounded-md px-4 py-3">
+    <div className="flex items-center gap-2 text-green text-sm bg-green-tint border border-green/20 rounded-md px-4 py-3">
       <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
       </svg>
@@ -22,7 +22,7 @@ function SuccessBanner({ message }: { message: string }) {
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <p className="text-[#FF4D4D] text-sm">{message}</p>
+    <p className="text-red text-sm">{message}</p>
   );
 }
 
@@ -45,7 +45,7 @@ function PasswordInput({ value, onChange, placeholder }: {
       <button
         type="button"
         onClick={() => setShow((s) => !s)}
-        className="absolute left-3 top-1/2 -translate-y-1/2 text-[#B0B0B0] hover:text-[#B0B0B0] transition-colors"
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-text-dim hover:text-text-dim transition-colors"
         tabIndex={-1}
       >
         {show ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -163,14 +163,14 @@ export function TabSecurity({ userEmail }: { userEmail: string }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold text-[#E0E0E0]">אבטחה</h2>
-        <p className="text-sm text-[#B0B0B0] mt-1">שינוי אימייל, סיסמה וניהול חשבון</p>
+        <h2 className="text-lg font-semibold text-text-main">אבטחה</h2>
+        <p className="text-sm text-text-dim mt-1">שינוי אימייל, סיסמה וניהול חשבון</p>
       </div>
 
       {/* Change email */}
       <div className="panel p-5">
-        <h3 className="text-xs font-medium text-[#B0B0B0] uppercase tracking-wider mb-4">שינוי אימייל</h3>
-        <p className="text-sm text-[#B0B0B0] mb-4">אימייל נוכחי: <span className="text-[#B0B0B0] font-mono">{userEmail}</span></p>
+        <h3 className="text-xs font-medium text-text-dim uppercase tracking-wider mb-4">שינוי אימייל</h3>
+        <p className="text-sm text-text-dim mb-4">אימייל נוכחי: <span className="text-text-dim font-mono">{userEmail}</span></p>
         <form onSubmit={handleEmailChange} className="space-y-4">
           <div>
             <label className={labelCls}>אימייל חדש</label>
@@ -188,7 +188,7 @@ export function TabSecurity({ userEmail }: { userEmail: string }) {
           <button
             type="submit"
             disabled={emailSaving || !newEmail}
-            className="px-5 py-2.5 bg-[#FFB800] text-black text-sm font-semibold rounded-md hover:bg-[#e6a600] disabled:opacity-50 transition-colors"
+            className="px-5 py-2.5 bg-amber text-black text-sm font-semibold rounded-md hover:bg-amber-dark disabled:opacity-50 transition-colors"
           >
             {emailSaving ? "מעדכן..." : "עדכן אימייל"}
           </button>
@@ -197,7 +197,7 @@ export function TabSecurity({ userEmail }: { userEmail: string }) {
 
       {/* Change password */}
       <div className="panel p-5">
-        <h3 className="text-xs font-medium text-[#B0B0B0] uppercase tracking-wider mb-4">שינוי סיסמה</h3>
+        <h3 className="text-xs font-medium text-text-dim uppercase tracking-wider mb-4">שינוי סיסמה</h3>
         <form onSubmit={handlePasswordChange} className="space-y-4">
           <div>
             <label className={labelCls}>סיסמה חדשה</label>
@@ -221,7 +221,7 @@ export function TabSecurity({ userEmail }: { userEmail: string }) {
             <label className={labelCls}>אישור סיסמה</label>
             <PasswordInput value={confirmPassword} onChange={setConfirmPassword} placeholder="הזן שוב את הסיסמה" />
             {confirmPassword.length > 0 && newPassword !== confirmPassword && (
-              <p className="mt-1.5 text-xs text-[#FF4D4D]">הסיסמאות אינן תואמות</p>
+              <p className="mt-1.5 text-xs text-red">הסיסמאות אינן תואמות</p>
             )}
           </div>
           {pwError && <ErrorBanner message={pwError} />}
@@ -229,7 +229,7 @@ export function TabSecurity({ userEmail }: { userEmail: string }) {
           <button
             type="submit"
             disabled={pwSaving || !newPassword || !confirmPassword}
-            className="px-5 py-2.5 bg-[#FFB800] text-black text-sm font-semibold rounded-md hover:bg-[#e6a600] disabled:opacity-50 transition-colors"
+            className="px-5 py-2.5 bg-amber text-black text-sm font-semibold rounded-md hover:bg-amber-dark disabled:opacity-50 transition-colors"
           >
             {pwSaving ? "משנה..." : "שנה סיסמה"}
           </button>
@@ -237,49 +237,49 @@ export function TabSecurity({ userEmail }: { userEmail: string }) {
       </div>
 
       {/* Danger zone */}
-      <div className="panel p-5 border-[#3a1212]">
+      <div className="panel p-5 border-red-shade">
         <div className="flex items-center gap-2 mb-4">
-          <AlertTriangle size={15} className="text-[#FF4D4D]" />
-          <h3 className="text-xs font-medium text-[#FF4D4D] uppercase tracking-wider">אזור מסוכן</h3>
+          <AlertTriangle size={15} className="text-red" />
+          <h3 className="text-xs font-medium text-red uppercase tracking-wider">אזור מסוכן</h3>
         </div>
 
         {!deleteOpen ? (
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-[#E0E0E0] font-medium">מחיקת חשבון</p>
-              <p className="text-sm text-[#B0B0B0] mt-0.5">פעולה זו בלתי הפיכה. כל הנתונים יימחקו לצמיתות.</p>
+              <p className="text-sm text-text-main font-medium">מחיקת חשבון</p>
+              <p className="text-sm text-text-dim mt-0.5">פעולה זו בלתי הפיכה. כל הנתונים יימחקו לצמיתות.</p>
             </div>
             <button
               onClick={() => setDeleteOpen(true)}
-              className="px-4 py-2 border border-[#FF4D4D]/40 text-[#FF4D4D] text-sm rounded-md hover:bg-[#FF4D4D]/10 transition-colors whitespace-nowrap"
+              className="px-4 py-2 border border-red/40 text-red text-sm rounded-md hover:bg-red/10 transition-colors whitespace-nowrap"
             >
               מחק חשבון
             </button>
           </div>
         ) : (
           <div className="space-y-4">
-            <p className="text-sm text-[#E0E0E0]">
-              כדי לאשר, הקלד <span className="font-mono text-[#FF4D4D] bg-[#1a0808] px-1.5 py-0.5 rounded">מחק</span> בשדה למטה:
+            <p className="text-sm text-text-main">
+              כדי לאשר, הקלד <span className="font-mono text-red bg-red-tint px-1.5 py-0.5 rounded">מחק</span> בשדה למטה:
             </p>
             <input
               type="text"
               value={deleteConfirm}
               onChange={(e) => setDeleteConfirm(e.target.value)}
               placeholder="מחק"
-              className="w-full bg-[#0d0d0d] border border-[#FF4D4D]/40 rounded-md px-3 py-2.5 text-sm text-[#E0E0E0] placeholder-[#444444] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2 focus:border-[#FF4D4D] transition-colors"
+              className="w-full bg-panel-2 border border-red/40 rounded-md px-3 py-2.5 text-sm text-text-main placeholder-text-mute outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2 focus:border-red transition-colors"
             />
             {deleteError && <ErrorBanner message={deleteError} />}
             <div className="flex gap-3">
               <button
                 onClick={handleDeleteAccount}
                 disabled={deleteConfirm !== "מחק" || deleteLoading}
-                className="px-4 py-2 bg-[#FF4D4D] text-white text-sm font-semibold rounded-md hover:bg-[#e63a3a] disabled:opacity-40 transition-colors"
+                className="px-4 py-2 bg-red text-white text-sm font-semibold rounded-md hover:bg-red-dark disabled:opacity-40 transition-colors"
               >
                 {deleteLoading ? "מוחק..." : "אני מבין, מחק את החשבון"}
               </button>
               <button
                 onClick={() => { setDeleteOpen(false); setDeleteConfirm(""); }}
-                className="px-4 py-2 border border-[#222222] text-[#B0B0B0] text-sm rounded-md hover:border-[#444444] hover:text-[#E0E0E0] transition-colors"
+                className="px-4 py-2 border border-border text-text-dim text-sm rounded-md hover:border-shade-2 hover:text-text-main transition-colors"
               >
                 ביטול
               </button>

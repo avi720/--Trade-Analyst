@@ -50,11 +50,11 @@ type Step3Fields = z.infer<typeof step3Schema>
 // ─── Shared styles ────────────────────────────────────────────────────────────
 
 const inputCls = (err?: string) =>
-  'w-full bg-[#080808] border rounded px-3 py-2 text-sm text-[#E0E0E0] placeholder-[#444444] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2 transition-colors ' +
-  (err ? 'border-[#FF4D4D]' : 'border-[#222222] focus:border-[#444444]')
+  'w-full bg-bg-dark border rounded px-3 py-2 text-sm text-text-main placeholder-text-mute outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2 transition-colors ' +
+  (err ? 'border-red' : 'border-border focus:border-shade-2')
 
-const labelCls = 'block text-sm text-[#B0B0B0] mb-1'
-const errorCls = 'text-[#FF4D4D] text-xs mt-1'
+const labelCls = 'block text-sm text-text-dim mb-1'
+const errorCls = 'text-red text-xs mt-1'
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
@@ -69,12 +69,12 @@ function StepPills({ current }: { current: 1 | 2 | 3 }) {
         return (
           <div key={step} className="flex items-center gap-2">
             {i > 0 && (
-              <div className={`h-px w-6 ${done ? 'bg-[#FFB800]' : 'bg-[#222222]'}`} />
+              <div className={`h-px w-6 ${done ? 'bg-amber' : 'bg-border'}`} />
             )}
             <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-              active ? 'bg-[#FFB800] text-black' :
-              done   ? 'bg-[#1A1200] text-[#FFB800] border border-[#FFB800]/30' :
-                       'bg-[#111111] text-[#B0B0B0] border border-[#222222]'
+              active ? 'bg-amber text-black' :
+              done   ? 'bg-amber-tint text-amber border border-amber/30' :
+                       'bg-panel text-text-dim border border-border'
             }`}>
               <span>{step}</span>
               <span>{label}</span>
@@ -102,19 +102,19 @@ function RadioGroup<T extends string>({
           key={opt.value}
           className={`flex items-center gap-3 p-3 rounded-md border cursor-pointer transition-colors ${
             value === opt.value
-              ? 'border-[#FFB800]/50 bg-[#1A1200]'
-              : 'border-[#222222] hover:border-[#333333] hover:bg-[#161616]'
+              ? 'border-amber/50 bg-amber-tint'
+              : 'border-border hover:border-shade hover:bg-panel-3'
           }`}
         >
           <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
-            value === opt.value ? 'border-[#FFB800]' : 'border-[#444444]'
+            value === opt.value ? 'border-amber' : 'border-shade-2'
           }`}>
-            {value === opt.value && <div className="w-1.5 h-1.5 rounded-full bg-[#FFB800]" />}
+            {value === opt.value && <div className="w-1.5 h-1.5 rounded-full bg-amber" />}
           </div>
           <input type="radio" checked={value === opt.value} onChange={() => onChange(opt.value)} className="sr-only" />
           <div>
-            <span className="text-sm text-[#E0E0E0]">{opt.label}</span>
-            {opt.sub && <span className="block text-sm text-[#B0B0B0] mt-0.5">{opt.sub}</span>}
+            <span className="text-sm text-text-main">{opt.label}</span>
+            {opt.sub && <span className="block text-sm text-text-dim mt-0.5">{opt.sub}</span>}
           </div>
         </label>
       ))}
@@ -306,12 +306,12 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#080808] px-4 py-12">
+    <div className="min-h-screen flex items-center justify-center bg-bg-dark px-4 py-12">
       <div className="panel p-8 w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-[#E0E0E0] font-mono">Trade Analysis</h1>
-          <p className="text-[#B0B0B0] text-sm mt-1">יצירת חשבון</p>
+          <h1 className="text-2xl font-bold text-text-main font-mono">Trade Analysis</h1>
+          <p className="text-text-dim text-sm mt-1">יצירת חשבון</p>
         </div>
 
         <StepPills current={step} />
@@ -324,9 +324,9 @@ export default function SignupPage() {
                 <GoogleSignInButton next="/signup" label="הירשם עם Google" />
 
                 <div className="flex items-center gap-3 my-5">
-                  <div className="flex-1 h-px bg-[#222222]" />
-                  <span className="text-[#B0B0B0] text-sm">או</span>
-                  <div className="flex-1 h-px bg-[#222222]" />
+                  <div className="flex-1 h-px bg-border" />
+                  <span className="text-text-dim text-sm">או</span>
+                  <div className="flex-1 h-px bg-border" />
                 </div>
 
                 <form onSubmit={form1.handleSubmit(onStep1Submit)} className="space-y-4">
@@ -365,7 +365,7 @@ export default function SignupPage() {
                   {form1.formState.errors.password && (
                     <p className={errorCls}>{form1.formState.errors.password.message}</p>
                   )}
-                  <p id="signup-password-hint" className="text-[#B0B0B0] text-sm mt-1">לפחות 8 תווים, אות ומספר</p>
+                  <p id="signup-password-hint" className="text-text-dim text-sm mt-1">לפחות 8 תווים, אות ומספר</p>
                 </div>
 
                 <div>
@@ -386,12 +386,12 @@ export default function SignupPage() {
                   )}
                 </div>
 
-                {step1Error && <p className="text-[#FF4D4D] text-sm text-center">{step1Error}</p>}
+                {step1Error && <p className="text-red text-sm text-center">{step1Error}</p>}
 
                 <button
                   type="submit"
                   disabled={form1.formState.isSubmitting}
-                  className="w-full py-2 px-4 bg-[#FFB800] text-black font-semibold rounded-md hover:bg-[#cc9300] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-2 px-4 bg-amber text-black font-semibold rounded-md hover:bg-amber-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {form1.formState.isSubmitting ? 'שולח...' : 'שלח מייל אימות'}
                 </button>
@@ -400,9 +400,9 @@ export default function SignupPage() {
             ) : (
               /* Verification instructions card */
               <div className="space-y-4">
-                <div className="border border-[#FFB800]/30 bg-[#1A1200] rounded-md p-5 space-y-3">
-                  <p className="text-[#FFB800] font-semibold text-sm">אימות מייל נשלח</p>
-                  <ol className="text-[#E0E0E0] text-sm space-y-2 list-decimal list-inside leading-relaxed">
+                <div className="border border-amber/30 bg-amber-tint rounded-md p-5 space-y-3">
+                  <p className="text-amber font-semibold text-sm">אימות מייל נשלח</p>
+                  <ol className="text-text-main text-sm space-y-2 list-decimal list-inside leading-relaxed">
                     <li>פתח את תיבת הדואר שלך</li>
                     <li>מצא מייל מ-Trade Analysis עם קישור אימות</li>
                     <li>לחץ על קישור האימות (ייפתח בכרטיסייה חדשה)</li>
@@ -410,19 +410,19 @@ export default function SignupPage() {
                   </ol>
                 </div>
 
-                {step1Error && <p className="text-[#FF4D4D] text-sm text-center">{step1Error}</p>}
+                {step1Error && <p className="text-red text-sm text-center">{step1Error}</p>}
 
                 <button
                   onClick={checkVerification}
                   disabled={checkingVerification}
-                  className="w-full py-2 px-4 bg-[#FFB800] text-black font-semibold rounded-md hover:bg-[#cc9300] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-2 px-4 bg-amber text-black font-semibold rounded-md hover:bg-amber-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {checkingVerification ? 'בודק...' : 'בדוק אימות'}
                 </button>
 
                 <button
                   onClick={() => { setVerificationSent(false); setStep1Error(null) }}
-                  className="w-full py-1.5 text-sm text-[#B0B0B0] hover:text-[#E0E0E0] transition-colors"
+                  className="w-full py-1.5 text-sm text-text-dim hover:text-text-main transition-colors"
                 >
                   חזור לטופס
                 </button>
@@ -503,7 +503,7 @@ export default function SignupPage() {
 
             <div>
               <label className={labelCls}>
-                עיר <span className="text-[#B0B0B0] text-sm">(אופציונלי)</span>
+                עיר <span className="text-text-dim text-sm">(אופציונלי)</span>
               </label>
               <CityCombobox
                 value={cityValue}
@@ -519,7 +519,7 @@ export default function SignupPage() {
 
             <div>
               <label htmlFor="signup-street" className={labelCls}>
-                כתובת <span className="text-[#B0B0B0] text-sm">(אופציונלי)</span>
+                כתובת <span className="text-text-dim text-sm">(אופציונלי)</span>
               </label>
               <input
                 id="signup-street"
@@ -533,7 +533,7 @@ export default function SignupPage() {
             <button
               type="submit"
               disabled={form2.formState.isSubmitting}
-              className="w-full py-2 px-4 bg-[#FFB800] text-black font-semibold rounded-md hover:bg-[#cc9300] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-2 px-4 bg-amber text-black font-semibold rounded-md hover:bg-amber-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               המשך
             </button>
@@ -545,7 +545,7 @@ export default function SignupPage() {
           <form onSubmit={form3.handleSubmit(onStep3Submit)} className="space-y-5">
             {/* Currency */}
             <div>
-              <p className="text-xs font-medium text-[#B0B0B0] uppercase tracking-wider mb-2">מטבע ראשי</p>
+              <p className="text-xs font-medium text-text-dim uppercase tracking-wider mb-2">מטבע ראשי</p>
               <RadioGroup
                 value={currency}
                 onChange={v => form3.setValue('currency', v)}
@@ -558,7 +558,7 @@ export default function SignupPage() {
 
             {/* Date format */}
             <div>
-              <p className="text-xs font-medium text-[#B0B0B0] uppercase tracking-wider mb-2">פורמט תאריך</p>
+              <p className="text-xs font-medium text-text-dim uppercase tracking-wider mb-2">פורמט תאריך</p>
               <RadioGroup
                 value={dateFormat}
                 onChange={v => form3.setValue('dateFormat', v)}
@@ -572,7 +572,7 @@ export default function SignupPage() {
 
             {/* Number format */}
             <div>
-              <p className="text-xs font-medium text-[#B0B0B0] uppercase tracking-wider mb-2">פורמט מספרים</p>
+              <p className="text-xs font-medium text-text-dim uppercase tracking-wider mb-2">פורמט מספרים</p>
               <RadioGroup
                 value={numberFormat}
                 onChange={v => form3.setValue('numberFormat', v)}
@@ -583,20 +583,20 @@ export default function SignupPage() {
               />
             </div>
 
-            {submitError && <p className="text-[#FF4D4D] text-sm text-center">{submitError}</p>}
+            {submitError && <p className="text-red text-sm text-center">{submitError}</p>}
 
             <div className="flex gap-3">
               <button
                 type="button"
                 onClick={() => setStep(2)}
-                className="flex-1 py-2 px-4 border border-[#222222] text-[#B0B0B0] text-sm rounded-md hover:border-[#333333] hover:text-[#E0E0E0] transition-colors"
+                className="flex-1 py-2 px-4 border border-border text-text-dim text-sm rounded-md hover:border-shade hover:text-text-main transition-colors"
               >
                 חזור
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="flex-2 flex-grow py-2 px-4 bg-[#FFB800] text-black font-semibold rounded-md hover:bg-[#cc9300] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-2 flex-grow py-2 px-4 bg-amber text-black font-semibold rounded-md hover:bg-amber-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? 'שומר...' : 'סיים הרשמה'}
               </button>
@@ -605,9 +605,9 @@ export default function SignupPage() {
         )}
 
         {/* Bottom link */}
-        <p className="text-center text-sm text-[#B0B0B0] mt-6">
+        <p className="text-center text-sm text-text-dim mt-6">
           כבר יש לך חשבון?{' '}
-          <Link href="/login" className="text-[#FFB800] hover:underline">
+          <Link href="/login" className="text-amber hover:underline">
             התחבר
           </Link>
         </p>

@@ -40,49 +40,50 @@ function formatRelativeTime(iso: string | null | undefined): string {
 
 function SetupGuide({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   return (
-    <div className="border border-[#222222] rounded-md mb-6">
+    <div className="border border-border rounded-md mb-6">
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between p-4 text-right text-sm font-medium text-[#E0E0E0] hover:bg-[#1a1a1a] transition-colors"
+        aria-expanded={open}
+        className="w-full flex items-center justify-between p-4 text-right text-sm font-medium text-text-main hover:bg-input-bg transition-colors"
       >
-        <span className="flex items-center gap-2 text-[#FFB800]">
+        <span className="flex items-center gap-2 text-amber">
           {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           מדריך הגדרה — Flex Web Service
         </span>
       </button>
       {open && (
-        <div className="p-4 border-t border-[#222222] space-y-4 text-sm text-[#B0B0B0]">
+        <div className="p-4 border-t border-border space-y-4 text-sm text-text-dim">
           <div>
-            <p className="text-[#E0E0E0] font-medium mb-1">שלב 1 — הפעלת Flex Web Service</p>
+            <p className="text-text-main font-medium mb-1">שלב 1 — הפעלת Flex Web Service</p>
             <p>
               ב-IBKR Portal:{" "}
-              <span className="text-[#E0E0E0]">Settings → Account Settings → Reports → Flex Web Service</span>
+              <span className="text-text-main">Settings → Account Settings → Reports → Flex Web Service</span>
               {" "}→ לחץ "Enable" וקבל את ה-Token.
             </p>
           </div>
           <div>
-            <p className="text-[#E0E0E0] font-medium mb-1">שלב 2 — יצירת Activity Flex Query</p>
+            <p className="text-text-main font-medium mb-1">שלב 2 — יצירת Activity Flex Query</p>
             <p>
               ב-IBKR Portal:{" "}
-              <span className="text-[#E0E0E0]">Reports → Flex Queries → Create New → Activity</span>
+              <span className="text-text-main">Reports → Flex Queries → Create New → Activity</span>
               <br />
-              טווח: <span className="text-[#E0E0E0]">Last 90 Days</span> (או יותר לסנכרון ראשוני)
+              טווח: <span className="text-text-main">Last 90 Days</span> (או יותר לסנכרון ראשוני)
               <br />
-              פורמט תאריך: <span className="font-mono text-[#2CC84A]">dd/MM/yyyy</span> — פורמט שעה:{" "}
-              <span className="font-mono text-[#2CC84A]">HH:mm:ss TimeZone</span>
+              פורמט תאריך: <span className="font-mono text-green">dd/MM/yyyy</span> — פורמט שעה:{" "}
+              <span className="font-mono text-green">HH:mm:ss TimeZone</span>
             </p>
           </div>
           <div>
-            <p className="text-[#E0E0E0] font-medium mb-2">15 השדות הנדרשים:</p>
+            <p className="text-text-main font-medium mb-2">15 השדות הנדרשים:</p>
             <div className="grid grid-cols-2 gap-1">
               {REQUIRED_FIELDS.map((f) => (
-                <span key={f} className="font-mono text-xs text-[#2CC84A] bg-[#0d1f12] px-2 py-1 rounded">
+                <span key={f} className="font-mono text-xs text-green bg-green-tint px-2 py-1 rounded">
                   {f}
                 </span>
               ))}
             </div>
           </div>
-          <p className="text-sm text-[#B0B0B0]">
+          <p className="text-sm text-text-dim">
             שלב 3: העתק את ה-Token ואת ה-Query ID לשדות למטה.
           </p>
         </div>
@@ -95,13 +96,13 @@ function QueryStatusRow({ label, result }: { label: string; result: ActivityTest
   return (
     <div className="flex items-center gap-2 text-sm">
       {result.ok ? (
-        <CheckCircle size={14} className="text-[#2CC84A] shrink-0" />
+        <CheckCircle size={14} className="text-green shrink-0" />
       ) : (
-        <XCircle size={14} className="text-[#FF4D4D] shrink-0" />
+        <XCircle size={14} className="text-red shrink-0" />
       )}
-      <span className={result.ok ? "text-[#E0E0E0]" : "text-[#FF4D4D]"}>{label}</span>
+      <span className={result.ok ? "text-text-main" : "text-red"}>{label}</span>
       {!result.ok && result.error && (
-        <span className="text-[#B0B0B0] text-sm truncate">{result.error}</span>
+        <span className="text-text-dim text-sm truncate">{result.error}</span>
       )}
     </div>
   );
@@ -112,6 +113,7 @@ export function TabBroker() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [exportingCsv, setExportingCsv] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveOk, setSaveOk] = useState(false);
   const [toastSecondsLeft, setToastSecondsLeft] = useState(0);
@@ -224,11 +226,12 @@ export function TabBroker() {
 
   async function handleExportCsv() {
     setExportingCsv(true);
+    setExportError(null);
     try {
       const res = await fetch("/api/export/activity-csv");
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        alert(json.error ?? "שגיאה בייצוא CSV");
+        setExportError(json.error ?? "שגיאה בייצוא CSV");
         return;
       }
       const blob = await res.blob();
@@ -239,56 +242,56 @@ export function TabBroker() {
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      alert("שגיאת רשת בייצוא CSV");
+      setExportError("שגיאת רשת בייצוא CSV");
     } finally {
       setExportingCsv(false);
     }
   }
 
   const syncStatusColor =
-    conn?.lastSyncStatus === "SUCCESS" ? "text-[#2CC84A]" :
-    conn?.lastSyncStatus === "ERROR" ? "text-[#FF4D4D]" :
-    "text-[#B0B0B0]";
+    conn?.lastSyncStatus === "SUCCESS" ? "text-green" :
+    conn?.lastSyncStatus === "ERROR" ? "text-red" :
+    "text-text-dim";
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold text-[#E0E0E0]">ברוקר — IBKR</h2>
-        <p className="text-sm text-[#B0B0B0] mt-1">חיבור ל-Interactive Brokers דרך Flex Web Service</p>
+        <h2 className="text-lg font-semibold text-text-main">ברוקר — IBKR</h2>
+        <p className="text-sm text-text-dim mt-1">חיבור ל-Interactive Brokers דרך Flex Web Service</p>
       </div>
 
       <div className="panel p-6">
-        <h3 className="text-sm font-medium text-[#E0E0E0] mb-4">Flex Web Service</h3>
+        <h3 className="text-sm font-medium text-text-main mb-4">Flex Web Service</h3>
 
         <SetupGuide open={guideOpen} onToggle={() => setGuideOpen((o) => !o)} />
 
         <form onSubmit={handleSave} className="space-y-4">
           <div>
-            <label className="block text-sm text-[#B0B0B0] mb-1">Flex Token</label>
+            <label className="block text-sm text-text-dim mb-1">Flex Token</label>
             <input
               type="password"
               value={flexToken}
               onChange={(e) => setFlexToken(e.target.value)}
               placeholder={conn ? "••••••••  (נדרש להזין מחדש לשינויים)" : "הדבק את ה-Flex Token כאן"}
-              className="w-full bg-[#111111] border border-[#222222] rounded px-3 py-2 text-sm text-[#E0E0E0] placeholder-[#888888] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2 focus:border-[#FFB800] font-mono"
+              className="w-full bg-panel border border-border rounded px-3 py-2 text-sm text-text-main placeholder-text-mute outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2 focus:border-amber font-mono"
             />
           </div>
 
           <div>
-            <label className="block text-sm text-[#B0B0B0] mb-1">Query ID — Activity</label>
+            <label className="block text-sm text-text-dim mb-1">Query ID — Activity</label>
             <input
               type="text"
               value={queryIdActivity}
               onChange={(e) => setQueryIdActivity(e.target.value)}
               placeholder="123456"
-              className="w-full bg-[#111111] border border-[#222222] rounded px-3 py-2 text-sm text-[#E0E0E0] placeholder-[#888888] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2 focus:border-[#FFB800] font-mono"
+              className="w-full bg-panel border border-border rounded px-3 py-2 text-sm text-text-main placeholder-text-mute outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2 focus:border-amber font-mono"
             />
           </div>
 
-          {saveError && <p className="text-[#FF4D4D] text-sm">{saveError}</p>}
+          {saveError && <p className="text-red text-sm">{saveError}</p>}
 
           {saveOk && (
-            <div className="flex items-center gap-2 text-[#2CC84A] text-sm">
+            <div className="flex items-center gap-2 text-green text-sm">
               <CountdownCircle remaining={toastSecondsLeft} total={TOAST_DURATION} />
               <span>נשמר בהצלחה ✓</span>
             </div>
@@ -298,7 +301,7 @@ export function TabBroker() {
             <button
               type="submit"
               disabled={saving}
-              className="px-4 py-2 bg-[#FFB800] text-black text-sm font-medium rounded hover:bg-[#e6a600] disabled:opacity-50 transition-colors"
+              className="px-4 py-2 bg-amber text-black text-sm font-medium rounded hover:bg-amber-dark disabled:opacity-50 transition-colors"
             >
               {saving ? "שומר..." : "שמור"}
             </button>
@@ -306,7 +309,7 @@ export function TabBroker() {
               type="button"
               onClick={handleTest}
               disabled={testing || !conn}
-              className="px-4 py-2 border border-[#222222] text-[#E0E0E0] text-sm rounded hover:border-[#444444] disabled:opacity-40 transition-colors"
+              className="px-4 py-2 border border-border text-text-main text-sm rounded hover:border-shade-2 disabled:opacity-40 transition-colors"
             >
               {testing ? (
                 <span className="flex items-center gap-2">
@@ -317,7 +320,7 @@ export function TabBroker() {
           </div>
         </form>
 
-        {testError && <p className="mt-3 text-[#FF4D4D] text-sm">{testError}</p>}
+        {testError && <p className="mt-3 text-red text-sm">{testError}</p>}
         {testResult && (
           <div className="mt-4 space-y-2">
             <QueryStatusRow label="Activity Flex Query" result={testResult.activity} />
@@ -325,10 +328,10 @@ export function TabBroker() {
         )}
 
         {conn && (
-          <div className="mt-6 pt-4 border-t border-[#222222] space-y-2 text-sm">
+          <div className="mt-6 pt-4 border-t border-border space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-[#B0B0B0]">סנכרון אחרון</span>
-              <span className={initialSyncRunning ? "text-[#FFB800]" : syncStatusColor}>
+              <span className="text-text-dim">סנכרון אחרון</span>
+              <span className={initialSyncRunning ? "text-amber" : syncStatusColor}>
                 {initialSyncRunning ? (
                   <span className="flex items-center gap-2">
                     <Loader2 size={12} className="animate-spin inline" />
@@ -343,13 +346,13 @@ export function TabBroker() {
               </span>
             </div>
             {conn.lastSyncError && !initialSyncRunning && (
-              <p className="text-[#FF4D4D] text-xs">{conn.lastSyncError}</p>
+              <p className="text-red text-xs">{conn.lastSyncError}</p>
             )}
-            <div className="pt-2">
+            <div className="pt-2 space-y-2">
               <button
                 onClick={handleExportCsv}
                 disabled={exportingCsv || !conn}
-                className="px-3 py-1.5 border border-[#222222] text-[#B0B0B0] text-sm rounded hover:border-[#444444] hover:text-[#E0E0E0] disabled:opacity-40 transition-colors"
+                className="px-3 py-1.5 border border-border text-text-dim text-sm rounded hover:border-shade-2 hover:text-text-main disabled:opacity-40 transition-colors"
               >
                 {exportingCsv ? (
                   <span className="flex items-center gap-2">
@@ -357,6 +360,11 @@ export function TabBroker() {
                   </span>
                 ) : "ייצא Activity כ-CSV"}
               </button>
+              {exportError && (
+                <p role="alert" className="text-red text-xs border border-red/30 bg-red/5 rounded px-3 py-2">
+                  {exportError}
+                </p>
+              )}
             </div>
           </div>
         )}

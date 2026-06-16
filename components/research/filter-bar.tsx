@@ -47,11 +47,11 @@ export interface FilterBarProps extends FilterState {
 export function FilterBar(p: FilterBarProps) {
   return (
     <div className="panel p-4 mb-6">
-      <h2 className="text-[#E0E0E0] text-sm font-sans font-semibold mb-3">סינון</h2>
+      <h2 className="text-text-main text-sm font-sans font-semibold mb-3">סינון</h2>
       <div className="flex flex-wrap gap-3 items-end">
 
         <div className="flex flex-col gap-1">
-          <label htmlFor="filter-date-from" className="text-[#B0B0B0] text-sm font-sans">מתאריך</label>
+          <label htmlFor="filter-date-from" className="text-text-dim text-sm font-sans">מתאריך</label>
           <div className="relative">
             <input id="filter-date-from" type="date" lang="en-GB"
               data-empty={!p.dateFrom}
@@ -59,7 +59,7 @@ export function FilterBar(p: FilterBarProps) {
               className="input-base date-uppercase text-sm font-mono w-36" dir="ltr" />
             {!p.dateFrom && (
               <span aria-hidden="true"
-                className="absolute top-1/2 right-2 -translate-y-1/2 pointer-events-none text-sm font-mono text-[#B0B0B0] tracking-tight">
+                className="absolute top-1/2 right-2 -translate-y-1/2 pointer-events-none text-sm font-mono text-text-dim tracking-tight">
                 DD / MM / YYYY
               </span>
             )}
@@ -67,7 +67,7 @@ export function FilterBar(p: FilterBarProps) {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor="filter-date-to" className="text-[#B0B0B0] text-sm font-sans">עד תאריך</label>
+          <label htmlFor="filter-date-to" className="text-text-dim text-sm font-sans">עד תאריך</label>
           <div className="relative">
             <input id="filter-date-to" type="date" lang="en-GB"
               data-empty={!p.dateTo}
@@ -75,7 +75,7 @@ export function FilterBar(p: FilterBarProps) {
               className="input-base date-uppercase text-sm font-mono w-36" dir="ltr" />
             {!p.dateTo && (
               <span aria-hidden="true"
-                className="absolute top-1/2 right-2 -translate-y-1/2 pointer-events-none text-sm font-mono text-[#B0B0B0] tracking-tight">
+                className="absolute top-1/2 right-2 -translate-y-1/2 pointer-events-none text-sm font-mono text-text-dim tracking-tight">
                 DD / MM / YYYY
               </span>
             )}
@@ -83,14 +83,14 @@ export function FilterBar(p: FilterBarProps) {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor="filter-ticker" className="text-[#B0B0B0] text-sm font-sans">טיקר</label>
+          <label htmlFor="filter-ticker" className="text-text-dim text-sm font-sans">טיקר</label>
           <input id="filter-ticker" type="text" placeholder="AAPL..." value={p.tickerFilter}
             onChange={e => p.onTickerChange(e.target.value)}
             className="input-base text-sm font-mono w-24" dir="ltr" />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor="filter-setup" className="text-[#B0B0B0] text-sm font-sans">סטאפ</label>
+          <label htmlFor="filter-setup" className="text-text-dim text-sm font-sans">סטאפ</label>
           <select id="filter-setup" value={p.setupFilter} onChange={e => p.onSetupChange(e.target.value)}
             className="input-base text-sm font-sans">
             <option value="all">הכל</option>
@@ -99,7 +99,7 @@ export function FilterBar(p: FilterBarProps) {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor="filter-direction" className="text-[#B0B0B0] text-sm font-sans">כיוון</label>
+          <label htmlFor="filter-direction" className="text-text-dim text-sm font-sans">כיוון</label>
           <select id="filter-direction" value={p.directionFilter} onChange={e => p.onDirectionChange(e.target.value)}
             className="input-base text-sm font-sans">
             <option value="all">הכל</option>
@@ -109,7 +109,7 @@ export function FilterBar(p: FilterBarProps) {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor="filter-result" className="text-[#B0B0B0] text-sm font-sans">תוצאה</label>
+          <label htmlFor="filter-result" className="text-text-dim text-sm font-sans">תוצאה</label>
           <select id="filter-result" value={p.resultFilter} onChange={e => p.onResultChange(e.target.value)}
             className="input-base text-sm font-sans">
             <option value="all">הכל</option>
@@ -120,12 +120,12 @@ export function FilterBar(p: FilterBarProps) {
         </div>
 
         <div className="flex flex-col gap-1" role="group" aria-labelledby="filter-execqual-label">
-          <span id="filter-execqual-label" className="text-[#B0B0B0] text-sm font-sans">איכות ביצוע (1-10)</span>
+          <span id="filter-execqual-label" className="text-text-dim text-sm font-sans">איכות ביצוע (1-10)</span>
           <div className="flex gap-1 items-center">
             <input type="number" aria-label="איכות ביצוע מינימלית" placeholder="מינ׳" min={1} max={10} value={p.execQualMin}
               onChange={e => p.onExecQualMinChange(e.target.value)}
               className="input-base text-sm font-mono w-16" dir="ltr" />
-            <span className="text-[#B0B0B0] text-sm" aria-hidden="true">–</span>
+            <span className="text-text-dim text-sm" aria-hidden="true">–</span>
             <input type="number" aria-label="איכות ביצוע מקסימלית" placeholder="מקס׳" min={1} max={10} value={p.execQualMax}
               onChange={e => p.onExecQualMaxChange(e.target.value)}
               className="input-base text-sm font-mono w-16" dir="ltr" />
@@ -133,7 +133,7 @@ export function FilterBar(p: FilterBarProps) {
         </div>
 
         <div className="flex flex-col gap-1" role="group" aria-labelledby="filter-hold-label">
-          <span id="filter-hold-label" className="text-[#B0B0B0] text-sm font-sans">
+          <span id="filter-hold-label" className="text-text-dim text-sm font-sans">
             זמן החזקה ({p.holdUnit === 'days' ? 'ימים' : 'שעות'})
           </span>
           <div className="flex gap-1 items-center">
@@ -141,7 +141,7 @@ export function FilterBar(p: FilterBarProps) {
               placeholder="מינ׳" min={0} value={p.holdHoursMin}
               onChange={e => p.onHoldMinChange(e.target.value)}
               className="input-base text-sm font-mono w-16" dir="ltr" />
-            <span className="text-[#B0B0B0] text-sm" aria-hidden="true">–</span>
+            <span className="text-text-dim text-sm" aria-hidden="true">–</span>
             <input type="number" aria-label={`זמן החזקה מקסימלי ב${p.holdUnit === 'days' ? 'ימים' : 'שעות'}`}
               placeholder="מקס׳" min={0} value={p.holdHoursMax}
               onChange={e => p.onHoldMaxChange(e.target.value)}
@@ -156,13 +156,13 @@ export function FilterBar(p: FilterBarProps) {
         </div>
 
         <div className="flex flex-col gap-1" role="group" aria-labelledby="filter-r-label">
-          <span id="filter-r-label" className="text-[#B0B0B0] text-sm font-sans">סינון לפי R</span>
+          <span id="filter-r-label" className="text-text-dim text-sm font-sans">סינון לפי R</span>
           <div className="flex gap-2 items-center">
-            <span className="text-[#B0B0B0] text-sm font-sans">מ:</span>
+            <span className="text-text-dim text-sm font-sans">מ:</span>
             <input type="number" step="0.1" aria-label="R מינימלי" placeholder="—" value={p.rMin}
               onChange={e => p.onRMinChange(e.target.value)}
               className="input-base text-sm font-mono w-16" dir="ltr" />
-            <span className="text-[#B0B0B0] text-sm font-sans">עד:</span>
+            <span className="text-text-dim text-sm font-sans">עד:</span>
             <input type="number" step="0.1" aria-label="R מקסימלי" placeholder="—" value={p.rMax}
               onChange={e => p.onRMaxChange(e.target.value)}
               className="input-base text-sm font-mono w-16" dir="ltr" />
@@ -173,7 +173,7 @@ export function FilterBar(p: FilterBarProps) {
         <div className="flex items-end gap-2">
           {p.hasActiveFilter && (
             <button onClick={p.onReset}
-              className="btn-ghost px-3 py-1.5 text-sm font-sans border border-[#333333] rounded text-[#B0B0B0]">
+              className="btn-ghost px-3 py-1.5 text-sm font-sans border border-shade rounded text-text-dim">
               נקה פילטרים
             </button>
           )}

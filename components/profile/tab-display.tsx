@@ -15,7 +15,7 @@ interface TabDisplayProps {
   initialDisplay: DisplaySettings;
 }
 
-const labelCls = "block text-xs font-medium text-[#B0B0B0] uppercase tracking-wider mb-3";
+const labelCls = "block text-xs font-medium text-text-dim uppercase tracking-wider mb-3";
 
 function RadioGroup<T extends string>({
   value,
@@ -33,16 +33,16 @@ function RadioGroup<T extends string>({
           key={opt.value}
           className={`flex items-center gap-3 p-3 rounded-md border cursor-pointer transition-colors ${
             value === opt.value
-              ? "border-[#FFB800]/50 bg-[#1A1200]"
-              : "border-[#222222] hover:border-[#333333] hover:bg-[#161616]"
+              ? "border-amber/50 bg-amber-tint"
+              : "border-border hover:border-shade hover:bg-panel-3"
           }`}
         >
           <div
             className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
-              value === opt.value ? "border-[#FFB800]" : "border-[#444444]"
+              value === opt.value ? "border-amber" : "border-shade-2"
             }`}
           >
-            {value === opt.value && <div className="w-1.5 h-1.5 rounded-full bg-[#FFB800]" />}
+            {value === opt.value && <div className="w-1.5 h-1.5 rounded-full bg-amber" />}
           </div>
           <input
             type="radio"
@@ -51,8 +51,8 @@ function RadioGroup<T extends string>({
             className="sr-only"
           />
           <div>
-            <span className="text-sm text-[#E0E0E0]">{opt.label}</span>
-            {opt.sub && <span className="block text-sm text-[#B0B0B0] mt-0.5">{opt.sub}</span>}
+            <span className="text-sm text-text-main">{opt.label}</span>
+            {opt.sub && <span className="block text-sm text-text-dim mt-0.5">{opt.sub}</span>}
           </div>
         </label>
       ))}
@@ -121,8 +121,8 @@ export function TabDisplay({ initialDisplay }: TabDisplayProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold text-[#E0E0E0]">תצוגה</h2>
-        <p className="text-sm text-[#B0B0B0] mt-1">מטבע, פורמט תאריכים ומספרים</p>
+        <h2 className="text-lg font-semibold text-text-main">תצוגה</h2>
+        <p className="text-sm text-text-dim mt-1">מטבע, פורמט תאריכים ומספרים</p>
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
@@ -166,9 +166,9 @@ export function TabDisplay({ initialDisplay }: TabDisplayProps) {
           />
         </div>
 
-        {saveError && <p className="text-[#FF4D4D] text-sm">{saveError}</p>}
+        {saveError && <p className="text-red text-sm">{saveError}</p>}
         {saveOk && (
-          <div className="flex items-center gap-2 text-[#2CC84A] text-sm">
+          <div className="flex items-center gap-2 text-green text-sm">
             <CountdownCircle remaining={toastSecondsLeft} total={TOAST_DURATION} />
             <span>הגדרות התצוגה עודכנו ✓</span>
           </div>
@@ -176,7 +176,7 @@ export function TabDisplay({ initialDisplay }: TabDisplayProps) {
         <button
           type="submit"
           disabled={saving}
-          className="px-5 py-2.5 bg-[#FFB800] text-black text-sm font-semibold rounded-md hover:bg-[#e6a600] disabled:opacity-50 transition-colors"
+          className="px-5 py-2.5 bg-amber text-black text-sm font-semibold rounded-md hover:bg-amber-dark disabled:opacity-50 transition-colors"
         >
           {saving ? "שומר..." : "שמור הגדרות תצוגה"}
         </button>

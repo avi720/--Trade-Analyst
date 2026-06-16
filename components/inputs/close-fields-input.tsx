@@ -47,7 +47,7 @@ export function CloseFieldsInput({
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div>
-          <label htmlFor={`${idPrefix}price`} className={labelCls}>מחיר סגירה <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+          <label htmlFor={`${idPrefix}price`} className={labelCls}>מחיר סגירה <span className="text-amber" aria-hidden="true">*</span></label>
           <input
             id={`${idPrefix}price`}
             type="number" step="0.01" min="0"
@@ -61,7 +61,7 @@ export function CloseFieldsInput({
           />
         </div>
         <div>
-          <label htmlFor={`${idPrefix}date`} className={labelCls}>תאריך סגירה <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+          <label htmlFor={`${idPrefix}date`} className={labelCls}>תאריך סגירה <span className="text-amber" aria-hidden="true">*</span></label>
           <input
             id={`${idPrefix}date`}
             type="date"
@@ -71,7 +71,7 @@ export function CloseFieldsInput({
           />
         </div>
         <div>
-          <label htmlFor={`${idPrefix}time`} className={labelCls}>שעת סגירה <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+          <label htmlFor={`${idPrefix}time`} className={labelCls}>שעת סגירה <span className="text-amber" aria-hidden="true">*</span></label>
           <input
             id={`${idPrefix}time`}
             type="time"
@@ -80,7 +80,7 @@ export function CloseFieldsInput({
             className={inputCls}
           />
           {toUtcPreview(value.closeDate, value.closeTime, timezone) && (
-            <span className="text-[10px] font-mono text-[#B0B0B0] mt-0.5 block">
+            <span className="text-[10px] font-mono text-text-dim mt-0.5 block">
               = {toUtcPreview(value.closeDate, value.closeTime, timezone)}
             </span>
           )}
@@ -112,14 +112,14 @@ export function CloseFieldsInput({
 
       {/* Close reason radio group */}
       <div className="flex flex-col gap-2">
-        <span className={labelCls}>איך הטרייד נסגר <span className="text-[#FFB800]" aria-hidden="true">*</span></span>
+        <span className={labelCls}>איך הטרייד נסגר <span className="text-amber" aria-hidden="true">*</span></span>
         <div className="flex flex-col gap-1.5">
           {CLOSE_REASONS.map(r => {
             const disabled =
               (r.requires === 'stop' && !hasStop) ||
               (r.requires === 'target' && !hasTarget)
             return (
-              <label key={r.key} className={`flex items-center gap-2 text-sm font-mono ${disabled ? 'text-[#444444] cursor-not-allowed' : 'text-[#E0E0E0] cursor-pointer'}`}>
+              <label key={r.key} className={`flex items-center gap-2 text-sm font-mono ${disabled ? 'text-text-faint cursor-not-allowed' : 'text-text-main cursor-pointer'}`}>
                 <input
                   id={`${idPrefix}reason-${r.key}`}
                   type="radio"
@@ -128,18 +128,18 @@ export function CloseFieldsInput({
                   disabled={disabled}
                   checked={value.closeReason === r.key}
                   onChange={() => onChange({ closeReason: r.key })}
-                  className="accent-[#FFB800]"
+                  className="accent-amber"
                 />
                 {r.label}
-                {disabled && r.requires === 'stop' && <span className="text-[10px] text-[#B0B0B0]">(לא הוזן סטופ)</span>}
-                {disabled && r.requires === 'target' && <span className="text-[10px] text-[#B0B0B0]">(לא הוזן יעד)</span>}
+                {disabled && r.requires === 'stop' && <span className="text-[10px] text-text-dim">(לא הוזן סטופ)</span>}
+                {disabled && r.requires === 'target' && <span className="text-[10px] text-text-dim">(לא הוזן יעד)</span>}
               </label>
             )
           })}
         </div>
         {value.closeReason === 'modified_stop' && (
           <div className="pl-6 mt-1">
-            <label htmlFor={`${idPrefix}modified-stop`} className={labelCls}>מחיר סטופ שונה <span className="text-[#FFB800]" aria-hidden="true">*</span></label>
+            <label htmlFor={`${idPrefix}modified-stop`} className={labelCls}>מחיר סטופ שונה <span className="text-amber" aria-hidden="true">*</span></label>
             <input
               id={`${idPrefix}modified-stop`}
               type="number" step="0.01" min="0"

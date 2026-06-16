@@ -106,14 +106,14 @@ export function renderChart({ id, data, defaultHeight: dh, setupSeries, onSetupS
               <label className="flex items-center gap-1 cursor-pointer">
                 <input type="checkbox" checked={setupSeries.avgR}
                   onChange={e => onSetupSeriesChange({ ...setupSeries, avgR: e.target.checked })}
-                  className="accent-[#FFB800]" />
-                <span className="text-[#E0E0E0]">Avg R</span>
+                  className="accent-amber" />
+                <span className="text-text-main">Avg R</span>
               </label>
               <label className="flex items-center gap-1 cursor-pointer">
                 <input type="checkbox" checked={setupSeries.winRate}
                   onChange={e => onSetupSeriesChange({ ...setupSeries, winRate: e.target.checked })}
-                  className="accent-[#888888]" />
-                <span className="text-[#E0E0E0]">Win Rate (חצי-שקוף)</span>
+                  className="accent-text-mute" />
+                <span className="text-text-main">Win Rate (חצי-שקוף)</span>
               </label>
             </div>
           }
@@ -128,7 +128,7 @@ export function renderChart({ id, data, defaultHeight: dh, setupSeries, onSetupS
                       width: 12, height: 12, display: 'inline-block', borderRadius: 2,
                     }}
                   />
-                  <span className="text-[#E0E0E0]">{entry.setupType}</span>
+                  <span className="text-text-main">{entry.setupType}</span>
                 </div>
               ))}
             </div>
@@ -158,7 +158,7 @@ export function renderChart({ id, data, defaultHeight: dh, setupSeries, onSetupS
                   const row = payload[0].payload as { setupType: string; avgR: number; winRate: number }
                   return (
                     <div style={TOOLTIP_STYLE} dir="rtl" className="px-3 py-2 rounded">
-                      <p className="text-[#E0E0E0] font-bold text-sm">{row.setupType}</p>
+                      <p className="text-text-main font-bold text-sm">{row.setupType}</p>
                       {payload.map(p => (
                         <p key={String(p.dataKey)} className="text-xs" style={{ color: p.color }}>
                           {p.dataKey === 'winRate'
@@ -248,11 +248,11 @@ export function renderChart({ id, data, defaultHeight: dh, setupSeries, onSetupS
                   if (!p) return null
                   return (
                     <div style={TOOLTIP_STYLE} dir="ltr" className="px-3 py-2 rounded">
-                      <p className="font-mono font-bold text-[#E0E0E0] text-sm">{p.ticker}</p>
-                      <p className="text-[#B0B0B0] text-sm">
+                      <p className="font-mono font-bold text-text-main text-sm">{p.ticker}</p>
+                      <p className="text-text-dim text-sm">
                         {p.holdHours < 24 ? `${p.holdHours.toFixed(1)}h` : `${(p.holdHours / 24).toFixed(1)}d`}
                       </p>
-                      <p className={`text-sm ${p.actualR >= 0 ? 'text-[#2CC84A]' : 'text-[#FF4D4D]'}`}>
+                      <p className={`text-sm ${p.actualR >= 0 ? 'text-green' : 'text-red'}`}>
                         {p.actualR >= 0 ? '+' : ''}{p.actualR.toFixed(2)}R
                       </p>
                     </div>

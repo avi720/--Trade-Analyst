@@ -40,14 +40,14 @@ function ibkrDotColor(
   lastSyncStatus: string | null | undefined,
   lastSyncError: string | null | undefined,
 ): string {
-  if (!lastSyncAt) return "bg-[#888888]";
-  if (lastSyncStatus === "SUCCESS") return "bg-[#2CC84A]";
+  if (!lastSyncAt) return "bg-text-mute";
+  if (lastSyncStatus === "SUCCESS") return "bg-green";
 
   // Extract error code from "IBKR Flex (CODE): MESSAGE" format
   const match = lastSyncError?.match(/IBKR Flex \((\d+)\)/);
-  if (match && IBKR_TRANSIENT_CODES.has(match[1])) return "bg-[#FFB800]";
+  if (match && IBKR_TRANSIENT_CODES.has(match[1])) return "bg-amber";
 
-  return "bg-[#FF4D4D]";
+  return "bg-red";
 }
 
 function formatShort(iso: string | null | undefined): string {
@@ -95,7 +95,7 @@ export function SyncIndicator() {
   */
 
   return (
-    <div className="flex items-center gap-2 text-sm text-[#B0B0B0] font-mono">
+    <div className="flex items-center gap-2 text-sm text-text-dim font-mono">
       <span className="flex items-center gap-1" title={ibkrTitle}>
         <span className={`w-1.5 h-1.5 rounded-full ${ibkrColor}`} />
         IBKR {ibkrLabel}

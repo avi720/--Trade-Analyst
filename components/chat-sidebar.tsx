@@ -134,7 +134,8 @@ export function ChatSidebar() {
     }
   }
 
-  const modelLabel = contextMode === 'full' ? 'Pro 🔬' : 'Flash ⚡'
+  const modelName = contextMode === 'full' ? 'Pro' : 'Flash'
+  const modelEmoji = contextMode === 'full' ? '🔬' : '⚡'
 
   return (
     <>
@@ -144,57 +145,61 @@ export function ChatSidebar() {
         aria-label="צ'אט עם חנן"
         aria-hidden={!isOpen}
         className={`
-          fixed top-0 left-0 h-full w-80 bg-[#111111] border-r border-[#222222]
+          fixed top-0 right-0 h-full w-80 bg-panel border-l border-border
           flex flex-col z-40 transition-transform duration-300
-          ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+          ${isOpen ? 'translate-x-0' : 'translate-x-full'}
         `}
         dir="rtl"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#222222] flex-shrink-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[#FFB800] font-bold">חנן</span>
-            <span className="text-[#B0B0B0] text-sm font-mono">{modelLabel}</span>
+            <span className="font-mono text-amber font-bold">חנן</span>
+            <span className="text-text-dim text-sm font-mono">
+              {modelName} <span aria-hidden="true">{modelEmoji}</span>
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={handleNewConversation}
-              className="text-sm text-[#B0B0B0] hover:text-[#E0E0E0] px-2 py-1 rounded hover:bg-[#1A1A1A] transition-colors"
+              className="text-sm text-text-dim hover:text-text-main px-2 py-1 rounded hover:bg-input-bg transition-colors"
               title="שיחה חדשה"
             >
               חדש
             </button>
             <button
               onClick={toggleChat}
-              className="text-[#B0B0B0] hover:text-[#E0E0E0] transition-colors text-lg leading-none"
+              className="w-11 h-11 flex items-center justify-center text-text-dim hover:text-text-main transition-colors text-xl leading-none rounded"
               aria-label="סגור"
             >
-              ✕
+              <span aria-hidden="true">✕</span>
             </button>
           </div>
         </div>
 
         {/* Context mode toggle */}
-        <div className="flex gap-2 px-4 py-2 border-b border-[#222222] flex-shrink-0">
+        <div className="flex gap-2 px-4 py-2 border-b border-border flex-shrink-0">
           <button
             onClick={() => handleContextMode('smart')}
+            aria-pressed={contextMode === 'smart'}
             className={`flex-1 py-1.5 rounded text-xs font-mono transition-colors ${
               contextMode === 'smart'
-                ? 'bg-[#FFB800] text-[#080808] font-bold'
-                : 'bg-[#1A1A1A] text-[#B0B0B0] hover:text-[#E0E0E0]'
+                ? 'bg-amber text-bg-dark font-bold'
+                : 'bg-input-bg text-text-dim hover:text-text-main'
             }`}
           >
-            חכם ⚡
+            חכם <span aria-hidden="true">⚡</span>
           </button>
           <button
             onClick={() => handleContextMode('full')}
+            aria-pressed={contextMode === 'full'}
             className={`flex-1 py-1.5 rounded text-xs font-mono transition-colors ${
               contextMode === 'full'
-                ? 'bg-[#FFB800] text-[#080808] font-bold'
-                : 'bg-[#1A1A1A] text-[#B0B0B0] hover:text-[#E0E0E0]'
+                ? 'bg-amber text-bg-dark font-bold'
+                : 'bg-input-bg text-text-dim hover:text-text-main'
             }`}
           >
-            עומק 🔬
+            עומק <span aria-hidden="true">🔬</span>
           </button>
         </div>
 
@@ -202,7 +207,7 @@ export function ChatSidebar() {
         <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3">
           {messages.length === 0 && !isLoading && (
             <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center">
-              <p className="text-[#B0B0B0] text-sm font-sans">שאל את חנן על הטריידים שלך</p>
+              <p className="text-text-dim text-sm font-sans">שאל את חנן על הטריידים שלך</p>
             </div>
           )}
 
@@ -214,10 +219,10 @@ export function ChatSidebar() {
               <div
                 className={`max-w-[85%] rounded-lg px-3 py-2 text-sm font-sans whitespace-pre-wrap break-words ${
                   msg.role === 'user'
-                    ? 'bg-[#1A1200] border border-[#FFB800]/30 text-[#E0E0E0]'
+                    ? 'bg-amber-tint border border-amber/30 text-text-main'
                     : msg.isError
-                      ? 'bg-[#2A0A0A] border border-[#FF4D4D]/30 text-[#FF4D4D]'
-                      : 'bg-[#1A1A1A] border border-[#333333] text-[#E0E0E0]'
+                      ? 'bg-red-tint border border-red/30 text-red'
+                      : 'bg-input-bg border border-shade text-text-main'
                 }`}
               >
                 {msg.content}
@@ -227,7 +232,7 @@ export function ChatSidebar() {
 
           {isLoading && (
             <div className="flex justify-end">
-              <div className="bg-[#1A1A1A] border border-[#333333] rounded-lg px-3 py-2 text-sm text-[#B0B0B0] font-mono">
+              <div className="bg-input-bg border border-shade rounded-lg px-3 py-2 text-sm text-text-dim font-mono">
                 חנן חושב...
               </div>
             </div>
@@ -237,7 +242,7 @@ export function ChatSidebar() {
         </div>
 
         {/* Input area */}
-        <div className="px-4 py-3 border-t border-[#222222] flex-shrink-0">
+        <div className="px-4 py-3 border-t border-border flex-shrink-0">
           <div className="flex gap-2">
             <input
               value={input}
@@ -245,12 +250,12 @@ export function ChatSidebar() {
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
               disabled={isLoading}
               placeholder="שאל את חנן..."
-              className="flex-1 bg-[#1A1A1A] border border-[#333333] rounded text-[#E0E0E0] text-sm px-3 py-2 placeholder-[#888888] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFB800] focus-visible:outline-offset-2 focus:border-[#FFB800]/50 disabled:opacity-50"
+              className="flex-1 bg-input-bg border border-shade rounded text-text-main text-sm px-3 py-2 placeholder-text-mute outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2 focus:border-amber/50 disabled:opacity-50"
             />
             <button
               onClick={handleSend}
               disabled={isLoading || !input.trim()}
-              className="bg-[#FFB800] text-[#080808] rounded px-3 py-2 text-sm font-mono font-bold hover:bg-[#FFB800]/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="bg-amber text-bg-dark rounded px-3 py-2 text-sm font-mono font-bold hover:bg-amber/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               שלח
             </button>
