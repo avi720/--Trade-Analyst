@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Assistant:wght@400;500;600;700&display=swap');
+/* Fonts loaded via next/font/google in app/layout.tsx — self-hosted, no
+   runtime network requests to fonts.googleapis.com. */
 
 @tailwind base;
 @tailwind components;
@@ -23,7 +24,7 @@
 body {
   background-color: var(--bg-dark);
   color: var(--text-main);
-  font-family: 'Assistant', sans-serif;
+  font-family: var(--font-assistant), 'Assistant', sans-serif;
   margin: 0;
 }
 
@@ -141,4 +142,30 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   background-color: var(--panel-bg);
   border: 1px solid var(--border);
   border-radius: 8px;
+}
+
+/* Chrome autofill — keep dark theme. The native style applies an inset
+   background that paints white over our dark inputs; the long inset shadow
+   is the documented workaround. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px var(--input-bg) inset !important;
+  -webkit-text-fill-color: var(--text-main) !important;
+  caret-color: var(--text-main);
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+/* Respect "reduce motion" OS setting — disable non-essential transitions
+   and animations (WCAG 2.3.3). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

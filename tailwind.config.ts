@@ -32,8 +32,8 @@ const config: Config = {
         'shade-2': '#444444',
       },
       fontFamily: {
-        mono: ['"IBM Plex Mono"', 'monospace'],
-        sans: ['Assistant', 'sans-serif'],
+        mono: ['var(--font-ibm-plex-mono)', '"IBM Plex Mono"', 'monospace'],
+        sans: ['var(--font-assistant)', 'Assistant', 'sans-serif'],
       },
       backgroundColor: {
         dark: '#080808',

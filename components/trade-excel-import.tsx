@@ -108,21 +108,30 @@ export function TradeExcelImport() {
         </button>
       </div>
 
-      {/* Drop zone */}
-      <div
+      {/* Drop zone — <label> wraps a visually-hidden but focusable file input so
+          keyboard users can Tab to the input and press Enter to open the picker. */}
+      <label
+        htmlFor="excel-file-input"
         onDragOver={e => { e.preventDefault(); setDragging(true) }}
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
-        onClick={() => fileRef.current?.click()}
-        className={`panel p-10 flex flex-col items-center justify-center gap-2 cursor-pointer border-2 border-dashed transition-colors ${
+        className={`panel p-10 flex flex-col items-center justify-center gap-2 cursor-pointer border-2 border-dashed transition-colors focus-within:outline focus-within:outline-2 focus-within:outline-amber focus-within:outline-offset-2 ${
           dragging ? 'border-amber bg-amber/5' : 'border-border hover:border-shade-2'
         }`}
       >
-        <input ref={fileRef} type="file" accept=".xlsx" className="hidden" onChange={handleFileChange} />
-        <span className="text-2xl">📂</span>
+        <input
+          ref={fileRef}
+          id="excel-file-input"
+          type="file"
+          accept=".xlsx"
+          className="sr-only"
+          onChange={handleFileChange}
+          aria-describedby="excel-dropzone-hint"
+        />
+        <span aria-hidden="true" className="text-2xl">📂</span>
         <span className="text-sm text-text-dim font-mono">גרור קובץ Excel לכאן או לחץ לבחירה</span>
-        <span className="text-xs text-text-faint font-mono">.xlsx</span>
-      </div>
+        <span id="excel-dropzone-hint" className="text-xs text-text-faint font-mono">.xlsx</span>
+      </label>
 
       {parseError && (
         <div className="text-xs text-red font-mono border border-red/20 bg-red/5 rounded px-3 py-2">

@@ -3,7 +3,7 @@ export function CountdownCircle({ remaining, total }: { remaining: number; total
   const circ = 2 * Math.PI * r;
   const offset = circ * (1 - remaining / total);
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" style={{ transform: "rotate(-90deg)", flexShrink: 0 }}>
+    <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" style={{ transform: "rotate(-90deg)", flexShrink: 0 }}>
       <circle cx="7" cy="7" r={r} fill="none" stroke="#1a3a1a" strokeWidth="2" />
       <circle
         cx="7" cy="7" r={r}

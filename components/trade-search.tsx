@@ -90,7 +90,7 @@ function SortTh({
     <th
       aria-sort={ariaSort}
       scope="col"
-      className="px-0 py-0 text-right text-sm font-mono text-text-dim whitespace-nowrap"
+      className="px-0 py-0 text-right text-sm text-text-dim whitespace-nowrap"
     >
       <button
         type="button"
@@ -500,7 +500,7 @@ export function TradeSearch({ trades, initialParams }: Props) {
             <button
               onClick={() => setPage(p => Math.max(0, p - 1))}
               disabled={page === 0}
-              className="px-4 min-h-11 text-sm font-mono border border-border rounded text-text-dim hover:text-text-main hover:border-shade-2 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="px-4 min-h-11 text-sm border border-border rounded text-text-dim hover:text-text-main hover:border-shade-2 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               ← הקודם
             </button>
@@ -510,7 +510,7 @@ export function TradeSearch({ trades, initialParams }: Props) {
             <button
               onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
               disabled={page >= pageCount - 1}
-              className="px-4 min-h-11 text-sm font-mono border border-border rounded text-text-dim hover:text-text-main hover:border-shade-2 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="px-4 min-h-11 text-sm border border-border rounded text-text-dim hover:text-text-main hover:border-shade-2 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               הבא →
             </button>

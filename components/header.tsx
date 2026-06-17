@@ -33,21 +33,23 @@ export function Header({ userEmail }: HeaderProps) {
   }
 
   return (
-    <header className="border-b border-border bg-panel px-6 h-14 flex items-center justify-between flex-shrink-0">
+    <header className="border-b border-border bg-panel px-4 sm:px-6 h-14 flex items-center justify-between gap-2 flex-shrink-0 overflow-x-auto">
       {/* App name — right side in RTL */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-shrink-0">
         <TradeLogoIcon size={32} />
         <span className="font-mono font-semibold text-amber text-lg tracking-tight">
           Trade Analysis
         </span>
       </div>
 
-      {/* Tabs — center */}
-      <nav className="flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
+      {/* Tabs — centered on wide screens, inline flow at ≤lg so they reflow
+          instead of overlapping the logo/controls. */}
+      <nav className="flex items-center gap-1 lg:absolute lg:left-1/2 lg:-translate-x-1/2 flex-shrink-0">
         {TABS.map(tab => (
           <Link
             key={tab.href}
             href={tab.href}
+            prefetch={false}
             aria-current={pathname === tab.href || pathname.startsWith(tab.href + '/') ? 'page' : undefined}
             className={cn(
               'px-4 py-2 rounded-md text-sm transition-colors border-b-2',

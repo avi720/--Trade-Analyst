@@ -401,9 +401,21 @@ export function TradeEntryForm() {
   }
 
   async function handleSubmit() {
-    setSubmitting(true)
     setError('')
     setResult(null)
+
+    // Client-side validation — block submission when a required numeric field
+    // is missing or zero. type="number" already rejects non-numeric typing,
+    // but pasted text or empty fields would otherwise silently submit 0.
+    for (let i = 0; i < legs.length; i++) {
+      const l = legs[i]
+      if (!l.ticker.trim()) { setError(`כרטיס ${i + 1}: חסר טיקר`); return }
+      if (!Number.isFinite(l.quantity) || l.quantity <= 0) { setError(`כרטיס ${i + 1}: כמות חייבת להיות מספר גדול מ-0`); return }
+      if (!Number.isFinite(l.price) || l.price <= 0) { setError(`כרטיס ${i + 1}: מחיר חייב להיות מספר גדול מ-0`); return }
+      if (!Number.isFinite(l.commission) || l.commission < 0) { setError(`כרטיס ${i + 1}: עמלה חייבת להיות מספר אי-שלילי`); return }
+    }
+
+    setSubmitting(true)
     try {
       const res = await fetch('/api/trades/manual', {
         method: 'POST',

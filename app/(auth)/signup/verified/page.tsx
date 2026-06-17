@@ -1,6 +1,6 @@
 export default function SignupVerifiedPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bg-dark px-4">
+    <div className="min-h-dvh flex items-center justify-center bg-bg-dark px-4">
       <div className="panel p-8 w-full max-w-sm text-center space-y-5">
         <div className="w-12 h-12 rounded-full bg-green-tint border border-green/30 flex items-center justify-center mx-auto">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2CC84A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

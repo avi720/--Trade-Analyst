@@ -31,7 +31,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bg-dark">
+    <div className="min-h-dvh flex items-center justify-center bg-bg-dark">
       <div className="panel p-8 w-full max-w-sm">
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-text-main font-mono">שכחתי סיסמה</h1>

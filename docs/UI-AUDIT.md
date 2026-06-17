@@ -171,42 +171,42 @@ ID convention: `F##` numbered globally across phases. Where a finding was confir
 
 ### Phase 3 — Polish (consistency / hygiene)
 
-#### [ ] F20. `aria-live` region in `/research` wraps 1006 characters
+#### [x] F20. `aria-live` region in `/research` wraps 1006 characters
 - **Where:** `components/research-dashboard.tsx:279` — `aria-live="polite"` wraps the entire metrics + charts area.
 - **Issue:** **Confirmed.** `textLen: 1006`. When any filter changes, screen readers re-announce over 1000 characters of content. ARIA live regions should wrap only the specific content that changes — a summary count or a status message, not the entire dashboard.
 - **Acceptance:** The `aria-live` region wraps only a short status string (e.g., "מציג 9 עסקאות" or "אין תוצאות") that changes on filter updates. The full dashboard content is outside the live region. Verified by changing a filter and confirming the screen reader announces only the status, not the entire dashboard.
 
-#### [ ] F21. Manual entry silently coerces invalid numeric input to zero
+#### [x] F21. Manual entry silently coerces invalid numeric input to zero
 - **Where:** `components/trade-entry-form.tsx:147` — `parseFloat(e.target.value) || 0`
 - **Issue:** If a user types "abc" in a price field, it silently becomes 0 with no validation feedback. This can produce Orders with `price: 0` or `quantity: 0` in the database.
 - **Acceptance:** Invalid numeric input shows a visible validation message (e.g., border colour change + helper text) and the form does not submit with a value of 0 from a non-empty field. Verified by typing "abc" in the price field and confirming visual feedback appears.
 
-#### [ ] F22. Google Fonts loaded from external CDN instead of `next/font`
+#### [x] F22. Google Fonts loaded from external CDN instead of `next/font`
 - **Where:** Root layout — `<link>` tags load from `fonts.googleapis.com` + `fonts.gstatic.com`.
 - **Issue:** **Confirmed.** Network observation shows 4 woff2 font files fetched from `fonts.gstatic.com` on every page load. This adds external DNS lookups, is render-blocking, and sends referrer data to Google. Next.js has built-in `next/font/google` for self-hosting with zero layout shift.
 - **Acceptance:** Fonts are loaded via `next/font/google` and self-hosted from the app's own domain. `grep -rn "fonts.googleapis.com\|fonts.gstatic.com" app/` returns zero hits. Verified by checking the Network tab — no requests to Google font CDN.
 
-#### [ ] F23. `h-screen` / `min-h-screen` used instead of `dvh` units
+#### [x] F23. `h-screen` / `min-h-screen` used instead of `dvh` units
 - **Where:** Dashboard layout, root layout, login page, signup page.
 - **Issue:** `h-screen` uses `100vh` which on tablet browsers does not account for the collapsing URL bar, causing content to be clipped behind the address bar. The `dvh` unit (dynamic viewport height) adjusts to the visible viewport.
 - **Acceptance:** All viewport-height declarations use `dvh` equivalents (`min-h-dvh`, `h-dvh`). Verified by `grep -rn "h-screen\|min-h-screen" app/ components/` returning zero hits.
 
-#### [ ] F24. `font-mono` leaks into Hebrew UI text
+#### [x] F24. `font-mono` leaks into Hebrew UI text
 - **Where:** Header, sort indicators, pagination — `font-mono` (IBM Plex Mono) is applied to elements containing Hebrew text, not just numbers.
-- **Issue:** IBM Plex Mono was chosen for numeric displays. When it applies to Hebrew characters, the monospace rendering looks mechanical and inconsistent with the Assistant font used elsewhere. Hebrew text should always use the `Assistant` font family.
+- **Issue:** IBM Plex Mono was chosen for numeric displays. When it applies to Hebrew characters, the monospace rendering looks mechanical and inconsistent with the Assistant font used elsewhere. Hebrew text should always use the `Assistant` font family. **Closed 2026-06-16** — stripped `font-mono` from the SortTh column-header wrapper (Hebrew labels like "טיקר"/"סטאפ") and the two pagination buttons ("← הקודם" / "הבא →"). Hebrew header tabs in `Header` were already plain sans (no font-mono class). The `{page+1} / {pageCount}` numeric indicator keeps `font-mono`.
 - **Acceptance:** `font-mono` is applied only to elements containing numeric data (prices, quantities, dates, percentages). Hebrew text never renders in monospace. Verified by inspecting `font-family` computed style on Hebrew-text elements and confirming it resolves to `Assistant`.
 
-#### [ ] F25. No `prefers-reduced-motion` media query anywhere
+#### [x] F25. No `prefers-reduced-motion` media query anywhere
 - **Where:** Codebase-wide — no `@media (prefers-reduced-motion)` or `motion-safe:`/`motion-reduce:` Tailwind utilities.
 - **Issue:** Users who have enabled "reduce motion" in their OS settings still see all transitions and animations. WCAG 2.3.3 recommends respecting motion preferences to prevent vestibular discomfort.
 - **Acceptance:** All non-essential animations (sidebar slide, modal fade, chart transitions, tooltip appearance) are disabled or reduced when `prefers-reduced-motion: reduce` is active. Verified by enabling "reduce motion" in OS settings and confirming transitions are instant.
 
-#### [ ] F26. Header navigation breaks below ~900px viewport width
+#### [x] F26. Header navigation breaks below ~900px viewport width
 - **Where:** `components/header.tsx:46` — `position: absolute left-1/2 -translate-x-1/2` centres nav tabs.
 - **Issue:** The absolute-centre positioning assumes enough horizontal space for all tabs + logo + sync indicator. Below ~900px (possible on smaller tablets or split-screen), tabs overflow or overlap the logo/indicator. No responsive fallback exists.
 - **Acceptance:** Navigation remains usable at viewport widths down to 768px (standard tablet portrait). Tabs either reflow, use a horizontal scroll, or collapse to a menu. Verified by resizing the browser to 768px and confirming all tabs are accessible without horizontal page overflow.
 
-#### [ ] F27. Chrome autofill turns inputs light blue, breaking dark theme
+#### [x] F27. Chrome autofill turns inputs light blue, breaking dark theme
 - **Where:** Login and signup form inputs.
 - **Issue:** **Confirmed.** Chrome's autofill stylesheet applies a light-blue background to filled inputs, which clashes with the `#080808` page background. This is a common dark-theme issue with a well-known CSS workaround.
 - **Acceptance:** Autofilled inputs maintain the dark theme appearance. Verified by autofilling the login form in Chrome and confirming inputs do not turn light blue.
@@ -216,12 +216,12 @@ ID convention: `F##` numbered globally across phases. Where a finding was confir
 - **Issue:** The resize handle declares `role="separator"` but omits `aria-orientation` and `aria-valuenow`. When `role="separator"` is on a focusable element (which it is — it has event handlers), WAI-ARIA requires these attributes for AT to convey the separator's state.
 - **Acceptance:** The separator element has `aria-orientation` and `aria-valuenow` (or `aria-valuemin`/`aria-valuemax`). Alternatively, if keyboard resize is not supported, `role="separator"` is removed and replaced with `role="presentation"` or no role. Verified by inspecting the element's ARIA attributes.
 
-#### [ ] F29. Hidden file input for Excel import is not keyboard-accessible
+#### [x] F29. Hidden file input for Excel import is not keyboard-accessible
 - **Where:** `components/trade-excel-import.tsx` — `<input type="file" className="hidden">` triggered by a `<div>` click.
 - **Issue:** The file input is `display: none` and the visual drop zone that triggers it is a `<div>`, not a `<button>`. Keyboard users cannot reach or activate the file picker.
 - **Acceptance:** The file-upload trigger is a focusable, activatable element (a `<button>` or a visible `<label htmlFor>` pointing to the input). Verified by tabbing to the upload area and pressing Enter/Space — the file picker opens.
 
-#### [ ] F30. CountdownCircle timer content announced twice by screen readers
+#### [x] F30. CountdownCircle timer content announced twice by screen readers
 - **Where:** `components/chat-sidebar.tsx` — CountdownCircle component renders visible text that screen readers also read from the parent context.
 - **Issue:** Without `aria-hidden="true"` on the decorative countdown SVG, screen readers announce the timer value twice — once from the visual text and once from the parent element.
 - **Acceptance:** The CountdownCircle SVG has `aria-hidden="true"` and the timer value is announced exactly once. Verified with a screen reader.
@@ -231,9 +231,9 @@ ID convention: `F##` numbered globally across phases. Where a finding was confir
 - **Issue:** **Deferred 2026-06-16** — owner prefers to keep the current white button. Original issue: **Confirmed.** The high-contrast white button dominates the visual hierarchy over the primary amber "כניסה" CTA. Users' eyes are drawn to the Google button first, weakening the primary action.
 - **Acceptance:** The Google button uses a toned-down dark variant (outline or low-contrast fill) that does not overpower the primary CTA. Verified by visual inspection — the primary CTA is the most prominent button on the page.
 
-#### [ ] F32. Duplicate RSC prefetch requests on navigation
+#### [x] F32. Duplicate RSC prefetch requests on navigation
 - **Where:** Network observation on `/research` — `manual-import` and `search` routes fetched twice with different `_rsc` cache keys on a single page load.
-- **Issue:** **Confirmed.** Next.js 16 link prefetching fires duplicate requests, doubling bandwidth for RSC payloads. A `503` was also observed on one prefetch (likely Vercel cold-start), causing a momentary error state.
+- **Issue:** **Confirmed.** Next.js 16 link prefetching fires duplicate requests, doubling bandwidth for RSC payloads. A `503` was also observed on one prefetch (likely Vercel cold-start), causing a momentary error state. **Closed 2026-06-16** — set `prefetch={false}` on the header `<Link>` for the 3 main nav tabs (תחקור / חיפוש / הזנת טריידים). These links are always rendered and the user nearly always clicks one, so eager prefetch is wasted bandwidth; on-demand fetch on click is fast enough. The user-menu Profile link still prefetches (only rendered when dropdown opens, so no double-fetch on initial page load).
 - **Acceptance:** Each navigable route is prefetched at most once per page load. Verified by monitoring the Network tab on `/research` load and confirming no duplicate `_rsc` requests for the same route.
 
 ---

@@ -275,8 +275,17 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
           onReset={resetFilters}
         />
 
-        {/* Results region — announces metric/chart updates to screen readers when filters change */}
-        <div aria-live="polite" aria-atomic="false">
+        {/* Short live-region status string — announces only the trade count when
+            filters change, instead of re-announcing the entire metrics + charts
+            DOM (which is over 1000 chars). The dashboard content below is
+            outside the live region. */}
+        <p aria-live="polite" aria-atomic="true" className="sr-only">
+          {stats.totalTrades === 0
+            ? 'אין תוצאות עבור הסינון הנוכחי'
+            : `מציג ${stats.totalTrades} טריידים`}
+        </p>
+
+        <div>
 
         {/* ── Metrics row ─────────────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">

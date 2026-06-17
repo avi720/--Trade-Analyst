@@ -306,7 +306,7 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bg-dark px-4 py-12">
+    <div className="min-h-dvh flex items-center justify-center bg-bg-dark px-4 py-12">
       <div className="panel p-8 w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-6">

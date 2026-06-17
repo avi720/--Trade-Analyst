@@ -55,7 +55,7 @@ export default async function DashboardLayout({
       <a href="#main-content" className="skip-link font-sans text-sm">
         דלג לתוכן הראשי
       </a>
-      <div className="flex flex-col h-screen overflow-hidden">
+      <div className="flex flex-col h-dvh overflow-hidden">
         <Header userEmail={user.email} />
         <main id="main-content" className="flex-1 overflow-auto">
           {children}
