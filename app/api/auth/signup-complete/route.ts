@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { checkRateLimit, rateLimitedResponse } from '@/lib/auth/rate-limit'
 import { z } from 'zod'
 
 const schema = z.object({
@@ -21,6 +22,10 @@ export async function POST(req: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Rate limit: 10 attempts per hour per user.
+  const rl = await checkRateLimit(`user:${user.id}:signup-complete`, 10, 3600)
+  if (!rl.ok) return rateLimitedResponse(rl)
 
   const body = await req.json()
   const parsed = schema.safeParse(body)

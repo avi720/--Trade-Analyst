@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyCurrentPassword } from "@/lib/auth/reauth";
+import { checkRateLimit, rateLimitedResponse } from "@/lib/auth/rate-limit";
 import type { Database } from "@/lib/db/types";
 
 export async function POST(req: NextRequest) {
@@ -14,6 +15,10 @@ export async function POST(req: NextRequest) {
   );
   const { data: { user } } = await supabase.auth.getUser();
   if (!user || !user.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Rate limit: 3 attempts per 10 minutes per user.
+  const rl = await checkRateLimit(`user:${user.id}:delete-account`, 3, 600);
+  if (!rl.ok) return rateLimitedResponse(rl);
 
   const { currentPassword } = await req.json().catch(() => ({}));
   if (!currentPassword || typeof currentPassword !== "string") {

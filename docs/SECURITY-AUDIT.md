@@ -79,9 +79,9 @@ ID convention: `X##` numbered globally across phases. Where a finding was confir
 
 ### Phase 2 — Important (correctness & integrity)
 
-#### [ ] X4. No rate limiting on auth-sensitive endpoints
-- **Where:** All routes under [`app/api/auth/*`](../app/api/auth)
-- **Issue:** **Deferred 2026-06-19** — pending owner decision on infra (Upstash Redis vs. Supabase `rate_limit` table). An explainer of the tradeoffs is owed at the end of Phase 3 so the choice can be made informedly. None of the auth-change endpoints or signup-completion apply any rate limiting. A compromised session can hammer `change-email`/`change-password` until it lands the desired state. Vercel's platform-level protection does not apply per-user. Maps to OWASP API4:2023 (Unrestricted Resource Consumption) and CWE-307.
+#### [x] X4. No rate limiting on auth-sensitive endpoints
+- **Where:** All routes under [`app/api/auth/*`](../app/api/auth) + [`app/api/chat/route.ts`](../app/api/chat/route.ts)
+- **Issue:** Resolved with a Supabase-backed per-user limiter. New migration `add_rate_limit_table_and_function` adds a `RateLimit` table (RLS-locked, service-role only) and a `rate_limit_check(p_key, p_limit, p_window_seconds)` Postgres function that atomically increments a fixed-window bucket. Helper `lib/auth/rate-limit.ts:checkRateLimit` wraps the RPC and returns a 429 with `Retry-After` via `rateLimitedResponse`. Applied with the following per-user limits: `change-password` 5/10min, `change-email` 5/10min, `delete-account` 3/10min, `signup-complete` 10/hour, `chat` 30/hour (caps Gemini cost exposure). Fail-open if the limiter itself errors, so a broken Supabase RPC never blocks the user.
 - **Acceptance:** Each named route enforces a per-user limit (e.g., 5 sensitive auth changes / 10 minutes) — verified by sending N+1 requests in the window with a valid session and observing the (N+1)th response is `429 Too Many Requests` with a retry hint header.
 
 #### [x] X5. `/api/trades/import` accepts unbounded file uploads

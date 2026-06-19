@@ -4,6 +4,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyCurrentPassword } from "@/lib/auth/reauth";
+import { checkRateLimit, rateLimitedResponse } from "@/lib/auth/rate-limit";
 import type { Database } from "@/lib/db/types";
 
 const schema = z.object({
@@ -20,6 +21,10 @@ export async function POST(req: NextRequest) {
   );
   const { data: { user } } = await supabase.auth.getUser();
   if (!user || !user.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Rate limit: 5 attempts per 10 minutes per user.
+  const rl = await checkRateLimit(`user:${user.id}:change-email`, 5, 600);
+  if (!rl.ok) return rateLimitedResponse(rl);
 
   const body = await req.json().catch(() => null);
   const parsed = schema.safeParse(body);
