@@ -6,6 +6,7 @@ import { fetchFlexQuery, IbkrTransientError } from "@/lib/ibkr/flex-client";
 import { parseActivityXml } from "@/lib/ibkr/parse-flex-xml";
 import { processExecutions } from "@/lib/ibkr/process-executions";
 import { verifyCronSecret } from "@/lib/auth/cron-secret";
+import { redactUserId } from "@/lib/log/redact";
 import type { Database } from "@/lib/db/types";
 
 type Admin = SupabaseClient<Database>;
@@ -35,11 +36,11 @@ async function syncOneConnection(admin: Admin, conn: ConnectionRow): Promise<Con
   let failedExecutions = 0;
 
   try {
-    console.log(`[cron/ibkr-sync] user=${conn.userId} queryId=${conn.flexQueryIdActivity} starting`);
+    console.log(`[cron/ibkr-sync] user=${redactUserId(conn.userId)} queryId=${conn.flexQueryIdActivity} starting`);
 
     const token = decryptToken(conn.flexTokenEncrypted);
     const xml = await fetchFlexQuery(token, conn.flexQueryIdActivity);
-    console.log(`[cron/ibkr-sync] user=${conn.userId} fetchFlexQuery complete. xml.length=${xml.length}`);
+    console.log(`[cron/ibkr-sync] user=${redactUserId(conn.userId)} fetchFlexQuery complete. xml.length=${xml.length}`);
 
     // Audit log — store raw XML (capped)
     const { data: event } = await admin.from("BrokerEvent").insert({
@@ -52,7 +53,7 @@ async function syncOneConnection(admin: Admin, conn: ConnectionRow): Promise<Con
 
     const parsed = parseActivityXml(xml);
     executions = parsed.length;
-    console.log(`[cron/ibkr-sync] user=${conn.userId} parseActivityXml: ${executions} executions`);
+    console.log(`[cron/ibkr-sync] user=${redactUserId(conn.userId)} parseActivityXml: ${executions} executions`);
 
     const results = await processExecutions(parsed, conn.userId);
 
@@ -74,7 +75,7 @@ async function syncOneConnection(admin: Admin, conn: ConnectionRow): Promise<Con
     const accountId = parsed[0]?.brokerClientAccountId ?? null;
 
     console.log(
-      `[cron/ibkr-sync] user=${conn.userId} complete: ${results.length - failed.length} success, ${failed.length} failed`
+      `[cron/ibkr-sync] user=${redactUserId(conn.userId)} complete: ${results.length - failed.length} success, ${failed.length} failed`
     );
 
     await admin
@@ -97,7 +98,7 @@ async function syncOneConnection(admin: Admin, conn: ConnectionRow): Promise<Con
     };
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
-    console.error(`[cron/ibkr-sync] user=${conn.userId} error:`, errMsg);
+    console.error(`[cron/ibkr-sync] user=${redactUserId(conn.userId)} error:`, errMsg);
 
     // Transient IBKR errors (report not ready yet): don't update lastSyncAt so
     // the next cron fire retries without waiting the full polling interval.
@@ -124,7 +125,7 @@ async function syncOneConnection(admin: Admin, conn: ConnectionRow): Promise<Con
 
 // Secured with CRON_SECRET header — called by GitHub Actions at 13:00 & 20:00 UTC daily.
 // Iterates ALL active BrokerConnections; one failed connection does not block the others.
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
   if (!verifyCronSecret(req.headers.get("Authorization"))) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
@@ -168,4 +169,3 @@ export async function GET(req: NextRequest) {
   });
 }
 
-export const POST = GET;

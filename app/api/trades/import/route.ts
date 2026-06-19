@@ -10,6 +10,12 @@ const ALLOWED_MIME_TYPES = new Set([
 
 // GET /api/trades/import?template=true  → download blank template
 export async function GET(req: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const { searchParams } = new URL(req.url)
   if (searchParams.get('template') !== 'true') {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })

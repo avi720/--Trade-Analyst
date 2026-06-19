@@ -11,5 +11,5 @@ jobs:
     steps:
       - name: Trigger IBKR sync
         run: |
-          curl -f -X GET "${{ secrets.SITE_URL }}/api/cron/ibkr-sync" \
+          curl -f -X POST "${{ secrets.SITE_URL }}/api/cron/ibkr-sync" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

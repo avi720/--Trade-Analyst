@@ -118,27 +118,27 @@ ID convention: `X##` numbered globally across phases. Where a finding was confir
 
 ### Phase 3 — Polish (consistency / hygiene)
 
-#### [ ] X12. IBKR encryption format has no version prefix
+#### [x] X12. IBKR encryption format has no version prefix
 - **Where:** [`lib/ibkr/encrypt.ts:26`](../lib/ibkr/encrypt.ts) (`iv:authTag:ciphertext`)
 - **Issue:** The stored format has no algorithm/version marker. A future key rotation or migration to a different AEAD (e.g., XChaCha20-Poly1305 via `libsodium`) cannot distinguish old from new ciphertexts without an out-of-band marker. Cheap to add now, painful later. No exploitable security flaw today.
 - **Acceptance:** Encryption format becomes `v1:iv:authTag:ciphertext` (or equivalent); `decryptToken()` parses the version and dispatches accordingly; a migration script (or lazy re-encryption on next read) updates existing rows — verified by a unit test that decrypts both a pre-migration and a post-migration string and rejects an unknown version prefix.
 
-#### [ ] X13. Cron routes accept GET
+#### [x] X13. Cron routes accept GET
 - **Where:** [`app/api/cron/ibkr-sync/route.ts:171`](../app/api/cron/ibkr-sync/route.ts) (`export const POST = GET;`)
 - **Issue:** Convention says state-mutating endpoints should be POST-only. The Bearer auth makes CSRF irrelevant in practice (no cookie used), but a GET-callable mutation appears in browser histories, proxy logs, and bookmark sync. Minor hardening.
 - **Acceptance:** Cron routes export `POST` only (or `GET` returns 405) — verified by `curl -X GET` returning 405 and `curl -X POST` with the Bearer header returning the normal payload.
 
-#### [ ] X14. API routes depend on `proxy.ts` for auth
+#### [x] X14. API routes depend on `proxy.ts` for auth
 - **Where:** [`proxy.ts:67`](../proxy.ts) (matcher) · [`app/api/cities/route.ts`](../app/api/cities/route.ts) (no in-route auth) · [`app/api/trades/import/route.ts:6-12`](../app/api/trades/import/route.ts) (template GET has no in-route auth)
 - **Issue:** Auth is enforced by `proxy.ts` redirecting unauthenticated requests to `/login`, with `api/cron/` excluded from the matcher. If the matcher is ever changed (e.g., during a Next.js upgrade or a routing refactor), routes that have no in-handler auth check silently become public. Defence-in-depth says every non-public route should check auth at the handler level *as well*. `/api/cities` is genuinely public-equivalent (govt open data), but `template=true` returns a file with the user's expected fields and should still gate.
 - **Acceptance:** Every API route under `app/api/**` either (a) has an explicit auth check at the top of the handler, or (b) is documented in a `PUBLIC_ROUTES` constant with a justification — verified by grep showing each route either calls `supabase.auth.getUser()` first or is listed in the public set.
 
-#### [ ] X15. Verbose user-ID logging across cron flow
+#### [x] X15. Verbose user-ID logging across cron flow
 - **Where:** [`app/api/cron/ibkr-sync/route.ts:37,41,54,76,99`](../app/api/cron/ibkr-sync/route.ts) and similar in `app/api/ibkr/connect/route.ts`
 - **Issue:** Every log line includes the raw `userId`. This is not directly exploitable, but it means Vercel log storage (and any downstream log aggregator) holds a per-user activity trail. For a future GDPR/Privacy posture, prefer hashing or truncating user IDs in logs, and avoid embedding them in messages where a counter/aggregate would do.
 - **Acceptance:** A `redactUserId(id)` helper exists (e.g., first 6 chars of a HMAC) and is used in log statements where the raw ID adds no debug value — verified by grep on `console.log` in the affected files showing no raw UUID-looking string unless explicitly tagged as a debug-only line.
 
-#### [ ] X16. `getBaseUrl()` has no validation of `SITE_URL` shape
+#### [x] X16. `getBaseUrl()` has no validation of `SITE_URL` shape
 - **Where:** [`lib/utils.ts:1-3`](../lib/utils.ts)
 - **Issue:** `SITE_URL` is trusted to be a syntactically valid absolute URL with no trailing slash. A misconfiguration (trailing slash, missing protocol) produces auth-callback URLs like `https://example.com//research` or `example.com/research` (no scheme), which redirects fail or silently leak. Defensive hardening — runtime cost is one `new URL()` per call, which is negligible.
 - **Acceptance:** `getBaseUrl()` returns a `new URL(process.env.SITE_URL ?? 'http://localhost:3000').origin` (strips trailing slash, validates scheme) — verified by a unit test that confirms inputs `"https://x.com/"`, `"https://x.com"`, and `"http://x.com:80"` all yield identical correct origins, and that a malformed `SITE_URL` throws at startup rather than at first auth callback.

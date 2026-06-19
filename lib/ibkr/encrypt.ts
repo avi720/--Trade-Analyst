@@ -2,6 +2,7 @@ import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 
 const ALGORITHM = "aes-256-gcm";
 const KEY_LENGTH = 32; // bytes (256 bits)
+const CURRENT_VERSION = "v1";
 
 function getKey(): Buffer {
   const hex = process.env.FLEX_TOKEN_ENCRYPTION_KEY;
@@ -13,7 +14,11 @@ function getKey(): Buffer {
   return Buffer.from(hex, "hex");
 }
 
-// Returns "iv:authTag:ciphertext" (all hex-encoded, colon-separated)
+// Format: "v1:iv:authTag:ciphertext" — all hex-encoded, colon-separated.
+// Legacy 3-part values produced before the v1 prefix was introduced are
+// accepted by decryptToken() for backward-compatible reads; the next time a
+// caller re-encrypts the token (e.g., user rotates the IBKR Flex token) the
+// new value is written with the v1 prefix.
 export function encryptToken(plain: string): string {
   const key = getKey();
   const iv = randomBytes(12); // 96-bit IV recommended for GCM
@@ -23,15 +28,37 @@ export function encryptToken(plain: string): string {
     cipher.final(),
   ]);
   const authTag = cipher.getAuthTag();
-  return [iv.toString("hex"), authTag.toString("hex"), encrypted.toString("hex")].join(":");
+  return [
+    CURRENT_VERSION,
+    iv.toString("hex"),
+    authTag.toString("hex"),
+    encrypted.toString("hex"),
+  ].join(":");
 }
 
-// Decrypts a value produced by encryptToken()
 export function decryptToken(stored: string): string {
   const key = getKey();
   const parts = stored.split(":");
-  if (parts.length !== 3) throw new Error("Invalid encrypted token format");
-  const [ivHex, authTagHex, ciphertextHex] = parts;
+
+  let ivHex: string;
+  let authTagHex: string;
+  let ciphertextHex: string;
+
+  if (parts.length === 4) {
+    const [version, iv, tag, ct] = parts;
+    if (version !== "v1") {
+      throw new Error(`Unsupported encrypted-token version: ${version}`);
+    }
+    ivHex = iv;
+    authTagHex = tag;
+    ciphertextHex = ct;
+  } else if (parts.length === 3) {
+    // Legacy (pre-v1) format — same AES-256-GCM construction, just no prefix.
+    [ivHex, authTagHex, ciphertextHex] = parts;
+  } else {
+    throw new Error("Invalid encrypted token format");
+  }
+
   const iv = Buffer.from(ivHex, "hex");
   const authTag = Buffer.from(authTagHex, "hex");
   const ciphertext = Buffer.from(ciphertextHex, "hex");
