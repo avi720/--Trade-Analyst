@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { buildExecutions, extractAnnotations } from '@/lib/trade/manual-entry'
+import { buildExecutions, extractAnnotations, manualLegSchema } from '@/lib/trade/manual-entry'
 import { processExecutions } from '@/lib/ibkr/process-executions'
 import { recomputeActualR } from '@/lib/trade/recompute-actual-r'
 import type { ManualLeg } from '@/lib/trade/manual-entry'
@@ -21,11 +21,18 @@ export async function POST(req: NextRequest) {
   let close: ClosePayload
   try {
     const body = await req.json()
-    open = body.open
-    close = body.close
-    if (!open || !close) {
+    if (!body?.open || !body?.close) {
       return NextResponse.json({ error: 'open and close required' }, { status: 400 })
     }
+    const parsed = manualLegSchema.safeParse(body.open)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: parsed.error.flatten() },
+        { status: 422 }
+      )
+    }
+    open = parsed.data as ManualLeg
+    close = body.close
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }

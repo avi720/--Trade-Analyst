@@ -1,22 +1,14 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import { createAdminClient } from "@/lib/supabase/admin";
-import type { Database } from "@/lib/db/types";
+import { createClient } from "@/lib/supabase/server";
 
-// Returns current BrokerConnection status — never returns the encrypted token
+// Returns current BrokerConnection status — never returns the encrypted token.
+// Uses the RLS-bound client: BrokerConnection RLS limits rows to auth.uid() = userId.
 export async function GET() {
-  const cookieStore = await cookies();
-  const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll() } }
-  );
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const admin = createAdminClient();
-  const { data, error } = await admin
+  const { data, error } = await supabase
     .from("BrokerConnection")
     .select(
       "id, flexQueryIdActivity, pricePollingIntervalMin, lastSyncAt, lastSyncStatus, lastSyncError, lastPriceSyncAt, lastPriceSyncStatus, isActive, accountId"

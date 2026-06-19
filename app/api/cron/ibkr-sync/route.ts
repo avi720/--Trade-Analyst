@@ -5,6 +5,7 @@ import { decryptToken } from "@/lib/ibkr/encrypt";
 import { fetchFlexQuery, IbkrTransientError } from "@/lib/ibkr/flex-client";
 import { parseActivityXml } from "@/lib/ibkr/parse-flex-xml";
 import { processExecutions } from "@/lib/ibkr/process-executions";
+import { verifyCronSecret } from "@/lib/auth/cron-secret";
 import type { Database } from "@/lib/db/types";
 
 type Admin = SupabaseClient<Database>;
@@ -124,8 +125,7 @@ async function syncOneConnection(admin: Admin, conn: ConnectionRow): Promise<Con
 // Secured with CRON_SECRET header — called by GitHub Actions at 13:00 & 20:00 UTC daily.
 // Iterates ALL active BrokerConnections; one failed connection does not block the others.
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get("Authorization");
-  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!verifyCronSecret(req.headers.get("Authorization"))) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 

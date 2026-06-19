@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { createAdminClient } from '@/lib/supabase/admin'
-import type { Database } from '@/lib/db/types'
+import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 
 const schema = z.object({
@@ -20,12 +17,7 @@ const schema = z.object({
 })
 
 export async function POST(req: NextRequest) {
-  const cookieStore = await cookies()
-  const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll() } }
-  )
+  const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -41,10 +33,8 @@ export async function POST(req: NextRequest) {
 
   const { firstName, lastName, phone, addressCountry, addressCity, addressStreet, display } = parsed.data
 
-  const admin = createAdminClient()
-
-  // Read existing settings to preserve any other top-level keys
-  const { data: existing } = await admin
+  // Read existing settings to preserve any other top-level keys (RLS: own row).
+  const { data: existing } = await supabase
     .from('User')
     .select('settings')
     .eq('id', user.id)
@@ -53,7 +43,7 @@ export async function POST(req: NextRequest) {
   const existingSettings = (existing?.settings as Record<string, unknown>) ?? {}
   const mergedSettings = { ...existingSettings, display }
 
-  const { error } = await admin.from('User').upsert(
+  const { error } = await supabase.from('User').upsert(
     {
       id:             user.id,
       email:          user.email!,

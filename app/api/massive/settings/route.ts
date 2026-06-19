@@ -4,10 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import { createAdminClient } from "@/lib/supabase/admin";
-import type { Database } from "@/lib/db/types";
+import { createClient } from "@/lib/supabase/server";
 
 const schema = z.object({
   pricePollingIntervalMin: z
@@ -17,12 +14,7 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const cookieStore = await cookies();
-  const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll() } }
-  );
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -32,8 +24,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
   }
 
-  const admin = createAdminClient();
-  const { error } = await admin
+  // RLS on BrokerConnection limits the UPDATE to the caller's own row.
+  const { error } = await supabase
     .from("BrokerConnection")
     .update({ pricePollingIntervalMin: parsed.data.pricePollingIntervalMin })
     .eq("userId", user.id);

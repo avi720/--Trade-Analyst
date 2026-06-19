@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import type { NormalizedExecution } from '@/types/trade'
 import {
   CURRENCIES,
@@ -6,6 +7,42 @@ import {
   validateEmotionalState,
 } from '@/lib/constants/trade-options'
 import { localToUtcIso } from './tz'
+
+// ─── Zod schemas (structural validation at the route layer) ──────────────
+// Business-logic validation (setupType/emotionalState shape, cross-field
+// checks) stays in validateLeg below — this schema only enforces shape,
+// types, and ranges. Routes apply this BEFORE buildExecutions.
+export const MAX_LEGS_PER_REQUEST = 500
+
+export const manualLegSchema = z.object({
+  ticker: z.string().min(1).max(20),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
+  time: z.string().regex(/^\d{2}:\d{2}$/, 'Time must be HH:MM'),
+  side: z.enum(['BUY', 'SELL']),
+  quantity: z.number().finite().positive(),
+  price: z.number().finite().positive(),
+  commission: z.number().finite().min(0),
+  currency: z.enum(CURRENCIES),
+
+  commissionCurrency: z.enum(CURRENCIES).optional(),
+  orderType: z.string().max(40).optional(),
+  orderPlacedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  orderPlacedTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  broker: z.enum(BROKERS).optional(),
+  timezone: z.string().max(64).optional(),
+
+  setupType: z.string().max(80).nullable().optional(),
+  emotionalState: z.string().max(40).nullable().optional(),
+  stopPrice: z.number().finite().positive().nullable().optional(),
+  targetPrice: z.number().finite().positive().nullable().optional(),
+  notes: z.string().max(4000).nullable().optional(),
+  didRight: z.string().max(4000).nullable().optional(),
+})
+
+export const manualLegsSchema = z
+  .array(manualLegSchema)
+  .min(1, 'legs must be a non-empty array')
+  .max(MAX_LEGS_PER_REQUEST, `legs must contain at most ${MAX_LEGS_PER_REQUEST} entries`)
 
 export interface ManualLeg {
   // ─── Required execution fields ───────────────────────────────────────────

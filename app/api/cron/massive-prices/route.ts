@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runPriceSync } from "@/lib/massive/sync";
+import { verifyCronSecret } from "@/lib/auth/cron-secret";
 import type { Database } from "@/lib/db/types";
 
 type Admin = SupabaseClient<Database>;
@@ -87,8 +88,7 @@ async function syncOneConnection(admin: Admin, conn: ConnectionRow): Promise<Con
 // Secured with CRON_SECRET header — called by GitHub Actions (currently disabled).
 // Iterates ALL active BrokerConnections; each user's polling interval is honoured per-row.
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get("Authorization");
-  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!verifyCronSecret(req.headers.get("Authorization"))) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { buildExecutions, extractAnnotations } from '@/lib/trade/manual-entry'
+import { buildExecutions, extractAnnotations, manualLegsSchema } from '@/lib/trade/manual-entry'
 import { processExecutions } from '@/lib/ibkr/process-executions'
 import { recomputeActualR } from '@/lib/trade/recompute-actual-r'
 import type { ManualLeg } from '@/lib/trade/manual-entry'
@@ -17,10 +17,14 @@ export async function POST(req: NextRequest) {
   let legs: ManualLeg[]
   try {
     const body = await req.json()
-    legs = body.legs
-    if (!Array.isArray(legs) || legs.length === 0) {
-      return NextResponse.json({ error: 'legs must be a non-empty array' }, { status: 400 })
+    const parsed = manualLegsSchema.safeParse(body?.legs)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: parsed.error.flatten() },
+        { status: 422 }
+      )
     }
+    legs = parsed.data as ManualLeg[]
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
@@ -44,6 +48,7 @@ export async function POST(req: NextRequest) {
     const leg = legs[i]
     const ticker = leg.ticker.trim().toUpperCase()
     const executedAt = new Date(`${leg.date}T${leg.time}:00Z`)
+    if (!Number.isFinite(executedAt.getTime())) continue
     const execId = `MANUAL-${ticker}-${executedAt.getTime()}-${i}`
     const result = results.find(r => r.brokerExecId === execId && r.status === 'PROCESSED')
     if (!result?.tradeId) continue

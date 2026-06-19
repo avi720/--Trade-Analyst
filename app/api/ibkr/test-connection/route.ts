@@ -1,24 +1,16 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { decryptToken } from "@/lib/ibkr/encrypt";
 import { fetchFlexQuery } from "@/lib/ibkr/flex-client";
-import type { Database } from "@/lib/db/types";
 
-// Tests the Activity Flex Query connection
+// Tests the Activity Flex Query connection.
+// Uses the RLS-bound client to read the caller's own BrokerConnection row.
 export async function POST() {
-  const cookieStore = await cookies();
-  const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll() } }
-  );
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const admin = createAdminClient();
-  const { data: conn } = await admin
+  const { data: conn } = await supabase
     .from("BrokerConnection")
     .select("flexTokenEncrypted, flexQueryIdActivity")
     .eq("userId", user.id)

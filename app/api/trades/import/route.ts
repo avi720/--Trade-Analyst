@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { parseExcelBuffer, generateTemplate } from '@/lib/trade/excel-import'
 
+const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 // 2 MB
+const ALLOWED_MIME_TYPES = new Set([
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+  'application/vnd.ms-excel', // some clients send this for .xlsx
+])
+
 // GET /api/trades/import?template=true  → download blank template
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -39,7 +45,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No file uploaded' }, { status: 400 })
   }
 
-  const buffer = await (file as File).arrayBuffer()
+  const f = file as File
+  if (f.size > MAX_UPLOAD_BYTES) {
+    return NextResponse.json(
+      { error: `File too large — max ${MAX_UPLOAD_BYTES / 1024 / 1024} MB` },
+      { status: 413 }
+    )
+  }
+  if (f.type && !ALLOWED_MIME_TYPES.has(f.type)) {
+    return NextResponse.json(
+      { error: 'Unsupported file type — only .xlsx is accepted' },
+      { status: 415 }
+    )
+  }
+
+  const buffer = await f.arrayBuffer()
   const { legs, errors: parseErrors } = await parseExcelBuffer(buffer)
 
   if (legs.length === 0) {
