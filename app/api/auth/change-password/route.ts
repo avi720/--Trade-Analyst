@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { verifyCurrentPassword } from "@/lib/auth/reauth";
 import type { Database } from "@/lib/db/types";
 
 export async function POST(req: NextRequest) {
@@ -12,11 +13,19 @@ export async function POST(req: NextRequest) {
     { cookies: { getAll: () => cookieStore.getAll() } }
   );
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user || !user.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { newPassword } = await req.json();
+  const { currentPassword, newPassword } = await req.json();
+  if (!currentPassword || typeof currentPassword !== "string") {
+    return NextResponse.json({ error: "יש להזין את הסיסמה הנוכחית" }, { status: 400 });
+  }
   if (!newPassword || typeof newPassword !== "string" || newPassword.length < 8) {
     return NextResponse.json({ error: "הסיסמה חייבת להכיל לפחות 8 תווים" }, { status: 400 });
+  }
+
+  const ok = await verifyCurrentPassword(user.email, currentPassword);
+  if (!ok) {
+    return NextResponse.json({ error: "הסיסמה הנוכחית שגויה" }, { status: 401 });
   }
 
   const admin = createAdminClient();

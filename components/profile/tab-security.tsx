@@ -58,12 +58,14 @@ export function TabSecurity({ userEmail }: { userEmail: string }) {
   const router = useRouter();
 
   // Email section
+  const [emailCurrentPassword, setEmailCurrentPassword] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [emailSaving, setEmailSaving] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [emailOk, setEmailOk] = useState(false);
 
   // Password section
+  const [pwCurrentPassword, setPwCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [pwSaving, setPwSaving] = useState(false);
@@ -73,6 +75,7 @@ export function TabSecurity({ userEmail }: { userEmail: string }) {
   // Delete account
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleteCurrentPassword, setDeleteCurrentPassword] = useState("");
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -85,7 +88,7 @@ export function TabSecurity({ userEmail }: { userEmail: string }) {
       const res = await fetch("/api/auth/change-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ newEmail }),
+        body: JSON.stringify({ currentPassword: emailCurrentPassword, newEmail }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -93,6 +96,7 @@ export function TabSecurity({ userEmail }: { userEmail: string }) {
       } else {
         setEmailOk(true);
         setNewEmail("");
+        setEmailCurrentPassword("");
       }
     } catch {
       setEmailError("שגיאת רשת");
@@ -118,7 +122,7 @@ export function TabSecurity({ userEmail }: { userEmail: string }) {
       const res = await fetch("/api/auth/change-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ newPassword }),
+        body: JSON.stringify({ currentPassword: pwCurrentPassword, newPassword }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -127,6 +131,7 @@ export function TabSecurity({ userEmail }: { userEmail: string }) {
         setPwOk(true);
         setNewPassword("");
         setConfirmPassword("");
+        setPwCurrentPassword("");
       }
     } catch {
       setPwError("שגיאת רשת");
@@ -141,7 +146,11 @@ export function TabSecurity({ userEmail }: { userEmail: string }) {
     try {
       const { createClient } = await import("@/lib/supabase/client");
       const supabase = createClient();
-      const res = await fetch("/api/auth/delete-account", { method: "POST" });
+      const res = await fetch("/api/auth/delete-account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: deleteCurrentPassword }),
+      });
       const json = await res.json();
       if (!res.ok) {
         setDeleteError(json.error ?? "שגיאה במחיקת החשבון");
@@ -183,11 +192,15 @@ export function TabSecurity({ userEmail }: { userEmail: string }) {
               dir="ltr"
             />
           </div>
+          <div>
+            <label className={labelCls}>סיסמה נוכחית</label>
+            <PasswordInput value={emailCurrentPassword} onChange={setEmailCurrentPassword} placeholder="הסיסמה הנוכחית שלך" />
+          </div>
           {emailError && <ErrorBanner message={emailError} />}
           {emailOk && <SuccessBanner message="האימייל עודכן בהצלחה ✓" />}
           <button
             type="submit"
-            disabled={emailSaving || !newEmail}
+            disabled={emailSaving || !newEmail || !emailCurrentPassword}
             className="px-5 py-2.5 bg-amber text-black text-sm font-semibold rounded-md hover:bg-amber-dark disabled:opacity-50 transition-colors"
           >
             {emailSaving ? "מעדכן..." : "עדכן אימייל"}
@@ -199,6 +212,10 @@ export function TabSecurity({ userEmail }: { userEmail: string }) {
       <div className="panel p-5">
         <h3 className="text-xs font-medium text-text-dim uppercase tracking-wider mb-4">שינוי סיסמה</h3>
         <form onSubmit={handlePasswordChange} className="space-y-4">
+          <div>
+            <label className={labelCls}>סיסמה נוכחית</label>
+            <PasswordInput value={pwCurrentPassword} onChange={setPwCurrentPassword} placeholder="הסיסמה הנוכחית שלך" />
+          </div>
           <div>
             <label className={labelCls}>סיסמה חדשה</label>
             <PasswordInput value={newPassword} onChange={setNewPassword} placeholder="לפחות 8 תווים" />
@@ -228,7 +245,7 @@ export function TabSecurity({ userEmail }: { userEmail: string }) {
           {pwOk && <SuccessBanner message="הסיסמה שונתה בהצלחה ✓" />}
           <button
             type="submit"
-            disabled={pwSaving || !newPassword || !confirmPassword}
+            disabled={pwSaving || !newPassword || !confirmPassword || !pwCurrentPassword}
             className="px-5 py-2.5 bg-amber text-black text-sm font-semibold rounded-md hover:bg-amber-dark disabled:opacity-50 transition-colors"
           >
             {pwSaving ? "משנה..." : "שנה סיסמה"}
@@ -259,7 +276,7 @@ export function TabSecurity({ userEmail }: { userEmail: string }) {
         ) : (
           <div className="space-y-4">
             <p className="text-sm text-text-main">
-              כדי לאשר, הקלד <span className="font-mono text-red bg-red-tint px-1.5 py-0.5 rounded">מחק</span> בשדה למטה:
+              כדי לאשר, הקלד <span className="font-mono text-red bg-red-tint px-1.5 py-0.5 rounded">מחק</span> בשדה למטה והזן את הסיסמה הנוכחית:
             </p>
             <input
               type="text"
@@ -268,17 +285,21 @@ export function TabSecurity({ userEmail }: { userEmail: string }) {
               placeholder="מחק"
               className="w-full bg-panel-2 border border-red/40 rounded-md px-3 py-2.5 text-sm text-text-main placeholder-text-mute outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2 focus:border-red transition-colors"
             />
+            <div>
+              <label className={labelCls}>סיסמה נוכחית</label>
+              <PasswordInput value={deleteCurrentPassword} onChange={setDeleteCurrentPassword} placeholder="הסיסמה הנוכחית שלך" />
+            </div>
             {deleteError && <ErrorBanner message={deleteError} />}
             <div className="flex gap-3">
               <button
                 onClick={handleDeleteAccount}
-                disabled={deleteConfirm !== "מחק" || deleteLoading}
+                disabled={deleteConfirm !== "מחק" || !deleteCurrentPassword || deleteLoading}
                 className="px-4 py-2 bg-red text-white text-sm font-semibold rounded-md hover:bg-red-dark disabled:opacity-40 transition-colors"
               >
                 {deleteLoading ? "מוחק..." : "אני מבין, מחק את החשבון"}
               </button>
               <button
-                onClick={() => { setDeleteOpen(false); setDeleteConfirm(""); }}
+                onClick={() => { setDeleteOpen(false); setDeleteConfirm(""); setDeleteCurrentPassword(""); }}
                 className="px-4 py-2 border border-border text-text-dim text-sm rounded-md hover:border-shade-2 hover:text-text-main transition-colors"
               >
                 ביטול

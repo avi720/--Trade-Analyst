@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { verifyCurrentPassword } from "@/lib/auth/reauth";
 import type { Database } from "@/lib/db/types";
+
+const schema = z.object({
+  currentPassword: z.string().min(1, "יש להזין את הסיסמה הנוכחית"),
+  newEmail: z.string().email("כתובת אימייל לא תקינה"),
+});
 
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies();
@@ -12,18 +19,26 @@ export async function POST(req: NextRequest) {
     { cookies: { getAll: () => cookieStore.getAll() } }
   );
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user || !user.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { newEmail } = await req.json();
-  if (!newEmail || typeof newEmail !== "string" || !newEmail.includes("@")) {
-    return NextResponse.json({ error: "כתובת אימייל לא תקינה" }, { status: 400 });
+  const body = await req.json().catch(() => null);
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) {
+    const first = parsed.error.issues[0]?.message ?? "נתונים לא תקינים";
+    return NextResponse.json({ error: first }, { status: 400 });
+  }
+
+  const { currentPassword, newEmail } = parsed.data;
+
+  const ok = await verifyCurrentPassword(user.email, currentPassword);
+  if (!ok) {
+    return NextResponse.json({ error: "הסיסמה הנוכחית שגויה" }, { status: 401 });
   }
 
   const admin = createAdminClient();
   const { error } = await admin.auth.admin.updateUserById(user.id, { email: newEmail });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Also update the User table cache
   await admin.from("User").update({ email: newEmail }).eq("id", user.id);
 
   return NextResponse.json({ ok: true });
