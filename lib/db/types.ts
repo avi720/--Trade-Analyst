@@ -50,6 +50,39 @@ export type Database = {
           },
         ]
       }
+      AuditEvent: {
+        Row: {
+          createdAt: string
+          eventType: string
+          id: string
+          ipAddress: string | null
+          metadata: Json | null
+          status: string
+          userAgent: string | null
+          userId: string
+        }
+        Insert: {
+          createdAt?: string
+          eventType: string
+          id?: string
+          ipAddress?: string | null
+          metadata?: Json | null
+          status: string
+          userAgent?: string | null
+          userId: string
+        }
+        Update: {
+          createdAt?: string
+          eventType?: string
+          id?: string
+          ipAddress?: string | null
+          metadata?: Json | null
+          status?: string
+          userAgent?: string | null
+          userId?: string
+        }
+        Relationships: []
+      }
       BrokerConnection: {
         Row: {
           accountId: string | null

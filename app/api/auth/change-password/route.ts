@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyCurrentPassword } from "@/lib/auth/reauth";
 import { checkRateLimit, rateLimitedResponse } from "@/lib/auth/rate-limit";
+import { logAuditEvent } from "@/lib/audit/log";
 import type { Database } from "@/lib/db/types";
 
 export async function POST(req: NextRequest) {
@@ -18,7 +19,16 @@ export async function POST(req: NextRequest) {
 
   // Rate limit: 5 attempts per 10 minutes per user.
   const rl = await checkRateLimit(`user:${user.id}:change-password`, 5, 600);
-  if (!rl.ok) return rateLimitedResponse(rl);
+  if (!rl.ok) {
+    await logAuditEvent({
+      userId: user.id,
+      eventType: "rate_limit_hit",
+      status: "failure",
+      metadata: { action: "change-password" },
+      request: req,
+    });
+    return rateLimitedResponse(rl);
+  }
 
   const { currentPassword, newPassword } = await req.json();
   if (!currentPassword || typeof currentPassword !== "string") {
@@ -30,12 +40,35 @@ export async function POST(req: NextRequest) {
 
   const ok = await verifyCurrentPassword(user.email, currentPassword);
   if (!ok) {
+    await logAuditEvent({
+      userId: user.id,
+      eventType: "reauth_failed",
+      status: "failure",
+      metadata: { action: "change-password" },
+      request: req,
+    });
     return NextResponse.json({ error: "הסיסמה הנוכחית שגויה" }, { status: 401 });
   }
 
   const admin = createAdminClient();
   const { error } = await admin.auth.admin.updateUserById(user.id, { password: newPassword });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    await logAuditEvent({
+      userId: user.id,
+      eventType: "password_changed",
+      status: "failure",
+      metadata: { error: error.message },
+      request: req,
+    });
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  await logAuditEvent({
+    userId: user.id,
+    eventType: "password_changed",
+    status: "success",
+    request: req,
+  });
 
   return NextResponse.json({ ok: true });
 }
