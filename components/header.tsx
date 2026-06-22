@@ -23,7 +23,7 @@ export function Header({ userEmail }: HeaderProps) {
   const router = useRouter()
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
-  const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number } | null>(null)
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null)
   const { toggleChat } = useChatContext()
 
   // Reposition when opening or on resize while open. The dropdown is
@@ -37,10 +37,16 @@ export function Header({ userEmail }: HeaderProps) {
     function reposition() {
       const rect = buttonRef.current?.getBoundingClientRect()
       if (!rect) return
-      setDropdownPos({
-        top: rect.bottom + 4,
-        right: window.innerWidth - rect.right,
-      })
+      const DROPDOWN_WIDTH = 192 // w-48
+      const top = rect.bottom + 4
+      // Default: align dropdown's left edge with button's left edge.
+      // If that would overflow the viewport on the right, clamp so the
+      // dropdown stays fully visible with an 8px margin.
+      let left = rect.left
+      if (left + DROPDOWN_WIDTH > window.innerWidth - 8) {
+        left = Math.max(8, window.innerWidth - DROPDOWN_WIDTH - 8)
+      }
+      setDropdownPos({ top, left })
     }
     reposition()
     window.addEventListener('resize', reposition)
@@ -127,7 +133,7 @@ export function Header({ userEmail }: HeaderProps) {
             <div
               role="menu"
               className="fixed w-48 bg-panel border border-border rounded-md shadow-lg z-50 py-1"
-              style={{ top: dropdownPos.top, right: dropdownPos.right }}
+              style={{ top: dropdownPos.top, left: dropdownPos.left }}
             >
               <div className="px-3 py-2 text-sm text-text-dim border-b border-border font-mono truncate">
                 {userEmail}
