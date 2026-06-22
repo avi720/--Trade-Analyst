@@ -2,7 +2,7 @@
 
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { SyncIndicator } from './sync-indicator'
 import { TradeLogoIcon } from './trade-logo'
 import { cn } from '@/lib/utils/cn'
@@ -22,7 +22,34 @@ export function Header({ userEmail }: HeaderProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number } | null>(null)
   const { toggleChat } = useChatContext()
+
+  // Reposition when opening or on resize while open. The dropdown is
+  // position:fixed because the header has overflow-x-auto (which CSS forces
+  // to overflow-y:auto too), so absolute positioning would clip it.
+  useEffect(() => {
+    if (!dropdownOpen) {
+      setDropdownPos(null)
+      return
+    }
+    function reposition() {
+      const rect = buttonRef.current?.getBoundingClientRect()
+      if (!rect) return
+      setDropdownPos({
+        top: rect.bottom + 4,
+        right: window.innerWidth - rect.right,
+      })
+    }
+    reposition()
+    window.addEventListener('resize', reposition)
+    window.addEventListener('scroll', reposition, true)
+    return () => {
+      window.removeEventListener('resize', reposition)
+      window.removeEventListener('scroll', reposition, true)
+    }
+  }, [dropdownOpen])
 
   async function handleSignOut() {
     const { createClient } = await import('@/lib/supabase/client')
@@ -75,51 +102,54 @@ export function Header({ userEmail }: HeaderProps) {
         <SyncIndicator />
 
         {/* User dropdown */}
-        <div className="relative">
-          <button
-            onClick={() => setDropdownOpen(p => !p)}
-            aria-haspopup="menu"
-            aria-expanded={dropdownOpen}
-            aria-label={userEmail ? `תפריט משתמש: ${userEmail}` : 'תפריט משתמש'}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-text-dim hover:text-text-main hover:bg-input-bg transition-colors"
-          >
-            <span className="w-6 h-6 rounded-full bg-border flex items-center justify-center text-xs font-mono text-amber">
-              {userEmail?.[0]?.toUpperCase() ?? 'U'}
-            </span>
-            <svg aria-hidden="true" className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
+        <button
+          ref={buttonRef}
+          onClick={() => setDropdownOpen(p => !p)}
+          aria-haspopup="menu"
+          aria-expanded={dropdownOpen}
+          aria-label={userEmail ? `תפריט משתמש: ${userEmail}` : 'תפריט משתמש'}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-text-dim hover:text-text-main hover:bg-input-bg transition-colors"
+        >
+          <span className="w-6 h-6 rounded-full bg-border flex items-center justify-center text-xs font-mono text-amber">
+            {userEmail?.[0]?.toUpperCase() ?? 'U'}
+          </span>
+          <svg aria-hidden="true" className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
 
-          {dropdownOpen && (
-            <>
-              <div
-                className="fixed inset-0 z-10"
-                onClick={() => setDropdownOpen(false)}
-              />
-              <div className="absolute left-0 mt-1 w-48 bg-panel border border-border rounded-md shadow-lg z-20 py-1">
-                <div className="px-3 py-2 text-sm text-text-dim border-b border-border font-mono truncate">
-                  {userEmail}
-                </div>
-                <Link
-                  href="/profile"
-                  className="block px-3 py-2 text-sm text-text-main hover:bg-input-bg"
-                  onClick={() => setDropdownOpen(false)}
-                >
-                  פרופיל והגדרות
-                </Link>
-                <div className="border-t border-border mt-1 pt-1">
-                  <button
-                    onClick={handleSignOut}
-                    className="block w-full text-right px-3 py-2 text-sm text-red hover:bg-input-bg"
-                  >
-                    התנתק
-                  </button>
-                </div>
+        {dropdownOpen && dropdownPos && (
+          <>
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setDropdownOpen(false)}
+            />
+            <div
+              role="menu"
+              className="fixed w-48 bg-panel border border-border rounded-md shadow-lg z-50 py-1"
+              style={{ top: dropdownPos.top, right: dropdownPos.right }}
+            >
+              <div className="px-3 py-2 text-sm text-text-dim border-b border-border font-mono truncate">
+                {userEmail}
               </div>
-            </>
-          )}
-        </div>
+              <Link
+                href="/profile"
+                className="block px-3 py-2 text-sm text-text-main hover:bg-input-bg"
+                onClick={() => setDropdownOpen(false)}
+              >
+                פרופיל והגדרות
+              </Link>
+              <div className="border-t border-border mt-1 pt-1">
+                <button
+                  onClick={handleSignOut}
+                  className="block w-full text-right px-3 py-2 text-sm text-red hover:bg-input-bg"
+                >
+                  התנתק
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </header>
   )
