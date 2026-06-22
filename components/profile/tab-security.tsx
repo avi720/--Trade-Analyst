@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, AlertTriangle } from "lucide-react";
+import { AuditActivity } from "./audit-activity";
 
 const inputCls =
   "w-full bg-panel-2 border border-border rounded-md px-3 py-2.5 text-sm text-text-main placeholder-text-mute outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2 focus:border-amber transition-colors font-mono";
@@ -252,6 +253,9 @@ export function TabSecurity({ userEmail }: { userEmail: string }) {
           </button>
         </form>
       </div>
+
+      {/* Audit activity */}
+      <AuditActivity />
 
       {/* Danger zone */}
       <div className="panel p-5 border-red-shade">
