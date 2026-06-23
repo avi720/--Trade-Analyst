@@ -64,12 +64,13 @@ export function FilterBar(p: FilterBarProps) {
           </button>
           <h2 className="text-text-main text-sm font-sans font-semibold">סינון</h2>
         </div>
-        {p.hasActiveFilter && (
-          <button onClick={p.onReset}
-            className="btn-ghost px-3 py-1.5 text-sm font-sans border border-shade rounded text-text-dim">
-            נקה פילטרים
-          </button>
-        )}
+        <button
+          onClick={p.onReset}
+          disabled={!p.hasActiveFilter}
+          className="btn-ghost px-3 py-1.5 text-sm font-sans border border-shade rounded text-text-dim disabled:opacity-40 disabled:cursor-not-allowed enabled:hover:text-text-main enabled:hover:border-text-dim transition-colors"
+        >
+          נקה פילטרים
+        </button>
       </div>
       {!p.collapsed && (
       <div className="flex flex-wrap gap-3 items-end">
@@ -149,7 +150,6 @@ export function FilterBar(p: FilterBarProps) {
               onChange={e => p.onExecQualMaxChange(e.target.value)}
               className="input-base text-sm font-mono w-16" dir="ltr" />
           </div>
-          <span className="text-text-mute text-[11px] font-sans">כולל ערך זה</span>
         </div>
 
         <div className="flex flex-col gap-1" role="group" aria-labelledby="filter-hold-label">
@@ -173,7 +173,6 @@ export function FilterBar(p: FilterBarProps) {
               <option value="days">ימים</option>
             </select>
           </div>
-          <span className="text-text-mute text-[11px] font-sans">כולל ערך זה</span>
         </div>
 
         <div className="flex flex-col gap-1" role="group" aria-labelledby="filter-r-label">
@@ -188,7 +187,6 @@ export function FilterBar(p: FilterBarProps) {
               onChange={e => p.onRMaxChange(e.target.value)}
               className="input-base text-sm font-mono w-16" dir="ltr" />
           </div>
-          <span className="text-text-mute text-[11px] font-sans">כולל ערך זה</span>
         </div>
 
       </div>

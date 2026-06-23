@@ -297,8 +297,6 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
       {/* Inner region (not <main> — the dashboard layout already provides the single main landmark) */}
       <div className="flex-1 overflow-auto p-6" dir="rtl">
 
-        <h1 className="text-2xl font-mono font-bold text-text-main mb-4">תחקור</h1>
-
         <FilterBar
           dateFrom={dateFrom}
           dateTo={dateTo}

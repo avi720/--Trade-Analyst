@@ -66,11 +66,11 @@ export function Header({ userEmail }: HeaderProps) {
   }
 
   return (
-    <header className="border-b border-border bg-panel px-4 sm:px-6 h-14 flex items-center justify-between gap-2 flex-shrink-0 overflow-x-auto">
+    <header className="border-b border-border bg-panel px-4 sm:px-6 h-16 flex items-center justify-between gap-2 flex-shrink-0 overflow-x-auto">
       {/* App name — right side in RTL */}
       <div className="flex items-center gap-3 flex-shrink-0">
-        <TradeLogoIcon size={32} />
-        <span className="font-mono font-semibold text-amber text-lg tracking-tight">
+        <TradeLogoIcon size={36} />
+        <span className="font-mono font-semibold text-amber text-xl tracking-tight">
           Trade Analysis
         </span>
       </div>
@@ -85,7 +85,7 @@ export function Header({ userEmail }: HeaderProps) {
             prefetch={false}
             aria-current={pathname === tab.href || pathname.startsWith(tab.href + '/') ? 'page' : undefined}
             className={cn(
-              'px-4 py-2 rounded-md text-sm transition-colors border-b-2',
+              'px-4 py-2 rounded-md text-base transition-colors border-b-2',
               pathname === tab.href || pathname.startsWith(tab.href + '/')
                 ? 'bg-input-bg text-amber font-bold border-amber'
                 : 'text-text-dim font-medium hover:text-text-main hover:bg-panel-3 border-transparent'
