@@ -65,6 +65,8 @@ const LS_KEY_HOLD_UNIT = 'research_hold_unit'
 const LS_KEY_SETUP_SERIES = 'research_setup_series'
 const LS_KEY_CHART_HEIGHTS = 'research_chart_heights'
 const LS_KEY_ROW_RATIOS = 'research_row_ratios'
+const LS_KEY_FILTER_COLLAPSED = 'research_filter_collapsed'
+const LS_KEY_METRICS_COLLAPSED = 'research_metrics_collapsed'
 
 export const LS_KEYS = {
   visibility: LS_KEY,
@@ -72,7 +74,18 @@ export const LS_KEYS = {
   setupSeries: LS_KEY_SETUP_SERIES,
   chartHeights: LS_KEY_CHART_HEIGHTS,
   rowRatios:    LS_KEY_ROW_RATIOS,
+  filterCollapsed:  LS_KEY_FILTER_COLLAPSED,
+  metricsCollapsed: LS_KEY_METRICS_COLLAPSED,
 } as const
+
+export function loadBoolPref(key: string): boolean {
+  try {
+    const v = localStorage.getItem(key)
+    if (v === 'true') return true
+    if (v === 'false') return false
+  } catch {}
+  return false
+}
 
 export function defaultVisibility(): Record<ChartId, boolean> {
   return Object.fromEntries(CHART_IDS.map(id => [id, true])) as Record<ChartId, boolean>

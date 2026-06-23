@@ -13,7 +13,8 @@
 
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { useChatContext } from '@/lib/chat/chat-context'
 import { calcStats, equityCurve, rDistribution, setupPerformance } from '@/lib/utils/calculations'
 import { pnlByTicker, holdTimeVsR, pnlByDayOfWeek, pnlByHour } from '@/lib/utils/research-charts'
@@ -31,6 +32,7 @@ import {
   loadHoldUnit,
   loadSetupSeries,
   loadRowRatios,
+  loadBoolPref,
   saveRowRatio,
   toClosedTrade,
   type ChartId,
@@ -51,6 +53,7 @@ export type { RawClosedTrade }
 
 export function ResearchDashboard({ trades: rawTrades }: Props) {
   const { setContextData } = useChatContext()
+  const router = useRouter()
   const [togglePanelOpen, setTogglePanelOpen] = useState(false)
   const [chartVisible, setChartVisible] = useState<Record<ChartId, boolean>>(defaultVisibility)
 
@@ -71,6 +74,21 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
   const [setupSeries, setSetupSeries] = useState<SetupSeries>(defaultSetupSeries)
   const [rowRatios, setRowRatios] = useState<Record<string, number>>({})
   const [resetKey, setResetKey] = useState(0)
+  const [filterCollapsed, setFilterCollapsed] = useState(false)
+  const [metricsCollapsed, setMetricsCollapsed] = useState(false)
+
+  // Brief visual transition when any filter changes — gives the user
+  // a visible confirmation that the data updated, even though the
+  // recomputation is instant (synchronous useMemo). Skip the initial mount.
+  const [transitioning, setTransitioning] = useState(false)
+  const mountedRef = useRef(false)
+  useEffect(() => {
+    if (!mountedRef.current) { mountedRef.current = true; return }
+    setTransitioning(true)
+    const t = setTimeout(() => setTransitioning(false), 300)
+    return () => clearTimeout(t)
+  }, [dateFrom, dateTo, tickerFilter, setupFilter, directionFilter, resultFilter,
+      execQualMin, execQualMax, holdHoursMin, holdHoursMax, holdUnit, rMin, rMax])
 
   // Hydrate persisted preferences after mount (localStorage is browser-only).
   useEffect(() => {
@@ -78,7 +96,17 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
     setHoldUnit(loadHoldUnit())
     setSetupSeries(loadSetupSeries())
     setRowRatios(loadRowRatios())
+    setFilterCollapsed(loadBoolPref(LS_KEYS.filterCollapsed))
+    setMetricsCollapsed(loadBoolPref(LS_KEYS.metricsCollapsed))
   }, [])
+
+  useEffect(() => {
+    try { localStorage.setItem(LS_KEYS.filterCollapsed, String(filterCollapsed)) } catch {}
+  }, [filterCollapsed])
+
+  useEffect(() => {
+    try { localStorage.setItem(LS_KEYS.metricsCollapsed, String(metricsCollapsed)) } catch {}
+  }, [metricsCollapsed])
 
   useEffect(() => {
     try { localStorage.setItem(LS_KEYS.visibility, JSON.stringify(chartVisible)) } catch {}
@@ -99,6 +127,11 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
 
   const setupTypes = useMemo(
     () => Array.from(new Set(closedTrades.map(t => t.setupType).filter(Boolean))) as string[],
+    [closedTrades],
+  )
+
+  const uniqueTickers = useMemo(
+    () => Array.from(new Set(closedTrades.map(t => t.ticker))).sort(),
     [closedTrades],
   )
 
@@ -202,6 +235,27 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
     setRMin(''); setRMax('')
   }
 
+  /** Build a /search URL that mirrors the current research filters, plus any
+   *  KPI-specific extra filter (e.g. result=Win for the win-rate card). */
+  function buildSearchUrl(extra?: Record<string, string>): string {
+    const params = new URLSearchParams()
+    if (dateFrom) params.set('from', dateFrom)
+    if (dateTo) params.set('to', dateTo)
+    if (tickerFilter) params.set('q', tickerFilter)
+    if (setupFilter !== 'all') params.set('setup', setupFilter)
+    if (directionFilter !== 'all') params.set('direction', directionFilter)
+    if (resultFilter !== 'all') params.set('result', resultFilter)
+    if (rMin) params.set('rMin', rMin)
+    if (rMax) params.set('rMax', rMax)
+    if (extra) for (const [k, v] of Object.entries(extra)) params.set(k, v)
+    const qs = params.toString()
+    return qs ? `/search?${qs}` : '/search'
+  }
+
+  function drillDown(extra?: Record<string, string>) {
+    router.push(buildSearchUrl(extra))
+  }
+
   const hasActiveFilter =
     !!(dateFrom || dateTo || tickerFilter || setupFilter !== 'all' || directionFilter !== 'all' ||
        resultFilter !== 'all' || execQualMin || execQualMax || holdHoursMin || holdHoursMax ||
@@ -243,6 +297,8 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
       {/* Inner region (not <main> — the dashboard layout already provides the single main landmark) */}
       <div className="flex-1 overflow-auto p-6" dir="rtl">
 
+        <h1 className="text-2xl font-mono font-bold text-text-main mb-4">תחקור</h1>
+
         <FilterBar
           dateFrom={dateFrom}
           dateTo={dateTo}
@@ -258,7 +314,10 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
           rMin={rMin}
           rMax={rMax}
           setupTypes={setupTypes}
+          tickers={uniqueTickers}
           hasActiveFilter={hasActiveFilter}
+          collapsed={filterCollapsed}
+          onToggleCollapsed={() => setFilterCollapsed(c => !c)}
           onDateFromChange={setDateFrom}
           onDateToChange={setDateTo}
           onTickerChange={setTickerFilter}
@@ -285,63 +344,110 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
             : `מציג ${stats.totalTrades} טריידים`}
         </p>
 
-        <div>
+        <div className={'transition-opacity duration-300 ' + (transitioning ? 'opacity-60' : 'opacity-100')}>
 
         {/* ── Metrics row ─────────────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between mb-2">
+          <button
+            type="button"
+            onClick={() => setMetricsCollapsed(c => !c)}
+            aria-expanded={!metricsCollapsed}
+            aria-label={metricsCollapsed ? 'הצג מדדים' : 'הסתר מדדים'}
+            className="text-text-dim hover:text-text-main transition-colors text-xs font-sans flex items-center gap-1 px-1 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2"
+          >
+            <span aria-hidden="true">{metricsCollapsed ? '▼' : '▲'}</span>
+            <span>{metricsCollapsed ? 'הצג מדדים' : 'הסתר מדדים'}</span>
+          </button>
+          {metricsCollapsed && stats.totalTrades > 0 && (
+            <span className="text-sm font-mono">
+              <span className="text-text-dim ml-2">סה״כ P&L:</span>
+              <span className={stats.totalPnl > 0 ? 'text-green' : stats.totalPnl < 0 ? 'text-red' : 'text-text-main'}>
+                {ltr(formatUsd(stats.totalPnl))}
+              </span>
+            </span>
+          )}
+        </div>
+        {!metricsCollapsed && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <MetricCard label="טריידים" value={String(stats.totalTrades)} info={METRIC_INFO.totalTrades} />
+          <MetricCard
+            label="טריידים"
+            value={String(stats.totalTrades)}
+            info={METRIC_INFO.totalTrades}
+            onClick={() => drillDown()}
+          />
           <MetricCard
             label="אחוז הצלחה"
             value={stats.totalTrades === 0 ? '—' : `${(stats.winRate * 100).toFixed(1)}%`}
             color={winRateColor}
             info={METRIC_INFO.winRate}
+            onClick={() => drillDown({ result: 'Win' })}
           />
           <MetricCard
             label="R ממוצע"
             value={stats.rTradeCount === 0 ? '—' : `${stats.avgR >= 0 ? '+' : ''}${stats.avgR.toFixed(2)}R`}
             color={stats.rTradeCount === 0 ? undefined : stats.avgR > 0 ? 'text-green' : stats.avgR < 0 ? 'text-red' : 'text-text-main'}
             info={METRIC_INFO.avgR}
+            onClick={() => drillDown()}
           />
           <MetricCard
             label="Profit Factor"
             value={stats.totalTrades === 0 ? '—' : stats.profitFactor >= 999 ? '∞' : stats.profitFactor.toFixed(2)}
             color={pfColor}
             info={METRIC_INFO.profitFactor}
+            onClick={() => drillDown()}
           />
           <MetricCard
             label="Expectancy"
             value={stats.rTradeCount === 0 ? '—' : `${stats.expectancy >= 0 ? '+' : ''}${stats.expectancy.toFixed(2)}R`}
             color={stats.rTradeCount === 0 ? undefined : stats.expectancy > 0 ? 'text-green' : 'text-red'}
             info={METRIC_INFO.expectancy}
+            onClick={() => drillDown()}
           />
           <MetricCard
             label="Max Drawdown"
             value={stats.totalTrades === 0 ? '—' : formatUsd(stats.maxDrawdown)}
             color={stats.maxDrawdown < 0 ? 'text-red' : 'text-text-main'}
             info={METRIC_INFO.maxDrawdown}
+            onClick={() => drillDown({ result: 'Loss' })}
           />
           <MetricCard
             label="סה״כ P&L"
             value={stats.totalTrades === 0 ? '—' : formatUsd(stats.totalPnl)}
             color={stats.totalPnl > 0 ? 'text-green' : stats.totalPnl < 0 ? 'text-red' : 'text-text-main'}
             info={METRIC_INFO.totalPnl}
+            onClick={() => drillDown()}
           />
-          <dl className="panel p-4">
-            <dt className="text-text-dim text-sm font-sans mb-1 flex items-center justify-between gap-2">
+          <dl
+            className="panel p-4 cursor-pointer hover:ring-1 hover:ring-amber/40 transition-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2"
+            role="button"
+            tabIndex={0}
+            title="פתח בדף החיפוש"
+            onClick={() => drillDown()}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); drillDown() } }}
+          >
+            <dt className="text-text-dim text-xs font-sans mb-1 tracking-wide flex items-center justify-between gap-2">
               <span>ממוצע רווח / הפסד</span>
-              <InfoTooltip label="מידע על ממוצע רווח / הפסד">{METRIC_INFO.avgWinLoss}</InfoTooltip>
+              <span onClick={e => e.stopPropagation()}>
+                <InfoTooltip label="מידע על ממוצע רווח / הפסד">{METRIC_INFO.avgWinLoss}</InfoTooltip>
+              </span>
             </dt>
-            {stats.totalTrades === 0 ? (
-              <dd className="text-text-main text-xl font-mono font-bold m-0">—</dd>
-            ) : (
-              <dd className="text-xl font-mono font-bold m-0 truncate">
-                <span className="text-green">{ltr(formatUsd(stats.avgWin))}</span>
-                <span className="text-text-dim mx-1">/</span>
-                <span className="text-red">{ltr(formatUsd(stats.avgLoss))}</span>
-              </dd>
-            )}
+            <dd className="text-2xl font-mono font-bold m-0 flex items-center justify-between gap-2">
+              <span className="truncate">
+                {stats.totalTrades === 0 ? (
+                  <span className="text-text-main">—</span>
+                ) : (
+                  <>
+                    <span className="text-green">{ltr(formatUsd(stats.avgWin))}</span>
+                    <span className="text-text-dim mx-1">/</span>
+                    <span className="text-red">{ltr(formatUsd(stats.avgLoss))}</span>
+                  </>
+                )}
+              </span>
+              <span aria-hidden="true" className="text-text-mute font-mono text-base shrink-0">›</span>
+            </dd>
           </dl>
         </div>
+        )}
 
         {/* ── Chart visibility toggle ──────────────────────────────────────────── */}
         <div className="mb-4 flex flex-wrap items-center gap-3">

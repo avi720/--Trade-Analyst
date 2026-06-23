@@ -442,7 +442,7 @@ export function TradeEntryForm() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h2 className="font-mono text-text-main text-sm">הזנת ביצועים ידנית</h2>
-        <span className="text-sm text-text-dim font-mono">כל כרטיס = ביצוע אחד (leg)</span>
+        <span className="text-sm text-text-dim font-mono">כל כרטיס = ביצוע פעולה אחת (קנייה/מכירה)</span>
       </div>
 
       <div className="flex items-center gap-2 text-sm font-mono text-text-dim">

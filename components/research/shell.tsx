@@ -181,7 +181,7 @@ export function ChartCard({
       className="panel p-4 flex flex-col gap-3 relative min-w-0"
     >
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h2 className="text-text-dim text-sm font-sans flex items-center gap-2">
+        <h2 className="text-text-main text-base font-sans font-semibold flex items-center gap-2">
           <span>{title}</span>
           {info && <InfoTooltip label={`מידע על ${title}`}>{info}</InfoTooltip>}
         </h2>
@@ -399,14 +399,39 @@ export function DayHourInner({
 
 // ─── MetricCard ───────────────────────────────────────────────────────────────
 
-export function MetricCard({ label, value, color, info }: { label: string; value: string; color?: string; info?: React.ReactNode }) {
+export function MetricCard({ label, value, color, info, onClick }: { label: string; value: string; color?: string; info?: React.ReactNode; onClick?: () => void }) {
+  const interactive = !!onClick
+  const handleKey = (e: React.KeyboardEvent<HTMLDListElement>) => {
+    if (!interactive) return
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onClick!()
+    }
+  }
   return (
-    <dl className="panel p-4">
-      <dt className="text-text-dim text-sm font-sans mb-1 flex items-center justify-between gap-2">
+    <dl
+      className={
+        'panel p-4 ' +
+        (interactive
+          ? 'cursor-pointer hover:ring-1 hover:ring-amber/40 transition-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2'
+          : '')
+      }
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      title={interactive ? 'פתח בדף החיפוש' : undefined}
+      onClick={interactive ? onClick : undefined}
+      onKeyDown={handleKey}
+    >
+      <dt className="text-text-dim text-xs font-sans mb-1 tracking-wide flex items-center justify-between gap-2">
         <span>{label}</span>
-        {info && <InfoTooltip label={`מידע על ${label}`}>{info}</InfoTooltip>}
+        {info && <span onClick={e => e.stopPropagation()}><InfoTooltip label={`מידע על ${label}`}>{info}</InfoTooltip></span>}
       </dt>
-      <dd className={`text-xl font-mono font-bold truncate m-0 ${color ?? 'text-text-main'}`}>{ltr(value)}</dd>
+      <dd className={`text-2xl font-mono font-bold truncate m-0 flex items-center justify-between gap-2 ${color ?? 'text-text-main'}`}>
+        <span className="truncate">{ltr(value)}</span>
+        {interactive && (
+          <span aria-hidden="true" className="text-text-mute font-mono text-base shrink-0">›</span>
+        )}
+      </dd>
     </dl>
   )
 }

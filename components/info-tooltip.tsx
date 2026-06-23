@@ -72,6 +72,7 @@ export function InfoTooltip({ label, children, align: alignProp = 'start' }: Pro
         type="button"
         aria-label={label}
         aria-expanded={open}
+        title="לחץ למידע"
         onClick={() => setOpen(o => !o)}
         className="min-w-11 min-h-11 -m-3 text-text-mute hover:text-amber transition-colors flex items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2"
       >

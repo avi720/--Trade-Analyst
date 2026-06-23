@@ -7,6 +7,7 @@
 
 'use client'
 
+import { useState, useRef, useEffect } from 'react'
 import type { HoldUnit } from './lib'
 
 export interface FilterState {
@@ -27,7 +28,10 @@ export interface FilterState {
 
 export interface FilterBarProps extends FilterState {
   setupTypes: string[]
+  tickers: string[]
   hasActiveFilter: boolean
+  collapsed: boolean
+  onToggleCollapsed: () => void
   onDateFromChange: (v: string) => void
   onDateToChange: (v: string) => void
   onTickerChange: (v: string) => void
@@ -47,7 +51,27 @@ export interface FilterBarProps extends FilterState {
 export function FilterBar(p: FilterBarProps) {
   return (
     <div className="panel p-4 mb-6">
-      <h2 className="text-text-main text-sm font-sans font-semibold mb-3">סינון</h2>
+      <div className={'flex items-center justify-between' + (p.collapsed ? '' : ' mb-3')}>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={p.onToggleCollapsed}
+            aria-expanded={!p.collapsed}
+            aria-label={p.collapsed ? 'הצג סינון' : 'הסתר סינון'}
+            className="text-text-dim hover:text-text-main transition-colors font-mono text-xs px-1 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2"
+          >
+            <span aria-hidden="true">{p.collapsed ? '▼' : '▲'}</span>
+          </button>
+          <h2 className="text-text-main text-sm font-sans font-semibold">סינון</h2>
+        </div>
+        {p.hasActiveFilter && (
+          <button onClick={p.onReset}
+            className="btn-ghost px-3 py-1.5 text-sm font-sans border border-shade rounded text-text-dim">
+            נקה פילטרים
+          </button>
+        )}
+      </div>
+      {!p.collapsed && (
       <div className="flex flex-wrap gap-3 items-end">
 
         <div className="flex flex-col gap-1">
@@ -82,12 +106,7 @@ export function FilterBar(p: FilterBarProps) {
           </div>
         </div>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor="filter-ticker" className="text-text-dim text-sm font-sans">טיקר</label>
-          <input id="filter-ticker" type="text" placeholder="AAPL..." value={p.tickerFilter}
-            onChange={e => p.onTickerChange(e.target.value)}
-            className="input-base text-sm font-mono w-24" dir="ltr" />
-        </div>
+        <TickerCombobox value={p.tickerFilter} onChange={p.onTickerChange} tickers={p.tickers} />
 
         <div className="flex flex-col gap-1">
           <label htmlFor="filter-setup" className="text-text-dim text-sm font-sans">סטאפ</label>
@@ -122,14 +141,15 @@ export function FilterBar(p: FilterBarProps) {
         <div className="flex flex-col gap-1" role="group" aria-labelledby="filter-execqual-label">
           <span id="filter-execqual-label" className="text-text-dim text-sm font-sans">איכות ביצוע (1-10)</span>
           <div className="flex gap-1 items-center">
-            <input type="number" aria-label="איכות ביצוע מינימלית" placeholder="מינ׳" min={1} max={10} value={p.execQualMin}
+            <input type="number" aria-label="איכות ביצוע מינימלית" placeholder="1" min={1} max={10} value={p.execQualMin}
               onChange={e => p.onExecQualMinChange(e.target.value)}
               className="input-base text-sm font-mono w-16" dir="ltr" />
             <span className="text-text-dim text-sm" aria-hidden="true">–</span>
-            <input type="number" aria-label="איכות ביצוע מקסימלית" placeholder="מקס׳" min={1} max={10} value={p.execQualMax}
+            <input type="number" aria-label="איכות ביצוע מקסימלית" placeholder="10" min={1} max={10} value={p.execQualMax}
               onChange={e => p.onExecQualMaxChange(e.target.value)}
               className="input-base text-sm font-mono w-16" dir="ltr" />
           </div>
+          <span className="text-text-mute text-[11px] font-sans">כולל ערך זה</span>
         </div>
 
         <div className="flex flex-col gap-1" role="group" aria-labelledby="filter-hold-label">
@@ -138,12 +158,12 @@ export function FilterBar(p: FilterBarProps) {
           </span>
           <div className="flex gap-1 items-center">
             <input type="number" aria-label={`זמן החזקה מינימלי ב${p.holdUnit === 'days' ? 'ימים' : 'שעות'}`}
-              placeholder="מינ׳" min={0} value={p.holdHoursMin}
+              placeholder="1" min={0} value={p.holdHoursMin}
               onChange={e => p.onHoldMinChange(e.target.value)}
               className="input-base text-sm font-mono w-16" dir="ltr" />
             <span className="text-text-dim text-sm" aria-hidden="true">–</span>
             <input type="number" aria-label={`זמן החזקה מקסימלי ב${p.holdUnit === 'days' ? 'ימים' : 'שעות'}`}
-              placeholder="מקס׳" min={0} value={p.holdHoursMax}
+              placeholder="24" min={0} value={p.holdHoursMax}
               onChange={e => p.onHoldMaxChange(e.target.value)}
               className="input-base text-sm font-mono w-16" dir="ltr" />
             <select value={p.holdUnit} onChange={e => p.onHoldUnitChange(e.target.value as HoldUnit)}
@@ -153,33 +173,124 @@ export function FilterBar(p: FilterBarProps) {
               <option value="days">ימים</option>
             </select>
           </div>
+          <span className="text-text-mute text-[11px] font-sans">כולל ערך זה</span>
         </div>
 
         <div className="flex flex-col gap-1" role="group" aria-labelledby="filter-r-label">
           <span id="filter-r-label" className="text-text-dim text-sm font-sans">סינון לפי R</span>
           <div className="flex gap-2 items-center">
             <span className="text-text-dim text-sm font-sans">מ:</span>
-            <input type="number" step="0.1" aria-label="R מינימלי" placeholder="—" value={p.rMin}
+            <input type="number" step="0.1" aria-label="R מינימלי" placeholder="-1.0" value={p.rMin}
               onChange={e => p.onRMinChange(e.target.value)}
               className="input-base text-sm font-mono w-16" dir="ltr" />
             <span className="text-text-dim text-sm font-sans">עד:</span>
-            <input type="number" step="0.1" aria-label="R מקסימלי" placeholder="—" value={p.rMax}
+            <input type="number" step="0.1" aria-label="R מקסימלי" placeholder="5.0" value={p.rMax}
               onChange={e => p.onRMaxChange(e.target.value)}
               className="input-base text-sm font-mono w-16" dir="ltr" />
           </div>
-        </div>
-
-        <div className="flex-1" />
-        <div className="flex items-end gap-2">
-          {p.hasActiveFilter && (
-            <button onClick={p.onReset}
-              className="btn-ghost px-3 py-1.5 text-sm font-sans border border-shade rounded text-text-dim">
-              נקה פילטרים
-            </button>
-          )}
+          <span className="text-text-mute text-[11px] font-sans">כולל ערך זה</span>
         </div>
 
       </div>
+      )}
+    </div>
+  )
+}
+
+// ─── TickerCombobox ──────────────────────────────────────────────────────────
+// Hand-rolled combobox for the ticker filter. <datalist> renders LTR-broken
+// in RTL pages and on Edge with no styling control, so this is a small
+// controlled dropdown over the user's own ticker set.
+
+function TickerCombobox({
+  value, onChange, tickers,
+}: { value: string; onChange: (v: string) => void; tickers: string[] }) {
+  const [open, setOpen] = useState(false)
+  const [highlightIdx, setHighlightIdx] = useState(0)
+  const ref = useRef<HTMLDivElement>(null)
+
+  const suggestions = value.trim() === ''
+    ? tickers.slice(0, 8)
+    : tickers.filter(t => t.toUpperCase().startsWith(value.trim().toUpperCase())).slice(0, 8)
+
+  useEffect(() => {
+    if (!open) return
+    function onDoc(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [open])
+
+  useEffect(() => { setHighlightIdx(0) }, [value])
+
+  function commit(ticker: string) {
+    onChange(ticker)
+    setOpen(false)
+  }
+
+  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (!open && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      setOpen(true)
+      return
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setHighlightIdx(i => Math.min(i + 1, suggestions.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setHighlightIdx(i => Math.max(i - 1, 0))
+    } else if (e.key === 'Enter' && open && suggestions[highlightIdx]) {
+      e.preventDefault()
+      commit(suggestions[highlightIdx])
+    } else if (e.key === 'Escape') {
+      setOpen(false)
+    }
+  }
+
+  return (
+    <div ref={ref} className="flex flex-col gap-1 relative">
+      <label htmlFor="filter-ticker" className="text-text-dim text-sm font-sans">טיקר</label>
+      <input
+        id="filter-ticker"
+        type="text"
+        placeholder="AAPL..."
+        value={value}
+        onChange={e => { onChange(e.target.value); setOpen(true) }}
+        onFocus={() => setOpen(true)}
+        onKeyDown={onKeyDown}
+        autoComplete="off"
+        aria-autocomplete="list"
+        aria-expanded={open}
+        aria-controls="filter-ticker-listbox"
+        role="combobox"
+        className="input-base text-sm font-mono w-24"
+        dir="ltr"
+      />
+      {open && suggestions.length > 0 && (
+        <ul
+          id="filter-ticker-listbox"
+          role="listbox"
+          dir="ltr"
+          className="absolute top-full mt-1 z-30 w-24 max-h-60 overflow-auto rounded border border-border bg-panel shadow-lg py-1"
+        >
+          {suggestions.map((t, i) => (
+            <li
+              key={t}
+              role="option"
+              aria-selected={i === highlightIdx}
+              onMouseDown={e => { e.preventDefault(); commit(t) }}
+              onMouseEnter={() => setHighlightIdx(i)}
+              className={
+                'px-2 py-1 text-sm font-mono cursor-pointer ' +
+                (i === highlightIdx ? 'bg-input-bg text-amber' : 'text-text-main hover:bg-input-bg')
+              }
+            >
+              {t}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }
