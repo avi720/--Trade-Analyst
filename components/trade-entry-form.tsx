@@ -22,6 +22,19 @@ const EMPTY_LEG = (): ManualLeg => ({
   broker: 'IBKR',
 })
 
+const EXAMPLE_LEG = (): ManualLeg => ({
+  ticker: 'AAPL',
+  date: new Date().toISOString().slice(0, 10),
+  time: '14:30',
+  side: 'BUY',
+  quantity: 100,
+  price: 150,
+  commission: 1,
+  currency: 'USD',
+  commissionCurrency: 'USD',
+  broker: 'IBKR',
+})
+
 interface Result {
   processed: number
   skipped: number
@@ -97,7 +110,7 @@ function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCar
             />
           </div>
           <div>
-            <label htmlFor={`leg-${index}-side`} className={labelCls}>צד <span className="text-amber" aria-hidden="true">*</span></label>
+            <label htmlFor={`leg-${index}-side`} className={labelCls}>כיוון <span className="text-amber" aria-hidden="true">*</span></label>
             <select
               id={`leg-${index}-side`}
               value={leg.side}
@@ -131,7 +144,10 @@ function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCar
               aria-required="true"
             />
             {toUtcPreview(leg.date, leg.time, timezone) && (
-              <span className="text-[10px] font-mono text-text-dim mt-0.5 block">
+              <span
+                className="text-[10px] font-mono text-text-dim mt-0.5 block"
+                title="שעון אוניברסלי – הזמן שבו האירוע נשמר בבסיס הנתונים"
+              >
                 = {toUtcPreview(leg.date, leg.time, timezone)}
               </span>
             )}
@@ -208,7 +224,7 @@ function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCar
             aria-expanded={showOrderDetails}
             className="w-full flex items-center justify-between px-3 py-2 text-xs font-mono text-text-fade hover:text-text-main transition-colors"
           >
-            <span>פרטי הזמנה</span>
+            <span>פרטי הפקודה אצל הברוקר</span>
             <span aria-hidden="true" className="text-text-faint text-[10px]">{showOrderDetails ? '▲' : '▼'}</span>
           </button>
           {showOrderDetails && (
@@ -269,13 +285,16 @@ function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCar
                   className={inputCls}
                 />
                 {leg.orderPlacedDate && toUtcPreview(leg.orderPlacedDate, leg.orderPlacedTime ?? '', timezone) && (
-                  <span className="text-[10px] font-mono text-text-dim mt-0.5 block">
+                  <span
+                    className="text-[10px] font-mono text-text-dim mt-0.5 block"
+                    title="שעון אוניברסלי – הזמן שבו האירוע נשמר בבסיס הנתונים"
+                  >
                     = {toUtcPreview(leg.orderPlacedDate, leg.orderPlacedTime ?? '', timezone)}
                   </span>
                 )}
               </div>
               <div>
-                <label htmlFor={`leg-${index}-stop-price`} className={labelCls}>מחיר עצירה</label>
+                <label htmlFor={`leg-${index}-stop-price`} className={labelCls}>מחיר סטופ</label>
                 <input
                   id={`leg-${index}-stop-price`}
                   type="number"
@@ -396,6 +415,12 @@ export function TradeEntryForm() {
     ])
   }
 
+  function loadExample() {
+    setLegs([EXAMPLE_LEG()])
+    setError('')
+    setResult(null)
+  }
+
   function removeLeg(i: number) {
     setLegs(prev => prev.filter((_, idx) => idx !== i))
   }
@@ -482,6 +507,14 @@ export function TradeEntryForm() {
         </button>
         <button
           type="button"
+          onClick={loadExample}
+          title="מילוי כל השדות בערכי דוגמה — אפשר לערוך לפני שליחה"
+          className="text-sm font-mono text-text-dim hover:text-amber border border-border rounded px-3 py-1.5 transition-colors"
+        >
+          טען דוגמה
+        </button>
+        <button
+          type="button"
           onClick={handleSubmit}
           disabled={submitting || legs.length === 0}
           className="px-4 py-1.5 bg-amber text-black text-sm font-mono font-semibold rounded hover:bg-amber-dark disabled:opacity-50 transition-colors mr-auto"
@@ -514,7 +547,7 @@ export function TradeEntryForm() {
       )}
 
       <div className="text-xs text-text-faint font-mono border-t border-input-bg pt-3">
-        הביצועים עוברים דרך אותו pipeline FIFO כמו IBKR — כפולים (לפי brokerExecId) יידחו אוטומטית
+        ביצועים זהים (לפי מזהה ייחודי) יזוהו וידחו אוטומטית
       </div>
     </div>
   )

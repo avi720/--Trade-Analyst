@@ -175,13 +175,13 @@ export function TradeExcelImport() {
                   <th className={thCls}>טיקר</th>
                   <th className={thCls}>תאריך</th>
                   <th className={thCls}>שעה</th>
-                  <th className={thCls}>צד</th>
+                  <th className={thCls}>כיוון</th>
                   <th className={thCls}>כמות</th>
                   <th className={thCls}>מחיר</th>
                   <th className={thCls}>עמלה</th>
                   <th className={thCls}>מטבע</th>
                   <th className={thCls}>סוג פקודה</th>
-                  <th className={thCls}>עצירה</th>
+                  <th className={thCls}>סטופ</th>
                   <th className={thCls}>יעד</th>
                 </tr>
               </thead>

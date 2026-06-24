@@ -154,10 +154,34 @@ ID convention: `F##` numbered globally across phases. Where a finding was confir
 
 ## Open Questions / Items Requiring Owner Input
 
-- **Broader `/manual-import` simplification, deferred.** Beyond the wording fix in F11, decide whether the form needs a "load example" button, whether all `ManualLeg` field labels and tooltips need a pass for jargon, and whether the open-trade / closed-trade / Excel-import tabs deserve a more onboarding-friendly default. To be scoped after Phase 1-3 of this plan land.
+> Phase 1-3 closed. The `/manual-import` simplification that was deferred here has been promoted into scoped findings F12 and F13 below; no items currently waiting on owner input.
 
 ---
 
 ## Discovered During Remediation
 
-> Add new findings here as they surface while working through the plan. Same format: `[ ] F##. Title` + Where / Issue / Acceptance.
+> Added after Phase 1-3 landed, promoted from the Phase-1-3 deferred "broader `/manual-import` simplification" open question. Same format: `[ ] F##. Title` + Where / Issue / Acceptance.
+
+#### [x] F12. `/manual-import` open-trade tab gives no concrete starting example
+- **Where:** `components/trade-entry-form.tsx` — the `TradeEntryForm` component, which mounts with a single blank `LegCard` (`EMPTY_LEG()` at line 12-23).
+- **Issue:** A first-time user landing on `/manual-import → טרייד פתוח` sees a blank card with eight required fields, the side dropdown defaulted to BUY, the date at today, and no concrete shape of what a valid entry looks like. The form *is* simpler than it looks, but the user has no way to learn that without filling it out and submitting. Adjacent forms (closed-trade, Excel-import) suffer the same gap but the open-trade tab is the default landing tab and the highest-leverage place to fix it.
+- **Acceptance:** A "טען דוגמה" button is visible in the form header (next to "אזור זמן" or paired with "+ הוסף ביצוע"). Clicking it replaces the current legs with one example leg populated with: ticker `AAPL`, side `Long` (BUY), date = today, time `14:30`, quantity `100`, price `150`, commission `1`, currency `USD`, commissionCurrency `USD`, broker `IBKR`. The button leaves collapsible sections (פרטי הזמנה / הערות אישיות) collapsed. The form remains fully submittable from the example state with no edits — submitting the example produces a real trade in the database. Verified on localhost by opening `/manual-import`, clicking "טען דוגמה", confirming all eight required fields are populated, and submitting successfully.
+
+#### [x] F13. Manual-entry forms carry broker / English jargon without explanation
+- **Where:** `components/trade-entry-form.tsx`, `components/closed-trade-entry-form.tsx`, `components/trade-excel-import.tsx`, `components/manual-import-tabs.tsx` — all user-visible labels, helper text, placeholders, and tooltips.
+- **Issue:** The open question deferred from Phase 1-3 ("pass through all `ManualLeg` field labels and tooltips for broker jargon") is now scoped here. Candidates the owner has already flagged include "פרטי הזמנה" (may want to be "פרטי פקודה בברוקר"), the English Long/Short in the side dropdown inside an otherwise Hebrew UI, sub-tab labels, the "= 06:30 UTC" inline preview helper, and any other broker terminology a non-IBKR-fluent user would not recognise. This finding has a **two-step acceptance**: a recommendation pass first, then a separately-authorised change pass — implementer does NOT edit code until the owner approves the proposed wording.
+- **Acceptance — step 1 (recommendation):** A written list lands in this doc (under this finding) of every wording change proposed across the three forms + the tablist, each with the file:line, the current wording, the recommended wording, and a one-line reason. The list does not assume any change is approved.
+- **Acceptance — step 2 (change pass):** After owner approval of the recommendation list, the wording changes are applied to the codebase exactly as approved. Verified on localhost by opening each tab and confirming the new wording is in place; build + tests pass.
+
+**Recommendation list (presented 2026-06-24) — owner decisions in `[approval]` brackets:**
+1. `manual-import-tabs.tsx:12-13` — keep "טרייד פתוח" / "טרייד סגור" (loanword acceptable in audience). `[approved — no change]`
+2. `trade-entry-form.tsx:100,132` + `closed-trade-entry-form.tsx:132` — label "צד" → **"כיוון"** (matches /research filter wording, clearer to novice). `[approved — applied]`
+3. Long/Short option labels — propose "Long (קנייה) / Short (מכירה)". `[rejected by owner — kept as-is]`
+4. `trade-entry-form.tsx:227` + `closed-trade-entry-form.tsx:191` — collapsible header "פרטי הזמנה" → **"פרטי הפקודה אצל הברוקר"** (jargon disambiguation). `[approved — applied]`
+5. `trade-entry-form.tsx` stop-price label + `closed-trade-entry-form.tsx` open-stop-price label — "מחיר עצירה" → **"מחיר סטופ"** (consistency with `close-fields-input.tsx` which already uses "סטופ"). `[approved — applied]`
+6. `trade-entry-form.tsx` bottom helper — replace "הביצועים עוברים דרך אותו pipeline FIFO כמו IBKR — כפולים (לפי brokerExecId) יידחו אוטומטית" with **"ביצועים זהים (לפי מזהה ייחודי) יזוהו וידחו אוטומטית"** (strip pipeline / FIFO / IBKR / brokerExecId jargon). `[approved — applied]`
+7. UTC preview helper spans (3 files, 5 occurrences) — add `title="שעון אוניברסלי – הזמן שבו האירוע נשמר בבסיס הנתונים"` (tooltip explains UTC without enlarging the inline text). `[approved — applied]`
+8. `trade-excel-import.tsx:178` — preview table header "צד" → **"כיוון"** (consistency with #2). `[approved — applied]`
+9. `trade-excel-import.tsx:184` — preview table header "עצירה" → **"סטופ"** (consistency with #5). `[approved — applied]`
+
+Items left for explicit future scope (not surveyed as candidates here): trade-detail-modal "צד" header in /search results (out of scope per F13 which targets manual-entry forms only); SETUP_GROUPS / EMOTIONAL_STATES / CLOSE_REASONS constants in `lib/constants/trade-options.ts` (already standard Hebrew trading vocabulary). Verified on localhost 2026-06-24: open-trade tab shows the new "כיוון" label + "פרטי הפקודה אצל הברוקר" collapsible + "מחיר סטופ" inside + UTC tooltip + new bottom helper line; closed-trade tab shows the same set on the open section; Excel tab renders without errors; 244/244 vitest tests pass; no console errors.

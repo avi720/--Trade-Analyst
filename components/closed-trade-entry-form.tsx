@@ -129,7 +129,7 @@ export function ClosedTradeEntryForm() {
                 className={inputCls} placeholder="AAPL" aria-required="true" />
             </div>
             <div>
-              <label htmlFor="open-side" className={labelCls}>צד <span className="text-amber" aria-hidden="true">*</span></label>
+              <label htmlFor="open-side" className={labelCls}>כיוון <span className="text-amber" aria-hidden="true">*</span></label>
               <select id="open-side" value={open.side} onChange={e => patchOpen({ side: e.target.value as 'BUY' | 'SELL' })} className={selectCls} aria-required="true">
                 <option value="BUY">Long</option>
                 <option value="SELL">Short</option>
@@ -143,7 +143,10 @@ export function ClosedTradeEntryForm() {
               <label htmlFor="open-time" className={labelCls}>שעה <span className="text-amber" aria-hidden="true">*</span></label>
               <input id="open-time" type="time" value={open.time} onChange={e => patchOpen({ time: e.target.value })} className={inputCls} aria-required="true" />
               {toUtcPreview(open.date, open.time, timezone) && (
-                <span className="text-[10px] font-mono text-text-dim mt-0.5 block">
+                <span
+                  className="text-[10px] font-mono text-text-dim mt-0.5 block"
+                  title="שעון אוניברסלי – הזמן שבו האירוע נשמר בבסיס הנתונים"
+                >
                   = {toUtcPreview(open.date, open.time, timezone)}
                 </span>
               )}
@@ -188,7 +191,7 @@ export function ClosedTradeEntryForm() {
             <button type="button" onClick={() => setShowOrderDetails(v => !v)}
               aria-expanded={showOrderDetails}
               className="w-full flex items-center justify-between px-3 py-2 text-xs font-mono text-text-fade hover:text-text-main transition-colors">
-              <span>פרטי הזמנה</span>
+              <span>פרטי הפקודה אצל הברוקר</span>
               <span aria-hidden="true" className="text-text-faint text-[10px]">{showOrderDetails ? '▲' : '▼'}</span>
             </button>
             {showOrderDetails && (
@@ -232,13 +235,16 @@ export function ClosedTradeEntryForm() {
                     onChange={e => patchOpen({ orderPlacedTime: e.target.value || undefined })}
                     className={inputCls} />
                   {open.orderPlacedDate && toUtcPreview(open.orderPlacedDate, open.orderPlacedTime ?? '', timezone) && (
-                    <span className="text-[10px] font-mono text-text-dim mt-0.5 block">
+                    <span
+                      className="text-[10px] font-mono text-text-dim mt-0.5 block"
+                      title="שעון אוניברסלי – הזמן שבו האירוע נשמר בבסיס הנתונים"
+                    >
                       = {toUtcPreview(open.orderPlacedDate, open.orderPlacedTime ?? '', timezone)}
                     </span>
                   )}
                 </div>
                 <div>
-                  <label htmlFor="open-stop-price" className={labelCls}>מחיר עצירה</label>
+                  <label htmlFor="open-stop-price" className={labelCls}>מחיר סטופ</label>
                   <input id="open-stop-price" type="number" step="0.01" value={open.stopPrice ?? ''}
                     onChange={e => {
                       const v = parseFloat(e.target.value)

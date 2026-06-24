@@ -80,7 +80,10 @@ export function CloseFieldsInput({
             className={inputCls}
           />
           {toUtcPreview(value.closeDate, value.closeTime, timezone) && (
-            <span className="text-[10px] font-mono text-text-dim mt-0.5 block">
+            <span
+              className="text-[10px] font-mono text-text-dim mt-0.5 block"
+              title="שעון אוניברסלי – הזמן שבו האירוע נשמר בבסיס הנתונים"
+            >
               = {toUtcPreview(value.closeDate, value.closeTime, timezone)}
             </span>
           )}
