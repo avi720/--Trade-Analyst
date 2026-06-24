@@ -97,6 +97,14 @@ input[type="date"].date-uppercase::-webkit-datetime-edit-text {
 input[type="date"].date-uppercase[data-empty="true"]::-webkit-datetime-edit {
   color: transparent;
 }
+/* Reserve room for the calendar icon + the "DD / MM / YYYY" overlay so the
+   two don't collide. The native picker indicator sits at inline-end of the
+   input box; we widen the input and pad the icon side so the placeholder
+   span (positioned at the opposite inline edge) gets a clean gutter. */
+input[type="date"].date-uppercase {
+  min-width: 11rem;
+  padding-inline-end: 1.75rem;
+}
 
 /* Visible calendar icon for every <input type="date">. We replace Chrome's
    tiny default picker indicator with a clearly visible SVG so users know
