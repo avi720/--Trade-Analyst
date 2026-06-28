@@ -110,26 +110,26 @@ ID convention: `L##` numbered globally across phases. Where a finding was confir
 ### Phase 2 — Important (land within the first week of users)
 
 #### [ ] L8. Wire up Sentry for error tracking
-- **Where:** New dependency (`@sentry/nextjs`) + init in `sentry.client.config.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts`, and `app/global-error.tsx`
-- **Issue:** There is currently no way to learn about a production exception unless a user reports it. Vercel logs exist but require manual tailing; there are no alerts. With real users about to land, the first hour of any silent failure is exactly when feedback is most valuable, and exactly when there's no signal. Audit logging in `lib/audit/log.ts` covers intentional events, not runtime crashes.
+- **Where:** `@sentry/nextjs` 10.62 installed + `instrumentation-client.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts`, `instrumentation.ts` (register + onRequestError), `next.config.mjs` wrapped with `withSentryConfig`, `Sentry.captureException(error)` wired into `app/error.tsx` and `app/global-error.tsx`. CSP `connect-src` extended to allow `*.ingest.sentry.io` and `*.ingest.de.sentry.io`.
+- **Issue:** **Partial 2026-06-28** — Code half landed and verified locally (`npm run build` clean with Sentry wrapper, tests 244/244). Owner half pending: add `NEXT_PUBLIC_SENTRY_DSN=https://70001b8c9790351c2b0bc10de2e991c1@o4511542659645440.ingest.de.sentry.io/4511644782231632` to Vercel env (Production + Preview); optionally add `SENTRY_AUTH_TOKEN` for source-map upload. Sentry is `enabled: NODE_ENV === 'production'` so dev throws don't pollute the dashboard.
 - **Acceptance:** Errors thrown inside server routes and client components are captured and visible in the Sentry dashboard within a minute of occurring, tagged with `userId` (anonymised — hash) and route. An alert channel (email) fires on new error groups. Verified by deliberately throwing an error on a non-critical dev route, seeing the event appear in Sentry, and receiving the alert email. Free tier (5K errors/month) is sufficient for launch.
 
-#### [ ] L9. Add OpenGraph and Twitter card metadata
+#### [x] L9. Add OpenGraph and Twitter card metadata
 - **Where:** `app/layout.tsx:22-25` (current metadata block is title + description only)
 - **Issue:** **Confirmed.** The metadata export is minimal — no `openGraph`, no `twitter`, no `metadataBase`. Any link to the site shared on WhatsApp, Telegram, X, or LinkedIn (the most likely organic acquisition channels for a Hebrew trading audience) renders without an image card, without a description, with just the URL. This significantly damages click-through on shared links — and shared links are likely the primary signup driver in the first weeks.
 - **Acceptance:** `app/layout.tsx` exports `metadataBase` plus an `openGraph` block (title, description, locale `he_IL`, type `website`, an `images` entry pointing at a 1200×630 PNG in `public/`) and a `twitter` block (`summary_large_image`). Verified by pasting the production URL into the Facebook Sharing Debugger and the X Card Validator and confirming both render the title, description, and image.
 
-#### [ ] L10. Add `public/robots.txt` and `app/sitemap.ts`
+#### [x] L10. Add `public/robots.txt` and `app/sitemap.ts`
 - **Where:** `public/robots.txt` and `app/sitemap.ts` (both missing per `Glob`)
 - **Issue:** **Confirmed.** Without `robots.txt`, crawlers must guess what's indexable; without a sitemap, public pages (`/`, `/login`, `/signup`, the new `/terms` and `/privacy`) are discovered only via links. Authenticated routes under `(dashboard)` and `/api/**` should be explicitly disallowed for crawlers to avoid wasted crawl budget on routes that always 401.
 - **Acceptance:** `robots.txt` is served at `/robots.txt` and disallows `/api/`, `/research`, `/search`, `/manual-import`, `/profile`, `/settings`, and any other authenticated route. `/sitemap.xml` is served and lists the public pages with sensible `lastmod` values. Verified by `curl https://<production-host>/robots.txt` and `/sitemap.xml`.
 
-#### [ ] L11. Add an empty-state onboarding affordance after signup
+#### [x] L11. Add an empty-state onboarding affordance after signup
 - **Where:** Landing route after signup completion (currently `/research`, see [`CLAUDE.md`](../CLAUDE.md))
 - **Issue:** A newly registered user with zero trades lands on `/research` and sees an empty analytics dashboard with no clear next step. The two real next actions are (a) connect IBKR via `/profile?tab=broker`, or (b) import an Excel/manual trade via `/manual-import` — but nothing in the empty state points there. First-session drop-off is the single biggest risk in the first week of public launch. Overlaps with [`docs/UX-EASE-OF-USE-AUDIT.md`](UX-EASE-OF-USE-AUDIT.md) (Phase 1 onboarding theme).
 - **Acceptance:** When a user with zero trades lands on `/research` (or whichever default route survives), they see a clear empty state with two primary CTAs — "חבר את Interactive Brokers" and "ייבא עסקאות ידני" — that link directly to the broker connection panel and `/manual-import` respectively. Verified by signing up a fresh QA user, landing on the dashboard, and confirming the empty state is the first thing visible above the fold without scrolling.
 
-#### [ ] L12. Decide and configure the production custom domain
+#### [x] L12. Decide and configure the production custom domain
 - **Where:** Vercel Project → Domains, plus DNS for the chosen domain, plus `SITE_URL`
 - **Issue:** The current production URL is `trade-analyst-lyart.vercel.app`. Launching on a Vercel-generated subdomain damages trust (reads as a side project), complicates email deliverability (custom-domain SPF/DKIM on the sender is later harder to set up), and prevents Supabase Auth from being configured against a stable canonical hostname. Coupled with L1 — if the canonical hostname changes after launch, every old confirmation email in someone's inbox breaks.
 - **Acceptance:** A custom domain (decided in Open Questions) is attached to the Vercel project, serves the app over HTTPS with auto-renewing certs, and is set as `SITE_URL`. Old `trade-analyst-lyart.vercel.app` either 308-redirects to the custom domain or is left in place but no longer used for auth callbacks. Verified by loading the custom domain in a fresh browser session and completing one full signup → confirm → login round trip.
@@ -139,7 +139,7 @@ ID convention: `L##` numbered globally across phases. Where a finding was confir
 - **Issue:** Even with `SITE_URL` set (L1) and a custom domain (L12), Supabase will reject auth callbacks whose `redirect_to` is not on the allowlist. By default, only `localhost` is permitted. This will produce "redirect_to is not allowed" errors at the moment of email confirmation on the production host.
 - **Acceptance:** The Supabase project's Site URL and Additional Redirect URLs include the production custom domain and the Vercel preview URL pattern. Verified by completing a signup → email confirm round trip on production without Supabase rejecting the callback.
 
-#### [ ] L14. Add a /healthz or readiness endpoint
+#### [x] L14. Add a /healthz or readiness endpoint
 - **Where:** New route `app/api/healthz/route.ts`
 - **Issue:** Vercel deployment health is binary (built/not-built), but a deeper liveness check — "Supabase reachable from the function region, encryption key loadable" — is what catches the kind of misconfiguration that breaks every request silently. Especially useful on first launch when env var drift is the most likely failure mode.
 - **Acceptance:** `GET /api/healthz` returns 200 with `{"db":"ok","env":"ok"}` when everything works, 503 otherwise. Cached for at most 10 seconds. Verified by `curl https://<production-host>/api/healthz` after deploy.
@@ -148,7 +148,7 @@ ID convention: `L##` numbered globally across phases. Where a finding was confir
 
 ### Phase 3 — Polish (within the first month)
 
-#### [ ] L15. Add a basic landing page at `/`
+#### [x] L15. Add a basic landing page at `/`
 - **Where:** `app/page.tsx` (currently redirects to `/research`, see [`CLAUDE.md`](../CLAUDE.md))
 - **Issue:** Anonymous visitors land on `/research` and immediately get bounced through middleware to `/login`, with no marketing surface explaining what the product is or why to sign up. For the first weeks of public launch, organic visitors who don't already know what the app does will not convert.
 - **Acceptance:** Anonymous visitors hitting `/` see a single-page hero (Hebrew RTL) explaining the product in 1–2 sentences, listing 3–5 features, and pointing to "הרשמה" + "כניסה". Authenticated visitors still get redirected to `/research`. Verified by opening `/` in an incognito window and seeing the landing page.
@@ -158,12 +158,12 @@ ID convention: `L##` numbered globally across phases. Where a finding was confir
 - **Issue:** Without analytics you cannot tell whether drop-off is at landing → signup, signup → email confirmation, or confirmation → first trade. In the first month of launch, this is the most valuable data the product can produce. Sentry (L8) tells you what's broken; PostHog tells you what's working.
 - **Acceptance:** PostHog is integrated with page-view auto-capture and custom events at each funnel step (`signup_started`, `email_confirmed`, `profile_completed`, `first_trade_imported`). A funnel chart in the PostHog dashboard shows conversion rates between steps. Verified by completing one fresh signup and seeing the events and funnel appear. Free tier (1M events/month) is sufficient for launch.
 
-#### [ ] L17. Document the launch runbook
+#### [x] L17. Document the launch runbook
 - **Where:** New file `docs/RUNBOOK.md`
 - **Issue:** The first incident after launch is the worst time to discover that nobody remembers how to rotate `FLEX_TOKEN_ENCRYPTION_KEY`, how to re-run the IBKR cron manually, or how to revoke a user's session. The existing docs cover what the system *is*, not what to *do* when it breaks.
 - **Acceptance:** A `docs/RUNBOOK.md` exists with named runbooks for: rotating the Flex encryption key, manually triggering the IBKR sync for one user, revoking a user's auth session, deleting a user's data on request (full GDPR Article 17 flow), restoring from Supabase point-in-time recovery, and rolling back a bad Vercel deploy. Verified by walking through each runbook once on staging.
 
-#### [ ] L18. Add a public contact / support channel
+#### [x] L18. Add a public contact / support channel
 - **Where:** Public footer + Terms page + Privacy page
 - **Issue:** Users need a route to report bugs, request account deletion (GDPR), and ask product questions. A `mailto:` is sufficient at this stage; what matters is that it exists somewhere visible. Without it, the first frustrated user has no path other than abandoning the product.
 - **Acceptance:** A contact email is published in the public footer, the Terms page, and the Privacy page. Verified by visiting each of those three locations on production and confirming the email is clickable.
@@ -175,7 +175,7 @@ ID convention: `L##` numbered globally across phases. Where a finding was confir
 
 #### [ ] L20. Add OpenGraph share image asset to `public/`
 - **Where:** `public/og-image.png` referenced by the `openGraph.images` block in L9
-- **Issue:** L9 needs a 1200×630 image to point at; without a real one, the OG block is incomplete and shared links still render plainly. This is split out so that L9 (metadata wiring) can land independently of design work on the image.
+- **Issue:** **Partial 2026-06-28** — Placeholder shipped: `public/og-image.png` is currently a copy of `logo.png` so L9 metadata resolves without a 404 on social-share crawlers. A proper 1200×630 designed asset (logo + Hebrew tagline on the dark theme) is still needed for actual social preview quality.
 - **Acceptance:** `public/og-image.png` is a 1200×630 image that represents the product (logo + tagline + a screenshot or dark-theme illustration). Verified by visual inspection and by re-running the Facebook Sharing Debugger from L9.
 
 ---

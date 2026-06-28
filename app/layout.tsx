@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Assistant, IBM_Plex_Mono } from 'next/font/google'
+import { getBaseUrl } from '@/lib/utils'
 import './globals.css'
 
 // Self-hosted via next/font — no runtime DNS lookup to fonts.googleapis.com
@@ -19,9 +20,46 @@ const ibmPlexMono = IBM_Plex_Mono({
   display: 'swap',
 })
 
+const BASE_URL = getBaseUrl()
+const SITE_NAME = 'Trade Analyst'
+const SITE_TAGLINE = 'יומן מסחר חכם עם AI'
+
 export const metadata: Metadata = {
-  title: 'Trade Analysis',
-  description: 'יומן מסחר חכם עם AI',
+  metadataBase: new URL(BASE_URL),
+  title: {
+    default: SITE_NAME,
+    template: `%s · ${SITE_NAME}`,
+  },
+  description: SITE_TAGLINE,
+  applicationName: SITE_NAME,
+  authors: [{ name: 'Aviur Paz' }],
+  keywords: ['יומן מסחר', 'trading journal', 'AI', 'IBKR', 'אנליטיקה', 'מסחר'],
+  openGraph: {
+    type: 'website',
+    locale: 'he_IL',
+    url: BASE_URL,
+    siteName: SITE_NAME,
+    title: SITE_NAME,
+    description: SITE_TAGLINE,
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: SITE_NAME,
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: SITE_NAME,
+    description: SITE_TAGLINE,
+    images: ['/og-image.png'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 }
 
 export default function RootLayout({

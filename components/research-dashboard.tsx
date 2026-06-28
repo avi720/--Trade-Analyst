@@ -480,13 +480,39 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
 
         {/* ── Charts / empty state ─────────────────────────────────────────────── */}
         {filteredTrades.length === 0 ? (
-          <div className="panel p-16 text-center" role="status">
-            <p className="text-text-dim font-sans text-base">
-              {closedTrades.length === 0
-                ? 'אין טריידים סגורים במערכת'
-                : 'אין טריידים סגורים בטווח זה'}
-            </p>
-          </div>
+          closedTrades.length === 0 ? (
+            <div className="panel p-12 text-center" role="status">
+              <h2 className="text-text-main font-sans text-xl font-semibold mb-3">
+                עוד אין כאן טריידים — בוא נתחיל
+              </h2>
+              <p className="text-text-dim font-sans text-base mb-8 max-w-md mx-auto">
+                כדי לראות אנליטיקה ותובנות, קודם צריך להזין טריידים. שתי דרכים להתחיל:
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-lg mx-auto">
+                <a
+                  href="/manual-import"
+                  className="inline-flex items-center justify-center rounded-md px-5 py-3 text-sm font-medium bg-amber text-bg-dark hover:bg-amber/90 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2"
+                >
+                  ייבא עסקאות ידני
+                </a>
+                <a
+                  href="/profile?tab=broker"
+                  className="inline-flex items-center justify-center rounded-md px-5 py-3 text-sm font-medium border border-border bg-panel-bg text-text-main hover:border-amber hover:text-amber transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2"
+                >
+                  חבר את Interactive Brokers
+                </a>
+              </div>
+              <p className="text-text-dim font-sans text-xs mt-6">
+                חיבור ל-IBKR זמין במסלול Pro
+              </p>
+            </div>
+          ) : (
+            <div className="panel p-16 text-center" role="status">
+              <p className="text-text-dim font-sans text-base">
+                אין טריידים סגורים בטווח זה
+              </p>
+            </div>
+          )
         ) : (
           <div key={resetKey} className="flex flex-col gap-4">
             {chartRows.map((row) => {

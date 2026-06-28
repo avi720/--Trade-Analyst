@@ -9,7 +9,7 @@ function setSecurityHeaders(response: NextResponse): NextResponse {
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()')
   response.headers.set(
     'Content-Security-Policy-Report-Only',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vitals.vercel-insights.com; frame-ancestors 'none'"
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vitals.vercel-insights.com https://*.ingest.de.sentry.io https://*.ingest.sentry.io; frame-ancestors 'none'"
   )
   return response
 }
@@ -44,11 +44,13 @@ export async function proxy(request: NextRequest) {
   const isAuthCallback = pathname.startsWith('/auth/')
   const isForgotPwd    = pathname === '/forgot-password'
   const isResetPwd     = pathname === '/reset-password'
+  const isLandingPage  = pathname === '/'
   const isPublicPage   = pathname === '/terms' || pathname === '/privacy'
+  const isHealthz      = pathname === '/api/healthz'
   const isBillingWebhook = pathname === '/api/billing/webhook'
 
-  // Unauthenticated: allow login, signup, password-reset, public pages, and the billing webhook
-  if (!user && !isLoginPage && !isSignupPage && !isAuthCallback && !isForgotPwd && !isResetPwd && !isPublicPage && !isBillingWebhook) {
+  // Unauthenticated: allow landing, login, signup, password-reset, public pages, healthz, and the billing webhook
+  if (!user && !isLandingPage && !isLoginPage && !isSignupPage && !isAuthCallback && !isForgotPwd && !isResetPwd && !isPublicPage && !isHealthz && !isBillingWebhook) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return setSecurityHeaders(NextResponse.redirect(url))
@@ -79,5 +81,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/cron/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|api/cron/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 }

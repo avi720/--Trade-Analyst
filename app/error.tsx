@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import * as Sentry from "@sentry/nextjs";
+import { useEffect } from "react";
 
 export default function Error({
   error,
@@ -9,6 +11,10 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    Sentry.captureException(error);
+  }, [error]);
+
   return (
     <main className="min-h-dvh bg-bg-dark text-text-main flex items-center justify-center px-6">
       <div className="flex flex-col items-center gap-6 max-w-md text-center">
