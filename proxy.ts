@@ -1,6 +1,19 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+function setSecurityHeaders(response: NextResponse): NextResponse {
+  response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload')
+  response.headers.set('X-Frame-Options', 'DENY')
+  response.headers.set('X-Content-Type-Options', 'nosniff')
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()')
+  response.headers.set(
+    'Content-Security-Policy-Report-Only',
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vitals.vercel-insights.com; frame-ancestors 'none'"
+  )
+  return response
+}
+
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
@@ -31,19 +44,21 @@ export async function proxy(request: NextRequest) {
   const isAuthCallback = pathname.startsWith('/auth/')
   const isForgotPwd    = pathname === '/forgot-password'
   const isResetPwd     = pathname === '/reset-password'
+  const isPublicPage   = pathname === '/terms' || pathname === '/privacy'
+  const isBillingWebhook = pathname === '/api/billing/webhook'
 
-  // Unauthenticated: allow login, signup, and password-reset pages
-  if (!user && !isLoginPage && !isSignupPage && !isAuthCallback && !isForgotPwd && !isResetPwd) {
+  // Unauthenticated: allow login, signup, password-reset, public pages, and the billing webhook
+  if (!user && !isLoginPage && !isSignupPage && !isAuthCallback && !isForgotPwd && !isResetPwd && !isPublicPage && !isBillingWebhook) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
-    return NextResponse.redirect(url)
+    return setSecurityHeaders(NextResponse.redirect(url))
   }
 
   // Authenticated on login: redirect to app
   if (user && isLoginPage) {
     const url = request.nextUrl.clone()
     url.pathname = '/research'
-    return NextResponse.redirect(url)
+    return setSecurityHeaders(NextResponse.redirect(url))
   }
 
   // Authenticated on signup: allow only if profile is incomplete (firstName not set)
@@ -56,11 +71,11 @@ export async function proxy(request: NextRequest) {
     if (profile?.firstName) {
       const url = request.nextUrl.clone()
       url.pathname = '/research'
-      return NextResponse.redirect(url)
+      return setSecurityHeaders(NextResponse.redirect(url))
     }
   }
 
-  return supabaseResponse
+  return setSecurityHeaders(supabaseResponse)
 }
 
 export const config = {

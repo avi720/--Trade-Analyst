@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ProfileLayout } from "@/components/profile/profile-layout";
+import type { SubscriptionTier } from "@/lib/billing/tier";
 
 export default async function ProfilePage() {
   const supabase = await createClient();
@@ -12,9 +13,11 @@ export default async function ProfilePage() {
   const admin = createAdminClient();
   const { data: userRow } = await admin
     .from("User")
-    .select("name, firstName, lastName, phone, addressStreet, addressCity, addressCountry, settings")
+    .select("name, firstName, lastName, phone, addressStreet, addressCity, addressCountry, settings, subscriptionTier, subscriptionStatus, subscriptionRenewsAt")
     .eq("id", user.id)
     .single();
+
+  const tier: SubscriptionTier = userRow?.subscriptionTier === "Pro" ? "Pro" : "Free";
 
   const display = ((userRow?.settings as Record<string, unknown>)?.display ?? {}) as {
     currency?: "USD" | "ILS";
@@ -37,6 +40,9 @@ export default async function ProfilePage() {
           addressCountry: userRow?.addressCountry ?? null,
         }}
         userDisplay={display}
+        userTier={tier}
+        subscriptionStatus={userRow?.subscriptionStatus ?? null}
+        subscriptionRenewsAt={userRow?.subscriptionRenewsAt ?? null}
       />
     </Suspense>
   );

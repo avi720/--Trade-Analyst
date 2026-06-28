@@ -3,6 +3,7 @@
 > **Audit date:** 2026-06-19
 > **Auditor:** Claude (ui-ux-pro-max skill)
 > **App version reviewed:** main branch at commit `c6e2b35` + production at https://trade-analyst-lyart.vercel.app/research
+> **Status:** ✅ COMPLETED 2026-06-24 — all 13 findings closed (F1–F13). No open questions. No new findings discovered during remediation. Re-open by changing Status to ACTIVE and adding new findings under "Discovered During Remediation".
 
 ---
 

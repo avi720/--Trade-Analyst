@@ -14,6 +14,7 @@
 | שדה | ערך |
 |---|---|
 | Email | `yadefam806@ameady.com` |
+| סיסמה | לא ב-repo — שמורה ב-per-project memory (`project-test-user.md`). |
 | `User.id` (userId) | `d80aa9b2-0c85-4235-bf0a-a101fea75f90` |
 | נוצר | 2026-05-23 |
 | כתובת האתר (Vercel) | `https://trade-analyst-lyart.vercel.app` (התחקור: `/research`) |

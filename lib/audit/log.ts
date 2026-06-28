@@ -6,7 +6,10 @@ export type AuditEventType =
   | "email_changed"
   | "account_deleted"
   | "reauth_failed"
-  | "rate_limit_hit";
+  | "rate_limit_hit"
+  | "tier_upgraded"
+  | "tier_downgraded"
+  | "subscription_updated";
 
 export type AuditStatus = "success" | "failure";
 

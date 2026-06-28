@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { callGemini, type ChatMessage } from '@/lib/chat/gemini-client'
 import { checkRateLimit, rateLimitedResponse } from '@/lib/auth/rate-limit'
 import { logAuditEvent } from '@/lib/audit/log'
+import { getUserTier, isProTier, proRequiredResponse } from '@/lib/billing/tier'
 import type { Json } from '@/lib/db/types'
 
 type StoredMessage = {
@@ -37,18 +38,37 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // Rate limit: 30 chat messages per hour per user.
-  // Caps Gemini cost exposure and the "compromised session burns quota" vector.
-  const rl = await checkRateLimit(`user:${user.id}:chat`, 30, 3600)
-  if (!rl.ok) {
+  const { tier } = await getUserTier(user.id)
+
+  // Hourly cap (both tiers) — Gemini cost protection + compromised-session quota burn defense.
+  const rlHour = await checkRateLimit(`user:${user.id}:chat`, 30, 3600)
+  if (!rlHour.ok) {
     await logAuditEvent({
       userId: user.id,
       eventType: 'rate_limit_hit',
       status: 'failure',
-      metadata: { action: 'chat' },
+      metadata: { action: 'chat', bucket: 'hourly' },
       request,
     })
-    return rateLimitedResponse(rl, 'הגעת למגבלת ההודעות לשעה. נסה שוב מאוחר יותר')
+    return rateLimitedResponse(rlHour, 'הגעת למגבלת ההודעות לשעה. נסה שוב מאוחר יותר')
+  }
+
+  // Daily cap for Free tier only — 3 messages per day.
+  if (!isProTier(tier)) {
+    const rlDay = await checkRateLimit(`user:${user.id}:chat:daily-free`, 3, 86400)
+    if (!rlDay.ok) {
+      await logAuditEvent({
+        userId: user.id,
+        eventType: 'rate_limit_hit',
+        status: 'failure',
+        metadata: { action: 'chat', bucket: 'daily_free' },
+        request,
+      })
+      return rateLimitedResponse(
+        rlDay,
+        'הגעת למכסת 3 ההודעות היומית של המסלול החינמי. שדרג ל-Pro להודעות ללא הגבלה',
+      )
+    }
   }
 
   let body: {
@@ -68,6 +88,11 @@ export async function POST(request: Request) {
 
   if (!message || typeof message !== 'string' || !message.trim()) {
     return NextResponse.json({ error: 'Message is required' }, { status: 400 })
+  }
+
+  // Pro mode (full-history context) is Pro-only.
+  if (contextMode === 'full' && !isProTier(tier)) {
+    return proRequiredResponse('chat_pro_mode')
   }
 
   // Build context string

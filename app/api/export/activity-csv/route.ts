@@ -7,6 +7,7 @@ import { fetchFlexQuery } from "@/lib/ibkr/flex-client";
 import { parseActivityXml } from "@/lib/ibkr/parse-flex-xml";
 import { executionsToCsv } from "@/lib/ibkr/xml-to-csv";
 import type { Database } from "@/lib/db/types";
+import { getUserTier, isProTier, proRequiredResponse } from "@/lib/billing/tier";
 
 // Returns the latest Activity Flex data as a downloadable CSV.
 // Fetches fresh data from IBKR (same query used for backfill/sync).
@@ -19,6 +20,11 @@ export async function GET() {
   );
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { tier } = await getUserTier(user.id);
+  if (!isProTier(tier)) {
+    return proRequiredResponse("csv_export");
+  }
 
   const admin = createAdminClient();
   const { data: conn } = await admin

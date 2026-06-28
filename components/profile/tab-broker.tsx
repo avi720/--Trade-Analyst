@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { ChevronDown, ChevronUp, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { CountdownCircle } from "./countdown-circle";
+import { ProRequiredBanner } from "@/components/billing/pro-required-banner";
+import type { SubscriptionTier } from "@/lib/billing/tier";
 
 const TOAST_DURATION = 10;
 
@@ -108,7 +110,11 @@ function QueryStatusRow({ label, result }: { label: string; result: ActivityTest
   );
 }
 
-export function TabBroker() {
+interface TabBrokerProps {
+  userTier: SubscriptionTier;
+}
+
+export function TabBroker({ userTier }: TabBrokerProps) {
   const [guideOpen, setGuideOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -259,6 +265,8 @@ export function TabBroker() {
         <h2 className="text-lg font-semibold text-text-main">ברוקר — IBKR</h2>
         <p className="text-sm text-text-dim mt-1">חיבור ל-Interactive Brokers דרך Flex Web Service</p>
       </div>
+
+      {userTier === "Free" && <ProRequiredBanner feature="סנכרון אוטומטי מ-IBKR" />}
 
       <div className="panel p-6">
         <h3 className="text-sm font-medium text-text-main mb-4">Flex Web Service</h3>

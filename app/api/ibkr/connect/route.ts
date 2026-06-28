@@ -9,6 +9,7 @@ import { parseActivityXml } from "@/lib/ibkr/parse-flex-xml";
 import { processExecutions } from "@/lib/ibkr/process-executions";
 import type { Database } from "@/lib/db/types";
 import { waitUntil } from "@vercel/functions";
+import { getUserTier, isProTier, proRequiredResponse } from "@/lib/billing/tier";
 
 export const maxDuration = 60;
 
@@ -27,6 +28,11 @@ export async function POST(req: NextRequest) {
   );
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { tier } = await getUserTier(user.id);
+  if (!isProTier(tier)) {
+    return proRequiredResponse("ibkr_sync");
+  }
 
   const body = await req.json().catch(() => null);
   const parsed = schema.safeParse(body);

@@ -3,6 +3,7 @@
 > **Audit date:** 2026-06-16
 > **Auditor:** Claude (ui-ux-pro-max skill)
 > **App version reviewed:** main branch at commit `ceef336` + production at https://trade-analyst-lyart.vercel.app
+> **Status:** ✅ COMPLETED 2026-06-24 — all 32 findings closed (F1–F32, with F31 deferred by owner decision and marked accordingly). No open questions. No new findings discovered during remediation. Re-open by changing Status to ACTIVE and adding new findings under "Discovered During Remediation".
 
 ---
 
@@ -226,10 +227,10 @@ ID convention: `F##` numbered globally across phases. Where a finding was confir
 - **Issue:** Without `aria-hidden="true"` on the decorative countdown SVG, screen readers announce the timer value twice — once from the visual text and once from the parent element.
 - **Acceptance:** The CountdownCircle SVG has `aria-hidden="true"` and the timer value is announced exactly once. Verified with a screen reader.
 
-#### [ ] F31. White Google login button breaks visual hierarchy on dark theme
+#### [x] F31. White Google login button breaks visual hierarchy on dark theme
 - **Where:** Login and signup pages — Google OAuth button renders with a white background.
 - **Issue:** **Deferred 2026-06-16** — owner prefers to keep the current white button. Original issue: **Confirmed.** The high-contrast white button dominates the visual hierarchy over the primary amber "כניסה" CTA. Users' eyes are drawn to the Google button first, weakening the primary action.
-- **Acceptance:** The Google button uses a toned-down dark variant (outline or low-contrast fill) that does not overpower the primary CTA. Verified by visual inspection — the primary CTA is the most prominent button on the page.
+- ~~**Acceptance:** The Google button uses a toned-down dark variant (outline or low-contrast fill) that does not overpower the primary CTA. Verified by visual inspection — the primary CTA is the most prominent button on the page.~~ Closed by owner decision — finding deferred indefinitely; no code change applied.
 
 #### [x] F32. Duplicate RSC prefetch requests on navigation
 - **Where:** Network observation on `/research` — `manual-import` and `search` routes fetched twice with different `_rsc` cache keys on a single page load.

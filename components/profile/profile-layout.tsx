@@ -2,12 +2,14 @@
 
 import { useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { User, Shield, Monitor, Plug } from "lucide-react";
+import { User, Shield, Monitor, Plug, CreditCard } from "lucide-react";
 import { TabAccount } from "./tab-account";
 import { TabSecurity } from "./tab-security";
 import { TabDisplay } from "./tab-display";
 import { TabBroker } from "./tab-broker";
+import { TabBilling } from "./tab-billing";
 import { cn } from "@/lib/utils/cn";
+import type { SubscriptionTier } from "@/lib/billing/tier";
 
 interface UserProfile {
   firstName: string | null;
@@ -29,6 +31,9 @@ interface ProfileLayoutProps {
   userName: string | null;
   userProfile: UserProfile;
   userDisplay: UserDisplay;
+  userTier: SubscriptionTier;
+  subscriptionStatus: string | null;
+  subscriptionRenewsAt: string | null;
 }
 
 const TABS = [
@@ -36,11 +41,20 @@ const TABS = [
   { id: "security", label: "אבטחה", icon: Shield },
   { id: "display", label: "תצוגה", icon: Monitor },
   { id: "broker", label: "ברוקר", icon: Plug },
+  { id: "billing", label: "מנוי", icon: CreditCard },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
 
-export function ProfileLayout({ userEmail, userName, userProfile, userDisplay }: ProfileLayoutProps) {
+export function ProfileLayout({
+  userEmail,
+  userName,
+  userProfile,
+  userDisplay,
+  userTier,
+  subscriptionStatus,
+  subscriptionRenewsAt,
+}: ProfileLayoutProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -158,7 +172,14 @@ export function ProfileLayout({ userEmail, userName, userProfile, userDisplay }:
           )}
           {activeTab === "security" && <TabSecurity userEmail={userEmail} />}
           {activeTab === "display" && <TabDisplay initialDisplay={userDisplay} />}
-          {activeTab === "broker" && <TabBroker />}
+          {activeTab === "broker" && <TabBroker userTier={userTier} />}
+          {activeTab === "billing" && (
+            <TabBilling
+              userTier={userTier}
+              subscriptionStatus={subscriptionStatus}
+              subscriptionRenewsAt={subscriptionRenewsAt}
+            />
+          )}
         </div>
       </section>
     </div>

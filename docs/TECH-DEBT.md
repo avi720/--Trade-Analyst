@@ -10,7 +10,7 @@
 
 Trade Analyst is a Hebrew-RTL trading journal for self-directed equity traders, built on Next.js 14 (App Router) + Supabase Postgres with RLS. It pulls trade executions from IBKR's Flex Web Service, normalises them through a FIFO matching pipeline, and serves a research dashboard plus an AI chat assistant ("חנן", Gemini-backed). The project has shipped eight phases (auth, FIFO, IBKR sync, price sync, dashboard, research, AI chat, search + manual entry) and is deployed single-user today but architected multi-user at the DB layer per the invariant in `CLAUDE.md`.
 
-**Scope:** Code, architecture, dependency, test, documentation, and infrastructure debt across the application surface — `app/`, `lib/`, `components/`, `__tests__/`, `scripts/`, `docs/`, `.github/workflows/`, and root config. Out of scope: UI/UX polish (no companion plan yet), feature gaps in the trading domain itself (those belong in product backlog), and the parked dashboard / Massive price-sync code unless it overlaps with a current debt item.
+**Scope:** Code, architecture, dependency, test, documentation, and infrastructure debt across the application surface — `app/`, `lib/`, `components/`, `__tests__/`, `scripts/`, `docs/`, `.github/workflows/`, and root config. Out of scope: UI/UX polish — see companion [`docs/UI-AUDIT.md`](UI-AUDIT.md). Feature gaps in the trading domain itself (those belong in product backlog), and the parked dashboard / Massive price-sync code unless it overlaps with a current debt item.
 
 **Stack reviewed:** Next.js 14.2.29 · React 18.3 · TypeScript 5.8 · Tailwind 3 · Supabase JS 2.104 · `@supabase/ssr` 0.6.1 · `@google/genai` 2.5 · `recharts` 2.15 · `xlsx` 0.18.5 · `fast-xml-parser` 4.5 · Vitest 3.1 · ESLint 8.57 · Vercel hosting · GitHub Actions cron.
 
