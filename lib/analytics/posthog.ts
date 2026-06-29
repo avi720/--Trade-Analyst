@@ -2,27 +2,19 @@
 
 import posthog from 'posthog-js'
 
-let initialized = false
+const KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY
+const HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com'
+const ENABLED = !!KEY && process.env.NODE_ENV === 'production'
 
-export function initPostHog(): void {
-  if (initialized) return
-  if (typeof window === 'undefined') return
-
-  const key = process.env.NEXT_PUBLIC_POSTHOG_KEY
-  const host = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com'
-
-  if (!key || process.env.NODE_ENV !== 'production') return
-
-  posthog.init(key, {
-    api_host: host,
+if (typeof window !== 'undefined' && ENABLED && !posthog.__loaded) {
+  posthog.init(KEY!, {
+    api_host: HOST,
     capture_pageview: 'history_change',
     capture_pageleave: true,
     person_profiles: 'identified_only',
     autocapture: true,
     disable_session_recording: false,
   })
-
-  initialized = true
 }
 
 export type FunnelEvent =
@@ -32,19 +24,16 @@ export type FunnelEvent =
   | 'first_trade_imported'
 
 export function trackEvent(event: FunnelEvent, properties?: Record<string, unknown>): void {
-  if (typeof window === 'undefined') return
-  if (!initialized) return
+  if (typeof window === 'undefined' || !ENABLED) return
   posthog.capture(event, properties)
 }
 
 export function identifyUser(userId: string, traits?: Record<string, unknown>): void {
-  if (typeof window === 'undefined') return
-  if (!initialized) return
+  if (typeof window === 'undefined' || !ENABLED) return
   posthog.identify(userId, traits)
 }
 
 export function resetUser(): void {
-  if (typeof window === 'undefined') return
-  if (!initialized) return
+  if (typeof window === 'undefined' || !ENABLED) return
   posthog.reset()
 }
