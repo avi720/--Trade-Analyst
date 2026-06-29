@@ -8,6 +8,7 @@ import { z } from 'zod'
 import Link from 'next/link'
 import { CityCombobox } from '@/components/city-combobox'
 import { GoogleSignInButton } from '@/components/google-signin-button'
+import { trackEvent, identifyUser } from '@/lib/analytics/posthog'
 
 // ─── Zod schemas ─────────────────────────────────────────────────────────────
 
@@ -193,8 +194,12 @@ export default function SignupPage() {
       return
     }
 
+    trackEvent('signup_started')
+    if (data.user?.id) identifyUser(data.user.id)
+
     // Email confirmation not required — session returned immediately
     if (data.session) {
+      trackEvent('email_confirmed', { auto: true })
       setStep(2)
       return
     }
@@ -209,6 +214,8 @@ export default function SignupPage() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (user?.email_confirmed_at) {
+        trackEvent('email_confirmed')
+        if (user.id) identifyUser(user.id)
         setStep(2)
       } else {
         setStep1Error('המייל טרם אומת. אנא לחץ על הקישור במייל ונסה שוב.')
@@ -284,6 +291,7 @@ export default function SignupPage() {
         setSubmitError(json.error ?? 'שגיאה בשמירת הפרטים')
         return
       }
+      trackEvent('profile_completed')
       router.push('/research')
       router.refresh()
     } catch {

@@ -153,7 +153,7 @@ ID convention: `L##` numbered globally across phases. Where a finding was confir
 - **Issue:** Anonymous visitors land on `/research` and immediately get bounced through middleware to `/login`, with no marketing surface explaining what the product is or why to sign up. For the first weeks of public launch, organic visitors who don't already know what the app does will not convert.
 - **Acceptance:** Anonymous visitors hitting `/` see a single-page hero (Hebrew RTL) explaining the product in 1–2 sentences, listing 3–5 features, and pointing to "הרשמה" + "כניסה". Authenticated visitors still get redirected to `/research`. Verified by opening `/` in an incognito window and seeing the landing page.
 
-#### [ ] L16. Add PostHog for analytics and signup funnel tracking
+#### [x] L16. Add PostHog for analytics and signup funnel tracking
 - **Where:** New dependency (`posthog-js` + `posthog-node`) + init in `app/layout.tsx` (client) and API routes (server), custom events on auth pages
 - **Issue:** Without analytics you cannot tell whether drop-off is at landing → signup, signup → email confirmation, or confirmation → first trade. In the first month of launch, this is the most valuable data the product can produce. Sentry (L8) tells you what's broken; PostHog tells you what's working.
 - **Acceptance:** PostHog is integrated with page-view auto-capture and custom events at each funnel step (`signup_started`, `email_confirmed`, `profile_completed`, `first_trade_imported`). A funnel chart in the PostHog dashboard shows conversion rates between steps. Verified by completing one fresh signup and seeing the events and funnel appear. Free tier (1M events/month) is sufficient for launch.

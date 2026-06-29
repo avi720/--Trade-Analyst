@@ -454,6 +454,8 @@ export function TradeEntryForm() {
       }
       setResult(json)
       if (json.processed > 0) {
+        const { trackEvent } = await import('@/lib/analytics/posthog')
+        trackEvent('first_trade_imported', { source: 'manual_form', count: json.processed })
         setLegs([EMPTY_LEG()])
       }
     } catch {

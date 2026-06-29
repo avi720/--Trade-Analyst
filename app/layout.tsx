@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Assistant, IBM_Plex_Mono } from 'next/font/google'
 import { getBaseUrl } from '@/lib/utils'
+import { PostHogProvider } from '@/components/posthog-provider'
 import './globals.css'
 
 // Self-hosted via next/font — no runtime DNS lookup to fonts.googleapis.com
@@ -70,7 +71,7 @@ export default function RootLayout({
   return (
     <html lang="he" dir="rtl" className={`${assistant.variable} ${ibmPlexMono.variable}`}>
       <body className="bg-bg-dark text-text-main min-h-dvh font-sans">
-        {children}
+        <PostHogProvider>{children}</PostHogProvider>
       </body>
     </html>
   )
