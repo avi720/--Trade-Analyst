@@ -82,6 +82,8 @@ export function ClosedTradeEntryForm() {
         return
       }
       setMessage({ kind: 'ok', text: 'הטרייד נשמר ונסגר בהצלחה' })
+      const { trackEvent } = await import('@/lib/analytics/posthog')
+      trackEvent('first_trade_imported', { source: 'closed_form' })
       setOpen(EMPTY_OPEN())
       setClose(emptyCloseFields())
     } catch {

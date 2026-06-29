@@ -77,6 +77,10 @@ export function TradeExcelImport() {
         return
       }
       setResult(json)
+      if (json.processed > 0) {
+        const { trackEvent } = await import('@/lib/analytics/posthog')
+        trackEvent('first_trade_imported', { source: 'excel', count: json.processed })
+      }
       setPreview(null)
     } catch {
       setParseError('שגיאת רשת')
