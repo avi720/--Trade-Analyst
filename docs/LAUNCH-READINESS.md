@@ -109,7 +109,7 @@ ID convention: `L##` numbered globally across phases. Where a finding was confir
 
 ### Phase 2 — Important (land within the first week of users)
 
-#### [ ] L8. Wire up Sentry for error tracking
+#### [x] L8. Wire up Sentry for error tracking
 - **Where:** `@sentry/nextjs` 10.62 installed + `instrumentation-client.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts`, `instrumentation.ts` (register + onRequestError), `next.config.mjs` wrapped with `withSentryConfig`, `Sentry.captureException(error)` wired into `app/error.tsx` and `app/global-error.tsx`. CSP `connect-src` extended to allow `*.ingest.sentry.io` and `*.ingest.de.sentry.io`.
 - **Issue:** **Partial 2026-06-28** — Code half landed and verified locally (`npm run build` clean with Sentry wrapper, tests 244/244). Owner half pending: add `NEXT_PUBLIC_SENTRY_DSN=https://70001b8c9790351c2b0bc10de2e991c1@o4511542659645440.ingest.de.sentry.io/4511644782231632` to Vercel env (Production + Preview); optionally add `SENTRY_AUTH_TOKEN` for source-map upload. Sentry is `enabled: NODE_ENV === 'production'` so dev throws don't pollute the dashboard.
 - **Acceptance:** Errors thrown inside server routes and client components are captured and visible in the Sentry dashboard within a minute of occurring, tagged with `userId` (anonymised — hash) and route. An alert channel (email) fires on new error groups. Verified by deliberately throwing an error on a non-critical dev route, seeing the event appear in Sentry, and receiving the alert email. Free tier (5K errors/month) is sufficient for launch.
@@ -134,7 +134,7 @@ ID convention: `L##` numbered globally across phases. Where a finding was confir
 - **Issue:** The current production URL is `trade-analyst-lyart.vercel.app`. Launching on a Vercel-generated subdomain damages trust (reads as a side project), complicates email deliverability (custom-domain SPF/DKIM on the sender is later harder to set up), and prevents Supabase Auth from being configured against a stable canonical hostname. Coupled with L1 — if the canonical hostname changes after launch, every old confirmation email in someone's inbox breaks.
 - **Acceptance:** A custom domain (decided in Open Questions) is attached to the Vercel project, serves the app over HTTPS with auto-renewing certs, and is set as `SITE_URL`. Old `trade-analyst-lyart.vercel.app` either 308-redirects to the custom domain or is left in place but no longer used for auth callbacks. Verified by loading the custom domain in a fresh browser session and completing one full signup → confirm → login round trip.
 
-#### [ ] L13. Configure Supabase Auth redirect allowlist
+#### [x] L13. Configure Supabase Auth redirect allowlist
 - **Where:** Supabase Dashboard → Authentication → URL Configuration
 - **Issue:** Even with `SITE_URL` set (L1) and a custom domain (L12), Supabase will reject auth callbacks whose `redirect_to` is not on the allowlist. By default, only `localhost` is permitted. This will produce "redirect_to is not allowed" errors at the moment of email confirmation on the production host.
 - **Acceptance:** The Supabase project's Site URL and Additional Redirect URLs include the production custom domain and the Vercel preview URL pattern. Verified by completing a signup → email confirm round trip on production without Supabase rejecting the callback.
