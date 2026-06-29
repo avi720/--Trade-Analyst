@@ -1,10 +1,21 @@
 'use client'
 
-// Importing this module triggers posthog.init() at module-load time
-// (see lib/analytics/posthog.ts). The component itself is a pass-through
-// — it exists so the root layout can mark this as a client boundary and
-// Next.js will eagerly load the chunk on every page.
-import '@/lib/analytics/posthog'
+import posthog from 'posthog-js'
+
+const KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY
+const HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com'
+const ENABLED = !!KEY && process.env.NODE_ENV === 'production'
+
+if (typeof window !== 'undefined' && ENABLED && !posthog.__loaded) {
+  posthog.init(KEY!, {
+    api_host: HOST,
+    capture_pageview: 'history_change',
+    capture_pageleave: true,
+    person_profiles: 'identified_only',
+    autocapture: true,
+    disable_session_recording: false,
+  })
+}
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
   return children as React.ReactElement
