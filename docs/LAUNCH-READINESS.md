@@ -173,10 +173,11 @@ ID convention: `L##` numbered globally across phases. Where a finding was confir
 - **Issue:** Supabase paid plans include daily backups, but a backup nobody has restored from is not a backup. Before relying on backups in a real-user context, the restore path needs to have been exercised at least once.
 - **Acceptance:** One restore-to-staging drill completed and documented in `docs/RUNBOOK.md` (L17). Verified by the runbook step plus a screenshot or log of the restored staging environment.
 
-#### [ ] L20. Add OpenGraph share image asset to `public/`
+#### [x] L20. Add OpenGraph share image asset to `public/`
 - **Where:** `public/og-image.png` referenced by the `openGraph.images` block in L9
 - **Issue:** **Partial 2026-06-28** — Placeholder shipped: `public/og-image.png` is currently a copy of `logo.png` so L9 metadata resolves without a 404 on social-share crawlers. A proper 1200×630 designed asset (logo + Hebrew tagline on the dark theme) is still needed for actual social preview quality.
 - **Acceptance:** `public/og-image.png` is a 1200×630 image that represents the product (logo + tagline + a screenshot or dark-theme illustration). Verified by visual inspection and by re-running the Facebook Sharing Debugger from L9.
+- **Resolved 2026-06-29** — Switched from static PNG to dynamic `app/og/route.tsx` using `next/og` (ImageResponse). Design: dark theme (#080808), green→amber gradient bar, "Trade / Analyst" wordmark, Hebrew tagline "יומן מסחר חכם עם AI", feature pills (IBKR Sync, חנן AI, FIFO Analytics), mock stat cards (Win Rate / Avg R / Max DD), mini P&L bar chart. Route added to middleware public allowlist. `app/layout.tsx` `openGraph.images` and `twitter.images` updated to `/og`. Verified: `GET /og` → `200 image/png` (38 KB).
 
 ---
 
