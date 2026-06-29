@@ -172,6 +172,7 @@ ID convention: `L##` numbered globally across phases. Where a finding was confir
 - **Where:** Supabase Dashboard → Database → Backups
 - **Issue:** Supabase paid plans include daily backups, but a backup nobody has restored from is not a backup. Before relying on backups in a real-user context, the restore path needs to have been exercised at least once.
 - **Acceptance:** One restore-to-staging drill completed and documented in `docs/RUNBOOK.md` (L17). Verified by the runbook step plus a screenshot or log of the restored staging environment.
+- **Blocked 2026-06-29** — Supabase free plan does not include Point-in-Time Recovery or daily backup downloads. Unblocks when project is upgraded to Pro plan ($25/mo). Steps once on Pro: Dashboard → Database → Backups → select a restore point → restore to a new branch → verify tables → document in RUNBOOK.md under "Restore drill".
 
 #### [x] L20. Add OpenGraph share image asset to `public/`
 - **Where:** `public/og-image.png` referenced by the `openGraph.images` block in L9
