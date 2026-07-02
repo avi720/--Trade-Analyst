@@ -179,24 +179,27 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
   const stats = useMemo(() => calcStats(filteredTrades), [filteredTrades])
 
   useEffect(() => {
-    setContextData({
-      source: 'research',
-      tradeCount: stats.totalTrades,
-      winRate: stats.winRate,
-      avgR: stats.avgR,
-      expectancy: stats.expectancy,
-      totalPnl: stats.totalPnl,
-      maxDrawdown: stats.maxDrawdown,
-      profitFactor: stats.profitFactor,
-      trades: filteredTrades.map(t => ({
-        ticker: t.ticker,
-        direction: t.direction,
-        actualR: t.actualR,
-        result: t.result,
-        setup: t.setupType,
-        closedAt: t.closedAt?.toISOString() ?? null,
-      })),
-    })
+    const timeout = setTimeout(() => {
+      setContextData({
+        source: 'research',
+        tradeCount: stats.totalTrades,
+        winRate: stats.winRate,
+        avgR: stats.avgR,
+        expectancy: stats.expectancy,
+        totalPnl: stats.totalPnl,
+        maxDrawdown: stats.maxDrawdown,
+        profitFactor: stats.profitFactor,
+        trades: filteredTrades.map(t => ({
+          ticker: t.ticker,
+          direction: t.direction,
+          actualR: t.actualR,
+          result: t.result,
+          setup: t.setupType,
+          closedAt: t.closedAt?.toISOString() ?? null,
+        })),
+      })
+    }, 300)
+    return () => clearTimeout(timeout)
   }, [filteredTrades, stats, setContextData])
 
   const chartData: ChartData = useMemo(() => {
