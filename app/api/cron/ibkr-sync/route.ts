@@ -147,13 +147,27 @@ export async function POST(req: NextRequest) {
 
   console.log(`[cron/ibkr-sync] processing ${conns.length} active connection(s)`);
 
-  // Sequential, not parallel: IBKR rate-limits per-token and we already have a
-  // 60s maxDuration cap. Sequential keeps the loop predictable and lets each
-  // connection's error surface independently in logs.
-  const results: ConnectionResult[] = [];
-  for (const conn of conns as ConnectionRow[]) {
-    results.push(await syncOneConnection(admin, conn));
-  }
+  // Parallel dispatch: IBKR rate limits are per-token, so different users' syncs
+  // are independent. Bounded by the slowest single sync instead of the sum.
+  const settled = await Promise.allSettled(
+    (conns as ConnectionRow[]).map((conn) => syncOneConnection(admin, conn))
+  );
+  const results: ConnectionResult[] = settled.map((s, i) => {
+    if (s.status === "fulfilled") return s.value;
+    // syncOneConnection is expected to swallow known errors and return a ConnectionResult;
+    // if it throws unexpectedly, synthesize an ERROR result so the response stays consistent.
+    const conn = (conns as ConnectionRow[])[i];
+    const msg = s.reason instanceof Error ? s.reason.message : String(s.reason);
+    console.error(`[cron/ibkr-sync] unhandled error for conn=${conn.id}:`, msg);
+    return {
+      connectionId: conn.id,
+      userId: conn.userId,
+      status: "ERROR",
+      error: msg,
+      executions: 0,
+      failedExecutions: 0,
+    };
+  });
 
   const success = results.filter((r) => r.status === "SUCCESS").length;
   const errored = results.filter((r) => r.status === "ERROR").length;

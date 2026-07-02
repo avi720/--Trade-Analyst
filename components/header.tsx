@@ -6,7 +6,7 @@ import { useState, useRef, useEffect } from 'react'
 import { SyncIndicator } from './sync-indicator'
 import { TradeLogoIcon } from './trade-logo'
 import { cn } from '@/lib/utils/cn'
-import { useChatContext } from '@/lib/chat/chat-context'
+import { useChatOpen } from '@/lib/chat/chat-context'
 
 const TABS = [
   { label: 'תחקור', href: '/research' },
@@ -24,7 +24,7 @@ export function Header({ userEmail }: HeaderProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null)
-  const { toggleChat } = useChatContext()
+  const { toggleChat } = useChatOpen()
 
   // Reposition when opening or on resize while open. The dropdown is
   // position:fixed because the header has overflow-x-auto (which CSS forces

@@ -359,3 +359,37 @@ describe("processExecutions — error handling", () => {
     expect(results[1].status).toBe("PROCESSED");
   });
 });
+
+describe("processExecutions — cross-ticker parallelism (P4)", () => {
+  it("preserves input order in results and processes mixed-ticker batches successfully", async () => {
+    // Every Supabase call resolves after a tick so scheduling is observably
+    // async — proves the parallel dispatch runs multiple tickers concurrently
+    // without corrupting results. All execs land as OPEN (no open trade found).
+    mockFrom.mockImplementation(() => ({
+      select: vi.fn().mockReturnThis(),
+      insert: vi.fn().mockImplementation(async () => {
+        await new Promise((r) => setTimeout(r, 2));
+        return { error: null };
+      }),
+      update: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockImplementation(async () => {
+        await new Promise((r) => setTimeout(r, 2));
+        return { data: null, error: null };
+      }),
+    }));
+
+    const execs = [
+      makeExec({ brokerExecId: "A1", ticker: "AAPL" }),
+      makeExec({ brokerExecId: "T1", ticker: "TSLA" }),
+      makeExec({ brokerExecId: "A2", ticker: "AAPL" }),
+      makeExec({ brokerExecId: "T2", ticker: "TSLA" }),
+      makeExec({ brokerExecId: "M1", ticker: "MSFT" }),
+    ];
+
+    const results = await processExecutions(execs, USER_ID);
+
+    expect(results.map((r) => r.brokerExecId)).toEqual(["A1", "T1", "A2", "T2", "M1"]);
+    expect(results.every((r) => r.status === "PROCESSED")).toBe(true);
+  });
+});

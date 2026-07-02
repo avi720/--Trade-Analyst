@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useChatContext } from '@/lib/chat/chat-context'
+import { useChatOpen, useChatContextData } from '@/lib/chat/chat-context'
 import { createClient } from '@/lib/supabase/client'
 
 type ContextMode = 'smart' | 'full'
@@ -32,7 +32,8 @@ function lsRemove(key: string) {
 }
 
 export function ChatSidebar() {
-  const { isOpen, toggleChat, contextData } = useChatContext()
+  const { isOpen, toggleChat } = useChatOpen()
+  const { contextData } = useChatContextData()
 
   // Escape closes the panel (non-modal — no focus trap).
   useEffect(() => {

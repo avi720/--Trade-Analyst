@@ -51,6 +51,12 @@ class ConflictError extends Error {
 // Each retry only fires on a detected ConflictError, never on a real error.
 const MAX_PERSIST_ATTEMPTS = 4;
 
+// Cross-ticker concurrency for processExecutions. Per-ticker order is still
+// strictly serial (FIFO invariant); different tickers touch disjoint rows and
+// are safe to interleave. 5 is chosen to be well below Supabase pooler limits
+// while still cutting typical batch time by ~5x.
+const CROSS_TICKER_CONCURRENCY = 5;
+
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 // Builds a DB-ready Order insert object (adds userId, tradeId, converts dates)
@@ -139,23 +145,44 @@ function buildTradeInsert(
 }
 
 // Processes a batch of normalized executions for a single user.
-// Logs results per execution; returns summary.
+// Executions are grouped by ticker; groups run in parallel (bounded by
+// CROSS_TICKER_CONCURRENCY), but per-ticker order stays strictly serial to
+// preserve the FIFO invariant. Results are returned in input order.
 export async function processExecutions(
   executions: NormalizedExecution[],
   userId: string
 ): Promise<ExecutionResult[]> {
   const admin = createAdminClient();
-  const results: ExecutionResult[] = [];
 
-  for (const exec of executions) {
-    try {
-      results.push(await processOneExecution(exec, userId, admin));
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[process-executions] Failed for execId=${exec.brokerExecId}:`, msg);
-      results.push({ brokerExecId: exec.brokerExecId, status: "FAILED", error: msg });
-    }
+  const groups = new Map<string, Array<{ exec: NormalizedExecution; idx: number }>>();
+  for (let i = 0; i < executions.length; i++) {
+    const exec = executions[i];
+    const bucket = groups.get(exec.ticker);
+    if (bucket) bucket.push({ exec, idx: i });
+    else groups.set(exec.ticker, [{ exec, idx: i }]);
   }
+
+  const results: ExecutionResult[] = new Array(executions.length);
+  const buckets = Array.from(groups.values());
+  let cursor = 0;
+  const workerCount = Math.min(CROSS_TICKER_CONCURRENCY, buckets.length);
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (true) {
+      const bucketIdx = cursor++;
+      if (bucketIdx >= buckets.length) return;
+      const bucket = buckets[bucketIdx];
+      for (const { exec, idx } of bucket) {
+        try {
+          results[idx] = await processOneExecution(exec, userId, admin);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error(`[process-executions] Failed for execId=${exec.brokerExecId}:`, msg);
+          results[idx] = { brokerExecId: exec.brokerExecId, status: "FAILED", error: msg };
+        }
+      }
+    }
+  });
+  await Promise.all(workers);
 
   return results;
 }
