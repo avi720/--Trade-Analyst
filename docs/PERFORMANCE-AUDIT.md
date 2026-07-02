@@ -105,7 +105,7 @@ ID convention: `P##` numbered globally across phases. Where a finding was confir
 
 ### Phase 3 — Polish (consistency / hygiene)
 
-#### [ ] P7. Research / trade-search charts and rows lack `React.memo`
+#### [x] P7. Research / trade-search charts and rows lack `React.memo`
 - **Where:** `components/research/charts.tsx`, `components/trade-search.tsx:254-269`
 - **Issue:** No top-level `memo()` wraps the chart components or the trade-search row renderer. Because `chartData` and `pageItems` are derived inside the parent via `useMemo`, the parent re-renders on every filter change and recharts rebuilds its internal SVG even when the underlying `data` array is referentially stable. At current scale (1-2k trades) this is bearable but visibly stutters during fast typing in the filter bar. The fix is small but only worth doing once P3 and P6 are resolved — otherwise the parent re-renders too often for memoisation to matter.
 - **Acceptance:** With P3 and P6 fixed, each chart component is wrapped in `memo()` with a referentially stable props contract from the dashboard, and a React DevTools profile during a 5-character keystroke burst on the ticker filter shows each chart re-rendering at most once per committed filter state (not once per keystroke).
@@ -117,7 +117,7 @@ ID convention: `P##` numbered globally across phases. Where a finding was confir
 
 #### [ ] P9. Research calculations iterate the trade list 3-5 times per render
 - **Where:** `lib/utils/calculations.ts`, `lib/utils/research-charts.ts`
-- **Issue:** `equityCurve`, `calcStats`, `setupPerformance`, `pnlByTicker`, `pnlByDayOfWeek`, `pnlByHour`, `holdTimeVsR` each do their own `.filter().reduce()` / `.map()` passes over the same array. Negligible for the current scale (1-2k trades after the `useMemo` upstream); becomes visible above ~20k trades. Low priority — only worth doing if a user accumulates years of data and the dashboard starts feeling slow.
+- **Issue:** **Deferred by owner 2026-06-19** — no perf need at current scale; revisit if a user's dataset reaches ~20k trades or the `chartData` memo profiles above ~30ms. Do not touch until then. `equityCurve`, `calcStats`, `setupPerformance`, `pnlByTicker`, `pnlByDayOfWeek`, `pnlByHour`, `holdTimeVsR` each do their own `.filter().reduce()` / `.map()` passes over the same array. Negligible for the current scale (1-2k trades after the `useMemo` upstream); becomes visible above ~20k trades. Low priority — only worth doing if a user accumulates years of data and the dashboard starts feeling slow.
 - **Acceptance:** Total time spent in the `chartData` `useMemo` on a 20k-trade synthetic dataset, measured via the React DevTools Profiler "Ranked" view, is under 50ms p95. Either by collapsing the multiple passes into a single walk, or by precomputing the per-trade derivations once and reading them from the chart helpers.
 
 #### [ ] P10. `BrokerEvent` audit log grows by ~10 KB per IBKR sync
