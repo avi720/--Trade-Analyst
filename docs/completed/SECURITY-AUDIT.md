@@ -3,6 +3,7 @@
 > **Audit date:** 2026-06-19
 > **Auditor:** Claude (engineering:code-review skill)
 > **App version reviewed:** main branch at commit `c6e2b35` + production at https://trade-analyst-lyart.vercel.app
+> **Status:** ✅ COMPLETED 2026-07-05 — all 17 findings closed (X1–X17, including X17 discovered during remediation). All open questions resolved. Re-open by changing Status to ACTIVE and adding new findings under "Discovered During Remediation".
 
 ---
 
@@ -149,10 +150,10 @@ ID convention: `X##` numbered globally across phases. Where a finding was confir
 
 Items that surfaced during the audit but need a product, security, or business decision before they can become actionable findings:
 
-- **Re-auth UX for X1–X3.** What is the preferred UX for re-authentication on sensitive operations — re-enter password modal at the boundary, periodic step-up auth (e.g., re-auth required if session is >15 minutes old), or magic-link-to-email confirmation? The implementation cost differs significantly across these.
-- **Rate-limit infrastructure for X4.** Is the team willing to add a dependency (Upstash Redis is the typical Vercel pairing) for per-user rate limiting, or should rate limiting live in Supabase (e.g., via a `rate_limit` table with a function)? The Upstash path is faster to ship; the Supabase path keeps the dependency surface narrower.
+- ~~**Re-auth UX for X1–X3.**~~ **Resolved** — implemented as password re-entry (`currentPassword` verified via `verifyCurrentPassword()`) in all three routes (change-password, change-email, delete-account).
+- ~~**Rate-limit infrastructure for X4.**~~ **Resolved** — went with the Supabase path: `RateLimit` table + `rate_limit_check` Postgres RPC, wrapped by `lib/auth/rate-limit.ts`.
 - ~~**`FLEX_TOKEN_ENCRYPTION_KEY` storage location.**~~ **Verified 2026-06-19** via Vercel dashboard (Project Settings → Environment Variables). Both `FLEX_TOKEN_ENCRYPTION_KEY` and `SUPABASE_SERVICE_ROLE_KEY` are stored as Project-scoped "Sensitive" env vars in the same `trade-analyst` Vercel project, with the same access list (anyone who can view the project can read both). Implication: the encryption-at-rest of IBKR Flex tokens provides defence only against a DB-only leak (Supabase compromised, Vercel not) — if the Vercel project is compromised, both keys leak together and the encryption adds zero defence. For a single-user proprietary app this is an accepted tradeoff; a future hardening step would be to load `FLEX_TOKEN_ENCRYPTION_KEY` from a separate KMS (AWS KMS, GCP KMS, HashiCorp Vault) with a distinct access path.
-- **Public-vs-private route policy for X14.** Should `/api/cities` (Israeli government open data) remain accessible without auth? It is currently gated by the middleware redirect, but treating it as deliberately public would let the matcher exclude it and remove the dependency on middleware behaviour.
+- ~~**Public-vs-private route policy for X14.**~~ **Resolved** — `/api/cities` is explicitly listed in `lib/auth/public-routes.ts` as a deliberately public route with a justification comment.
 - ~~**Audit-log retention.**~~ **Reversed 2026-06-19** — owner reconsidered and approved a minimal `AuditEvent` table. Tracked as finding X17 (Discovered During Remediation), closed in the same session.
 
 ---

@@ -191,7 +191,7 @@ All questions resolved (2026-06-28):
 - **AI assistant ("חנן") disclaimer:** Hanan may express opinions on specific trades, but ToS must include a clear disclaimer — opinions only, not investment advice, not financial advice, not a recommendation to act. The user bears sole responsibility for trading decisions.
 - **Data retention on account deletion:** All user data (trades, orders, broker connections, profile) deleted immediately. Audit logs retained 30 days, then auto-purged. Supabase backups may retain data up to 30 days per their infrastructure.
 - **Launch model:** Hard launch — open signup to everyone, no invite gating.
-- **Pricing model:** Freemium at $19/month (USD) via Lemon Squeezy (merchant of record). Free tier: manual import, research dashboard, search, 3 Hanan messages/day (basic mode only). Pro tier ($19/mo): unlimited Hanan + Pro (deep) mode, IBKR sync, CSV export. Full trade history available on both tiers.
+- **Pricing model:** Freemium at $14.99/month (USD) via Lemon Squeezy (merchant of record). Free tier: manual import, research dashboard, search, 3 Hanan messages/day (basic mode only). Pro tier ($14.99/mo or $149.99/yr): unlimited Hanan + Pro (deep) mode, IBKR sync, CSV export. Full trade history available on both tiers. **Launch promo** (first month after launch, until 2026-08-01): monthly $9.99 for first 3 months, annual $99.99.
 - **Monitoring:** Sentry (free, error tracking — L8, **account already created by owner**) + PostHog (free, analytics + funnels — L16, account pending).
 - **Lemon Squeezy store URL:** `tradeanalyst.lemonsqueezy.com` (matches the brand subdomain).
 
