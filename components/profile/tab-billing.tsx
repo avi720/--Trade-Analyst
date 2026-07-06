@@ -11,9 +11,17 @@ interface TabBillingProps {
 }
 
 const PRICES = {
-  monthly: { usd: 19.99, label: "חודשי" },
-  annual: { usd: 179.99, label: "שנתי" },
+  monthly: { usd: 14.99, label: "חודשי" },
+  annual: { usd: 149.99, label: "שנתי" },
 } as const;
+
+const LAUNCH_PRICES = {
+  monthly: { usd: 9.99, months: 3 },
+  annual: { usd: 99.99 },
+} as const;
+
+const LAUNCH_PROMO_END = new Date('2026-08-01T00:00:00Z');
+function isLaunchPromo() { return Date.now() < LAUNCH_PROMO_END.getTime() }
 
 type Plan = keyof typeof PRICES;
 
@@ -135,20 +143,28 @@ export function TabBilling({ userTier, subscriptionStatus, subscriptionRenewsAt 
             </div>
           )}
 
+          {isLaunchPromo() && (
+            <div className="rounded-md border border-green/30 bg-green/5 p-3 text-center">
+              <p className="text-sm font-semibold text-green">🚀 מבצע השקה — מחירים מוזלים לנרשמים עכשיו!</p>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <PlanCard
               plan="monthly"
-              priceUsd={PRICES.monthly.usd}
+              priceUsd={isLaunchPromo() ? LAUNCH_PRICES.monthly.usd : PRICES.monthly.usd}
+              originalPriceUsd={isLaunchPromo() ? PRICES.monthly.usd : undefined}
               title="חודשי"
-              subtitle="חיוב חודשי, ביטול בכל עת"
+              subtitle={isLaunchPromo() ? `$${LAUNCH_PRICES.monthly.usd} ל-${LAUNCH_PRICES.monthly.months} חודשים, אח״כ $${PRICES.monthly.usd}` : "חיוב חודשי, ביטול בכל עת"}
               loading={loadingPlan === "monthly"}
               onSelect={() => startCheckout("monthly")}
             />
             <PlanCard
               plan="annual"
-              priceUsd={PRICES.annual.usd}
+              priceUsd={isLaunchPromo() ? LAUNCH_PRICES.annual.usd : PRICES.annual.usd}
+              originalPriceUsd={isLaunchPromo() ? PRICES.annual.usd : undefined}
               title="שנתי"
-              subtitle="חיסכון של ~25% לעומת חודשי"
+              subtitle={isLaunchPromo() ? "מחיר השקה בלעדי!" : "חיסכון של ~17% לעומת חודשי"}
               loading={loadingPlan === "annual"}
               onSelect={() => startCheckout("annual")}
               recommended
@@ -171,6 +187,7 @@ export function TabBilling({ userTier, subscriptionStatus, subscriptionRenewsAt 
 
 function PlanCard({
   priceUsd,
+  originalPriceUsd,
   title,
   subtitle,
   loading,
@@ -179,6 +196,7 @@ function PlanCard({
 }: {
   plan: Plan;
   priceUsd: number;
+  originalPriceUsd?: number;
   title: string;
   subtitle: string;
   loading: boolean;
@@ -202,7 +220,12 @@ function PlanCard({
       <h3 className="text-base font-semibold text-text-main">{title}</h3>
       <p className="text-sm text-text-dim mt-1">{subtitle}</p>
       <div className="mt-4 flex items-baseline gap-2">
-        <span className="text-3xl font-bold text-text-main font-mono">
+        {originalPriceUsd && (
+          <span className="text-lg text-text-dim font-mono line-through">
+            ${originalPriceUsd.toFixed(2)}
+          </span>
+        )}
+        <span className={"text-3xl font-bold font-mono " + (originalPriceUsd ? "text-green" : "text-text-main")}>
           ${priceUsd.toFixed(2)}
         </span>
         <span className="text-sm text-text-dim">

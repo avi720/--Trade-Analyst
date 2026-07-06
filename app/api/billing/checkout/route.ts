@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import {
   getLemonSqueezyConfig,
   createCheckoutSession,
+  isLaunchPromoActive,
   type BillingPlan,
 } from '@/lib/billing/lemon-squeezy'
 import { getBaseUrl } from '@/lib/utils'
@@ -36,12 +37,21 @@ export async function POST(request: Request) {
   const plan: BillingPlan = parsed.data.plan
   const successUrl = `${getBaseUrl()}/profile?tab=billing&checkout=success`
 
+  let discountCode: string | undefined
+  if (isLaunchPromoActive()) {
+    const code = plan === 'monthly'
+      ? config.discountCodeLaunchMonthly
+      : config.discountCodeLaunchAnnual
+    if (code) discountCode = code
+  }
+
   try {
     const { url } = await createCheckoutSession(config, {
       plan,
       userId: user.id,
       userEmail: user.email ?? '',
       successUrl,
+      discountCode,
     })
     return NextResponse.json({ url })
   } catch (err) {

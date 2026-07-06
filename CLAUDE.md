@@ -135,6 +135,13 @@ The required names are listed in `.env.example` (do not commit values). Brief pu
 | `GEMINI_API_KEY` | Google Gemini API key for the chat assistant |
 | `CRON_SECRET` | Bearer token expected by cron endpoints (`/api/cron/*`) |
 | `SITE_URL` | Canonical external URL of the app; used by `getBaseUrl()` (`lib/utils.ts`) to build server-side redirects and callbacks. Set in Vercel dashboard (e.g. `https://trade-analyst-lyart.vercel.app`). Server-only (no `NEXT_PUBLIC_` prefix). Not needed locally. |
+| `LEMONSQUEEZY_API_KEY` | Lemon Squeezy API key for billing |
+| `LEMONSQUEEZY_STORE_ID` | Lemon Squeezy store ID |
+| `LEMONSQUEEZY_VARIANT_ID_MONTHLY` | LS variant ID for monthly Pro ($14.99/mo) |
+| `LEMONSQUEEZY_VARIANT_ID_ANNUAL` | LS variant ID for annual Pro ($149.99/yr) |
+| `LEMONSQUEEZY_WEBHOOK_SECRET` | LS webhook signing secret (HMAC-SHA256) |
+| `LEMONSQUEEZY_DISCOUNT_CODE_LAUNCH_MONTHLY` | LS discount **code** (not ID) for launch promo monthly ($9.99 × 3mo). Optional — omit after promo ends. The LS checkout API attaches discounts via `checkout_data.discount_code`, not as a `relationships.discount`. |
+| `LEMONSQUEEZY_DISCOUNT_CODE_LAUNCH_ANNUAL` | LS discount **code** for launch promo annual ($99.99). Optional — omit after promo ends |
 
 If you add a new env var, add the **name** to `.env.example` and document its purpose here.
 

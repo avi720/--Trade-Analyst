@@ -4,6 +4,14 @@ export interface LemonSqueezyConfig {
   variantIdMonthly: string
   variantIdAnnual: string
   webhookSecret: string
+  discountCodeLaunchMonthly: string | null
+  discountCodeLaunchAnnual: string | null
+}
+
+export const LAUNCH_PROMO_END = new Date('2026-08-01T00:00:00Z')
+
+export function isLaunchPromoActive(): boolean {
+  return Date.now() < LAUNCH_PROMO_END.getTime()
 }
 
 export function getLemonSqueezyConfig(): LemonSqueezyConfig | null {
@@ -16,7 +24,15 @@ export function getLemonSqueezyConfig(): LemonSqueezyConfig | null {
   if (!apiKey || !storeId || !variantIdMonthly || !variantIdAnnual || !webhookSecret) {
     return null
   }
-  return { apiKey, storeId, variantIdMonthly, variantIdAnnual, webhookSecret }
+  return {
+    apiKey,
+    storeId,
+    variantIdMonthly,
+    variantIdAnnual,
+    webhookSecret,
+    discountCodeLaunchMonthly: process.env.LEMONSQUEEZY_DISCOUNT_CODE_LAUNCH_MONTHLY ?? null,
+    discountCodeLaunchAnnual: process.env.LEMONSQUEEZY_DISCOUNT_CODE_LAUNCH_ANNUAL ?? null,
+  }
 }
 
 export type BillingPlan = 'monthly' | 'annual'
@@ -26,6 +42,7 @@ export interface CheckoutOptions {
   userId: string
   userEmail: string
   successUrl: string
+  discountCode?: string
 }
 
 interface CheckoutResponse {
@@ -39,16 +56,21 @@ export async function createCheckoutSession(
   const variantId =
     options.plan === 'monthly' ? config.variantIdMonthly : config.variantIdAnnual
 
+  const checkoutData: Record<string, unknown> = {
+    email: options.userEmail,
+    custom: {
+      user_id: options.userId,
+    },
+  }
+  if (options.discountCode) {
+    checkoutData.discount_code = options.discountCode
+  }
+
   const payload = {
     data: {
       type: 'checkouts',
       attributes: {
-        checkout_data: {
-          email: options.userEmail,
-          custom: {
-            user_id: options.userId,
-          },
-        },
+        checkout_data: checkoutData,
         product_options: {
           redirect_url: options.successUrl,
           enabled_variants: [Number(variantId)],
