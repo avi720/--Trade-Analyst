@@ -22,3 +22,5 @@ tsconfig.tsbuildinfo
 
 # Debug
 npm-debug.log*
+.vercel
+.env*

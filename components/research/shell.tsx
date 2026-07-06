@@ -28,6 +28,10 @@ export const TOOLTIP_STYLE: React.CSSProperties = {
   fontSize: 12,
   borderRadius: 4,
 }
+// Recharts renders each item/label with its own inline color that overrides
+// contentStyle.color — must be passed explicitly or text renders black on dark.
+export const TOOLTIP_ITEM_STYLE: React.CSSProperties = { color: '#E0E0E0' }
+export const TOOLTIP_LABEL_STYLE: React.CSSProperties = { color: '#E0E0E0', fontWeight: 600 }
 export const AXIS_TICK = { fill: '#B0B0B0', fontSize: 12 }
 export const GRID_STROKE = '#1E1E1E'
 export const AXIS_STROKE = '#333333'
@@ -357,7 +361,7 @@ export function DayHourInner({
             <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
             <XAxis dataKey="day" stroke={AXIS_STROKE} tick={{ ...AXIS_TICK, fontSize: 10 }} tickMargin={4} />
             <YAxis stroke={AXIS_STROKE} tick={{ ...AXIS_TICK, fontSize: 10 }} tickMargin={4} tickFormatter={v => ltr(`$${v}`)} width={40} />
-            <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [formatUsd(v), 'P&L']} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} formatter={(v: number) => [formatUsd(v), 'P&L']} />
             <Bar dataKey="totalPnl" radius={[3, 3, 0, 0]} isAnimationActive={false}>
               {dayofweek.map((entry, i) => (
                 <Cell key={i} fill={entry.totalPnl >= 0 ? '#2CC84A' : '#FF4D4D'} />
@@ -381,6 +385,8 @@ export function DayHourInner({
               <YAxis stroke={AXIS_STROKE} tick={{ ...AXIS_TICK, fontSize: 10 }} tickMargin={4} tickFormatter={v => ltr(`$${v}`)} width={40} />
               <Tooltip
                 contentStyle={TOOLTIP_STYLE}
+                itemStyle={TOOLTIP_ITEM_STYLE}
+                labelStyle={TOOLTIP_LABEL_STYLE}
                 labelFormatter={v => `${String(v).padStart(2, '0')}:00`}
                 formatter={(v: number) => [formatUsd(v), 'P&L']}
               />
@@ -418,7 +424,7 @@ export function MetricCard({ label, value, color, info, onClick }: { label: stri
       }
       role={interactive ? 'button' : undefined}
       tabIndex={interactive ? 0 : undefined}
-      title={interactive ? 'פתח בדף החיפוש' : undefined}
+      aria-label={interactive ? 'פתח בדף החיפוש' : undefined}
       onClick={interactive ? onClick : undefined}
       onKeyDown={handleKey}
     >

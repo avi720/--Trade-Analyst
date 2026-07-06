@@ -1,0 +1,195 @@
+# Trade Analyst — Launch Window Security Audit & Remediation Plan
+
+> **Audit date:** 2026-07-05
+> **Auditor:** Claude (engineering:code-review skill)
+> **App version reviewed:** main branch at commit `e5f3ccb` + production at https://tradeanalyst.app (Vercel)
+> **Scope window:** commits `4a50ab7` → `6e0b209` (28–29 June 2026) + uncommitted launch-promo working-tree changes
+> **Status:** 🟡 ACTIVE
+
+---
+
+## Background
+
+Trade Analyst is a Hebrew-RTL trading journal with an AI assistant ("חנן"), built on Next.js 16 App Router + React 19 + Supabase, deployed on Vercel and going through a public launch. Users import trades from Interactive Brokers via Flex Web Service or manually, then get FIFO analytics, R-multiples, and Gemini-powered chat over their trade history. Over the 28–29 June window, three new platforms were wired in — Lemon Squeezy (billing, merchant-of-record), PostHog (product analytics + session replay), and Sentry (error monitoring) — alongside a Free/Pro tier gate, a public landing page + legal pages, security response headers, and a dynamic `/og` image route. This audit covers only what changed in that window and the data flows those changes introduced.
+
+**Scope:** every commit between `4a50ab7` (Phase 1 close) and `6e0b209` (L19 doc note) plus the working-tree diff for the launch-promo discount work. Focused on: Lemon Squeezy checkout + webhook path, PostHog init and event flow, Sentry configuration, tier-gating in API routes, DB schema + RLS around the new billing columns, `proxy.ts` security headers + public route allowlist, the new `/og` and `/api/healthz` public endpoints. **Out of scope:** IBKR Flex integration internals, FIFO logic, chat/Gemini prompt handling, and the pre-existing auth flow — companion coverage lives in [`docs/completed/SECURITY-AUDIT.md`](../completed/SECURITY-AUDIT.md) (previous round) and [`docs/in-progress/LAUNCH-READINESS.md`](LAUNCH-READINESS.md) (rollout checklist).
+
+**Stack reviewed:** Next.js 16 (App Router) · React 19 · Supabase (`@supabase/ssr` 0.6, `@supabase/supabase-js`) · Lemon Squeezy REST API v1 · posthog-js ^1.396 · @sentry/nextjs ^10.62 · Postgres 14.5 (Supabase managed) · Vercel Edge + Node runtimes · GitHub Actions cron.
+
+**Methodology:**
+1. Full read of `git log --stat` for the 28–29 June window and of every file touched by those commits.
+2. Full read of every new or modified file under `app/api/billing/*`, `lib/billing/*`, `lib/analytics/*`, `sentry.*.config.ts`, `instrumentation*.ts`, `proxy.ts`, `app/api/healthz/route.ts`, `app/og/route.tsx`, `app/global-error.tsx`, `app/error.tsx`.
+3. Cross-reference with the Pro-gated routes that consume `getUserTier`: `app/api/ibkr/connect/route.ts`, `app/api/chat/route.ts`, `app/api/export/activity-csv/route.ts`.
+4. Direct Supabase MCP queries against production DB: `pg_policy` for RLS on `User`, `information_schema.column_privileges` and `information_schema.table_privileges` for grants on the new billing columns, `information_schema.columns` for column shapes.
+5. Git history search (`git log --all --diff-filter=A -- .env*`) to confirm no `.env` file was ever committed to any branch.
+6. Each finding scored internally with `Priority = (Impact + Risk) × (6 − Effort)`, 1–5 scale, for ordering only — scores not printed.
+
+**Reference frameworks:** OWASP Top 10 (2021) · OWASP ASVS v4 L2 (payment & session-management chapters) · PCI SAQ-A (merchant-of-record scope) · CIS Postgres Benchmark (RLS + column privileges) · Sentry & PostHog privacy documentation for defaults · Next.js App Router security guidance · Lemon Squeezy webhook signing spec.
+
+---
+
+## How to Use This Plan
+
+- Each finding is **outcome-driven**: it states what is wrong and what "fixed" looks like, but not how to implement it. The implementer chooses the approach.
+- Work top-down by phase. **Do not skip Phase 1.** X1 and X2 are launch blockers — Pro tier is trivially bypassable today and PostHog is recording sensitive UI in production.
+- Tick the box only when the **Acceptance** clause is satisfied — not when the change is merely written.
+- When an item lands, flip `[ ]` → `[x]` on the heading line. Empty boxes mean unfinished; ticked boxes mean Acceptance met.
+- If a finding turns out to be invalid in context, leave the box unchecked and add a `~~strikethrough~~` note explaining why.
+- If a finding is deferred by an owner decision (won't-fix this round), tick `[x]`, wrap the Acceptance line in `~~strikethrough~~`, and append a short note explaining the decision.
+- New findings discovered during fixes go at the bottom under "Discovered During Remediation".
+- The `Status` line at the top is maintained by `/execute-work-plan`.
+- Some findings overlap with [`docs/in-progress/LAUNCH-READINESS.md`](LAUNCH-READINESS.md) (specifically L8 Sentry + L16 PostHog + L21 billing). Where an item is called out in both files, fix once and tick the box in both.
+
+---
+
+## Strengths — What Already Works Well
+
+Preserve these patterns when remediating:
+
+- **Webhook HMAC uses constant-time comparison correctly.** `app/api/billing/webhook/route.ts:28-40` builds the expected signature with Node `createHmac`, then compares with `timingSafeEqual`, with a `try/catch` that safely handles length mismatches. This is the correct primitive.
+- **All Pro-gated routes call `getUserTier` server-side, then return a structured 403.** `lib/billing/tier.ts:39-48` defines a single `proRequiredResponse(feature)` that every gate uses, so the client can uniformly detect `errorCode === 'pro_required'` and render the upgrade banner. Consistent pattern across `app/api/ibkr/connect/route.ts:32`, `app/api/chat/route.ts:41`, `app/api/export/activity-csv/route.ts:24`.
+- **Sentry `sendDefaultPii: false` is set on all three runtimes** (`sentry.server.config.ts`, `sentry.edge.config.ts`, `instrumentation-client.ts`). Explicit opt-out on every entry point rather than relying on one config to cover everything.
+- **`proxy.ts` public-route allowlist is exhaustive but tight.** The three new unauthenticated endpoints (`/og`, `/api/healthz`, `/api/billing/webhook`) are each explicitly listed by exact path — no `startsWith` wildcards that could be widened accidentally.
+- **`lib/audit/log.ts:25-38` truncates IPs before storing them** (IPv4 → `/24`, IPv6 → first four groups). Privacy-conscious and unchanged in this window.
+- **The webhook only writes via the service-role admin client** (`lib/supabase/admin.ts`), never via the anon-bound server client. Correct separation of trust boundaries.
+- **PostHog + Sentry are hard-gated on `NODE_ENV === 'production'`.** Local dev and Vitest never emit — no accidental data leaks from staging noise or test runs.
+- **The audit-log event enum was extended in step with the new billing writes.** `lib/audit/log.ts:4-12` now emits `tier_upgraded` / `tier_downgraded` / `subscription_updated`, so every state change from the webhook is observable in `AuditEvent`.
+- **`.env.example` was updated for every new env var** (`LEMONSQUEEZY_*`, `NEXT_PUBLIC_POSTHOG_*`, `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, discount IDs). No documentation drift on the new secrets.
+- **Git history is clean of secrets.** `git log --all --diff-filter=A -- .env .env.local .env.production` returns only `.env.example` — no real env file was ever committed to any branch, past or present.
+
+---
+
+## Findings
+
+ID convention: `X##` numbered globally across phases. Where a finding was confirmed by reading production DB state or running the code path, the `Issue` line says **"Confirmed."**
+
+---
+
+### Phase 1 — Critical (Day-1 blockers, must clear before next release)
+
+#### [ ] X1. Paywall bypass — authenticated role can self-upgrade to Pro via direct Supabase UPDATE
+- **Where:** DB grants + RLS on `public."User"` (introduced by migration `20260628064122_add_billing_columns_to_user`); consumed by [lib/billing/tier.ts:12-31](../../lib/billing/tier.ts:12) and every Pro-gated route.
+- **Issue:** **Confirmed** against production via Supabase MCP. The `authenticated` role holds column-level `UPDATE` on `subscriptionTier`, `subscriptionStatus`, `subscriptionRenewsAt`, `lemonsqueezySubscriptionId`, and `lemonsqueezyCustomerId`. The single RLS policy on the `User` table is `users_own_row` with `polcmd='*'`, `USING (auth.uid() = id)`, `with_check = NULL`. Combined, that means any signed-in Free user can grant themselves Pro tier from a browser tab: `await supabase.from('User').update({ subscriptionTier: 'Pro' }).eq('id', user.id)`. The RLS check passes because it's their own row, and there is nothing else stopping the write. Every Pro gate ([app/api/ibkr/connect/route.ts:32](../../app/api/ibkr/connect/route.ts:32), [app/api/chat/route.ts:41](../../app/api/chat/route.ts:41), [app/api/export/activity-csv/route.ts:24](../../app/api/export/activity-csv/route.ts:24)) reads `subscriptionTier` back and trusts it. The result is a total defeat of the $14.99/mo paywall — including unlimited Gemini-2.5-pro calls with full trade history, which is the most expensive backend operation in the product. Same class of vulnerability also lets a user forge `lemonsqueezySubscriptionId` / `lemonsqueezyCustomerId` and confuse the webhook state machine on any subsequent legitimate event.
+- **Acceptance:** `REVOKE INSERT, UPDATE (subscriptionTier, subscriptionStatus, subscriptionRenewsAt, lemonsqueezySubscriptionId, lemonsqueezyCustomerId) ON public."User" FROM authenticated, anon;` applied as a migration; verified by (a) `information_schema.column_privileges` no longer listing `INSERT` or `UPDATE` for those five columns under `authenticated`/`anon`, and (b) an end-to-end test that signs in a Free user and asserts that a client-side `supabase.from('User').update({ subscriptionTier: 'Pro' }).eq('id', user.id)` either errors or is a silent no-op, and that `getUserTier` still returns `Free` afterwards. The service-role webhook path must continue to work — verified by replaying a real `subscription_created` payload against `/api/billing/webhook` and confirming the row updates.
+
+#### [ ] X2. PostHog session recording enabled in production with no PII masking review
+- **Where:** [lib/analytics/posthog.ts:9-18](../../lib/analytics/posthog.ts:9) and the identical inlined block in [components/posthog-provider.tsx:9-18](../../components/posthog-provider.tsx:9).
+- **Issue:** `posthog.init(KEY, { capture_pageview: 'history_change', capture_pageleave: true, autocapture: true, disable_session_recording: false })` is what runs in production. No `session_recording` config block, no `mask_text_selector`, no `mask_all_text`, no `block_selector` — so the SDK falls back to its shipping defaults, which mask form inputs but do **not** mask rendered text or click-target labels. On this app that means every second of the `/research` dashboard (P&L per trade, tickers, position sizes, win rate, R-multiples, drawdown), the chat sidebar with חנן (full user+assistant conversation content), the trade-detail rows, and the profile screens (name, phone, address, broker connection status) get streamed to `us.i.posthog.com` as replayable DOM. `autocapture: true` additionally records every click with the element's visible text — clicking a trade row captures the ticker + P&L in the click event itself. This is data a competitor or acquirer would love, is not disclosed in the privacy policy in these terms, and is likely inconsistent with the GDPR data-minimisation stance the privacy page takes. Any users onboarded since PostHog was wired have already had sessions recorded.
+- **Acceptance:** Session recording either disabled outright (`disable_session_recording: true`) or reconfigured so a live recording, viewed in the PostHog UI, shows no ticker symbols, no monetary values, no names/emails/phones, and no chat text — verified by opening one own-user session in the PostHog dashboard and confirming the masked DOM. Autocapture either turned off or scoped with an `element_allowlist` and `css_selector_allowlist` so no click event carries user data. Data-retention policy for existing recordings decided (delete all recordings captured before the fix landed; PostHog UI supports bulk delete by date range). Any residual capture disclosed in [`app/(public)/privacy/page.tsx`](../../app/(public)/privacy/page.tsx).
+
+#### [ ] X3. `/api/billing/checkout` has no rate limit — LS API key exhaustion + spend-side abuse vector
+- **Where:** [app/api/billing/checkout/route.ts](../../app/api/billing/checkout/route.ts) whole route.
+- **Issue:** Every other sensitive route calls `checkRateLimit(\`user:${userId}:...\`, ...)` (see `app/api/chat/route.ts:44` for the 30/hour chat cap). This route does not — an authenticated user can loop POST `/api/billing/checkout` and each call fires a signed request to `https://api.lemonsqueezy.com/v1/checkouts` with the owner's `LEMONSQUEEZY_API_KEY` in the `Authorization` header. Lemon Squeezy rate-limits per API key (120 req/min store-wide), so a single abusive account can exhaust the entire store's checkout capability for a minute at a time and rolling — effectively a payment-flow DoS. Discount IDs also get iterated through the endpoint during launch promo, so a bot could probe which discount combinations LS accepts and log the errors.
+- **Acceptance:** Route reuses the existing `checkRateLimit` primitive with a bucket like `user:${userId}:billing-checkout`, budget ≤ 10 per hour and ≤ 30 per day. Verified by a Vitest integration test that stubs Supabase auth and asserts the 11th call within an hour returns 429 with the standard `rateLimitedResponse` shape. `AuditEvent` gets a `rate_limit_hit` row with `metadata.action = 'billing_checkout'` on breach.
+
+---
+
+### Phase 2 — Important (correctness & integrity)
+
+#### [ ] X4. Content-Security-Policy is Report-Only with no reporting endpoint — dead code
+- **Where:** [proxy.ts:10-13](../../proxy.ts:10) — `Content-Security-Policy-Report-Only` header set on every response with `'unsafe-inline' 'unsafe-eval'` in `script-src` and no `report-uri` / `report-to`.
+- **Issue:** Report-Only mode never blocks anything, and without a report endpoint, violations don't reach Sentry or anywhere else — the header emits pure noise. The current directive list also does not include the PostHog origin (`https://us.i.posthog.com` for XHR, `https://us-assets.i.posthog.com` for the bootstrap script) or the Vercel Analytics origins the site already uses, so the moment the header is switched to enforcing, PostHog stops loading and product analytics silently die. `frame-ancestors 'none'` is duplicated by `X-Frame-Options: DENY` but the CSP directive is the modern one that matters. `'unsafe-inline' 'unsafe-eval'` in `script-src` are Next.js requirements today but should carry a nonce eventually.
+- **Acceptance:** Either (a) `Content-Security-Policy-Report-Only` header extended with `report-to` pointing at a `/api/csp-report` route that forwards to Sentry, and left in report-only mode for one week to collect violations, then flipped to enforce; or (b) header deleted from `proxy.ts` if report-only mode isn't wanted. Post-enforce, `script-src` includes `https://us-assets.i.posthog.com` and `connect-src` includes `https://us.i.posthog.com` and `https://us.ingest.sentry.io`, verified by loading `/research` with browser devtools open and seeing zero CSP violations reported in the Sentry project.
+
+#### [ ] X5. Webhook lacks event-id idempotency and silently no-ops on unknown user_id
+- **Where:** [app/api/billing/webhook/route.ts:49-91](../../app/api/billing/webhook/route.ts:49).
+- **Issue:** Two ops-hardening gaps. (a) The handler doesn't persist Lemon Squeezy's per-event id, so a re-delivered webhook re-executes the DB write. Reads are idempotent on terminal-state fields (`subscriptionTier`, `status`, `renews_at` — same input, same result), so it's low-risk today, but the moment ancillary logic is added (analytics events, email notifications, audit entries counted per event), duplicates become a real problem. (b) `.update(...).eq('id', userId)` silently returns success with zero rows updated when `user_id` in `custom_data` doesn't match a real user — could happen if a user deletes their account between checkout and the webhook, or if a test-mode event leaks to prod. The current code logs no warning and returns 200, so the state divergence between LS and this DB is invisible.
+- **Acceptance:** New `BillingWebhookEvent` (or reuse `AuditEvent`) row inserted per delivered event with a unique index on the LS event id, so a replay hits `23505` and is short-circuited to a 200 ack without re-writing user state — verified by replaying the same signed payload twice and confirming only one DB write. Zero-row-update path emits `console.warn`, writes an `AuditEvent` with `status='failure'` and `eventType='subscription_updated'`, and returns 200 (so LS doesn't keep retrying).
+
+#### [ ] X6. `isActiveStatus` grants Pro for `past_due` — indefinite failed-payment grace
+- **Where:** [lib/billing/lemon-squeezy.ts:140-144](../../lib/billing/lemon-squeezy.ts:140).
+- **Issue:** The active-tier check is `status === 'on_trial' || status === 'active' || status === 'past_due'`. `past_due` is Lemon Squeezy's "we tried to charge and it failed, we'll retry" state — it can persist for LS's full dunning window (~14 days on default settings, longer on custom). During that time the user keeps unlimited Pro access, including the most expensive backend operation (Gemini-2.5-pro chat with full history context). A user with a permanently invalid card can extract weeks of Pro-tier value before LS finally flips them to `unpaid` / `expired` and the next webhook downgrades them. The webhook only fires on transitions, so if LS never transitions, the user keeps Pro forever.
+- **Acceptance:** `isActiveStatus` narrowed to `on_trial` and `active` only, or a supplementary daily cron job that reads `subscriptionRenewsAt` and downgrades any `subscriptionStatus = 'past_due'` row older than N days (owner picks N, default 3). Regression covered by a test asserting `getUserTier` returns `Free` for a user whose row has `subscriptionStatus='past_due'` and `subscriptionRenewsAt` more than N days in the past.
+
+#### [ ] X7. Sentry Replay Integration relies on undocumented defaults for text masking
+- **Where:** [instrumentation-client.ts:1-13](../../instrumentation-client.ts:1) — `Sentry.init({ replaysOnErrorSampleRate: 1.0, replaysSessionSampleRate: 0, sendDefaultPii: false })` with no explicit `Sentry.replayIntegration({ ... })` call.
+- **Issue:** `replaysOnErrorSampleRate: 1.0` captures 30 seconds of DOM every time an error hits. Sentry's shipping defaults happen to be `maskAllText: true` and `blockAllMedia: true`, but relying on them (a) means the config silently changes across SDK upgrades, and (b) leaves `networkDetailAllowUrls` and `networkCaptureBodies` at their defaults, which is fine today but not something the code is asserting. For a financial-data app the masking policy should be explicit and locked in, not inherited from whatever version of the SDK npm resolves.
+- **Acceptance:** `instrumentation-client.ts` explicitly passes `integrations: [Sentry.replayIntegration({ maskAllText: true, blockAllMedia: true, maskAllInputs: true, networkDetailAllowUrls: [] })]` (or the equivalent for the SDK version installed). One deliberately-triggered client error viewed in the Sentry Replays UI shows a fully-masked DOM.
+
+#### [ ] X8. Checkout does not validate `user.email` before passing to Lemon Squeezy
+- **Where:** [app/api/billing/checkout/route.ts:49-55](../../app/api/billing/checkout/route.ts:49) — `userEmail: user.email ?? ''`.
+- **Issue:** If `user.email` is falsy (edge cases in Supabase magic-link / OAuth flows where email is unverified or null on the user record), the checkout payload sends `checkout_data.email = ''`. Lemon Squeezy either rejects with a 422 (best case, user sees a generic "יצירת מנוי נכשלה" and can't proceed) or accepts and creates an orphan checkout with no email, breaking downstream receipt delivery. Either way, the user experience is undebuggable from their side.
+- **Acceptance:** Route short-circuits with a specific 400 (`{ error: 'Missing account email; please complete profile before subscribing' }`) when `user.email` is empty; verified by a unit test with a stubbed user missing an email address. Alternative acceptable path: leave `email` unset in the payload and let LS collect it on the hosted checkout page.
+
+#### [ ] X9. Webhook does not shape-check `user_id` before using it as a Postgres UUID
+- **Where:** [app/api/billing/webhook/route.ts:55-56](../../app/api/billing/webhook/route.ts:55).
+- **Issue:** `user_id` is pulled from `custom_data` and passed straight to `.update(...).eq('id', userId)`. If a legitimate but stale event carries a non-UUID string (test-mode payloads use synthetic IDs; some LS UI actions inject their own custom fields), Postgres raises `22P02 invalid input syntax for type uuid` and the handler returns a 500. LS then re-retries the same broken event forever until manually acked in the LS dashboard.
+- **Acceptance:** `z.string().uuid().safeParse(userId)` gate before the DB call; failing shape returns 200 with `{ ok: true, ignored: 'invalid user_id' }` so LS stops retrying, and logs a warning + `AuditEvent` row so the operator sees the anomaly. Verified by hand-crafting a signed payload with `user_id: 'not-a-uuid'` and posting it — response is 200, no DB update, one warning line, one audit row.
+
+#### [ ] X10. `resetUser()` is never called on logout — PostHog `distinct_id` persists across sign-outs
+- **Where:** [lib/analytics/posthog.ts:36-39](../../lib/analytics/posthog.ts:36) exports `resetUser`; no call site in the logout handler ([app/api/auth/logout/route.ts](../../app/api/auth/logout/route.ts) or wherever sign-out is invoked).
+- **Issue:** When user A signs out and user B signs in on the same browser, PostHog keeps A's `distinct_id` cookie until `identifyUser(B.id)` is called on the next successful sign-in. If B just navigates around while signed-out (browsing the landing page, reading `/privacy`), those anonymous events get merged into user A's funnel. In the worst case — a shared machine at an office, an internet café, a family desktop — user A can be re-identified from B's later browsing patterns.
+- **Acceptance:** Logout path calls `resetUser()` before the redirect. Verified by signing in, opening PostHog devtools panel (`window.posthog.get_distinct_id()`), signing out, and confirming the distinct_id changes to a fresh anonymous UUID.
+
+#### [ ] X11. HMAC signature comparison throws on odd-length hex without a clear log
+- **Where:** [app/api/billing/webhook/route.ts:29-40](../../app/api/billing/webhook/route.ts:29).
+- **Issue:** `Buffer.from(signatureHeader, 'hex')` silently truncates on odd-length input. `timingSafeEqual` then throws `ERR_CRYPTO_TIMING_SAFE_EQUAL_WRONG_LENGTH`, the surrounding try/catch swallows it, and the route returns "invalid signature". Behaviour is correct but observability is bad: a mis-configured LS webhook secret and a caller sending garbage look identical in the logs.
+- **Acceptance:** Explicit `/^[0-9a-f]{64}$/i.test(signatureHeader)` shape check before the HMAC compare; on failure log a warning tagged `[billing/webhook] malformed X-Signature length=<n>` and return 401. Real HMAC mismatch still logs `[billing/webhook] invalid signature`. Verified by unit tests covering three cases: missing header (401 + `missing signature`), malformed header (401 + `malformed`), wrong-key valid-shape header (401 + `invalid signature`).
+
+#### [ ] X12. `/api/healthz` reveals internal env-key shape and DB reachability to unauthenticated callers
+- **Where:** [app/api/healthz/route.ts:14-41](../../app/api/healthz/route.ts:14).
+- **Issue:** Returns `{ db: 'ok'|'fail', env: 'ok'|'fail' }` publicly with no auth. `env: 'ok'` specifically signals that `FLEX_TOKEN_ENCRYPTION_KEY` is a 64-character lowercase-hex value, which is a fingerprint tiny attackers occasionally use to confirm they've hit the right target during recon. `db: 'ok'` reveals whether Supabase is reachable from the Vercel edge, which is useful signal for a targeted DoS or a "is the target awake" probe before an attack. The endpoint is legitimate — Vercel monitoring and uptime probes need something — but the granular breakdown should be internal.
+- **Acceptance:** Public response collapses to `{ ok: true }` / 503 with no breakdown. Granular `{ db, env }` breakdown either moves behind a header check (`x-healthcheck-secret` matching an env var) or is logged only. Verified with `curl https://tradeanalyst.app/api/healthz` returning only `{ok:true}` on the happy path.
+
+#### [ ] X13. `/og` edge route re-renders on every request — cheap cost-amplification vector
+- **Where:** [app/og/route.tsx:1-6](../../app/og/route.tsx:1) — `runtime = 'edge'`, no `revalidate`, no `Cache-Control` header on the response.
+- **Issue:** `ImageResponse` computes ~50–100 ms of edge CPU per request. The URL is publicly linked from every OG tag (`app/layout.tsx:47,58`), so any social preview or scraper fetches it, and a hostile actor can trivially fire thousands of requests per minute — Vercel bills for edge compute. There's no user-driven input, so the output is byte-identical every call, meaning long cache TTL is safe.
+- **Acceptance:** Either `export const revalidate = 86400` at module top, or the response is returned with `Cache-Control: public, max-age=31536000, immutable`. Verified by fetching `/og` twice in a row and observing `x-vercel-cache: HIT` on the second call.
+
+#### [ ] X14. Webhook update on a non-existent user is a silent no-op instead of an alerted anomaly
+- **Where:** [app/api/billing/webhook/route.ts:71-91](../../app/api/billing/webhook/route.ts:71). Overlaps with X5 above but stands alone.
+- **Issue:** If the LS webhook carries a `user_id` that doesn't exist in the `User` table (account deleted, test-mode event, race between account deletion and final `subscription_expired` event), the `.update(...).eq('id', userId)` returns success with zero rows affected. The handler continues, writes an `AuditEvent` for a user that doesn't exist, and returns 200 to LS. The billing↔user divergence never surfaces.
+- **Acceptance:** Update call uses `.select('id')` on the return and asserts one row. Zero-row path emits a `console.error` and returns 200 (so LS doesn't retry a real orphan forever), plus writes a `subscription_orphaned` audit event tagged with the LS subscription id. Verified by simulating an event for a deleted user and observing the log line and audit row.
+
+---
+
+### Phase 3 — Polish (consistency / hygiene)
+
+#### [ ] X15. `.env*` was added to `.gitignore` only in the current uncommitted change — verify one more time no secret leaked
+- **Where:** working-tree diff on [.gitignore](../../.gitignore) adds `.env*`.
+- **Issue:** `git log --all --diff-filter=A -- .env .env.local .env.production` returned only `.env.example`, so no historical leak exists. But the `.gitignore` add wasn't in place during the 28–29 June window; if any developer had a `.env.local` sitting in their tree during those two days and staged it (e.g., via `git add -A`), it would have been silently ignored by nothing. Worth a one-time scan.
+- **Acceptance:** `git log --all --full-history --source -- '*.env' '*.env.*' | grep -v '.env.example'` returns empty; commit the `.gitignore` change so the guard is in place going forward. If anything unexpected turns up, rotate `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_WEBHOOK_SECRET`, `GEMINI_API_KEY`, `FLEX_TOKEN_ENCRYPTION_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`.
+
+#### [ ] X16. `LAUNCH_PROMO_END` date is duplicated across the client bundle and the server checkout code
+- **Where:** [lib/billing/lemon-squeezy.ts:11](../../lib/billing/lemon-squeezy.ts:11) has the canonical `LAUNCH_PROMO_END = new Date('2026-08-01T00:00:00Z')`, and [components/profile/tab-billing.tsx:23](../../components/profile/tab-billing.tsx:23) hardcodes the same date locally.
+- **Issue:** A single-source-of-truth violation — if the owner extends the promo, one date will get updated and the other won't, and users will see promo pricing on the profile UI that the server-side checkout no longer applies. Also: the client-side `isLaunchPromo()` runs off the user's clock, so a user with a wrong system clock sees inconsistent UI vs. checkout behavior. This is a launch-window trust issue, not a security one, but it's easy to fix.
+- **Acceptance:** `tab-billing.tsx` receives `isLaunchPromoActive` as a prop from the server component that renders the profile page ([app/(dashboard)/profile/page.tsx](../../app/(dashboard)/profile/page.tsx)), computed from the shared `lib/billing/lemon-squeezy.ts` constant. The literal `2026-08-01` string appears in exactly one file.
+
+#### [ ] X17. `console.log` in production paths leaks broker query IDs
+- **Where:** [app/api/ibkr/connect/route.ts:44](../../app/api/ibkr/connect/route.ts:44) — `console.log(\`[ibkr/connect] Saving connection: queryId=${flexQueryIdActivity}\`)`.
+- **Issue:** Not new to this window (predates it) but the Sentry wiring now sends structured Node logs to Sentry via `captureRequestError` and Vercel keeps stdout indefinitely — the Flex query ID isn't secret but is user-identifiable and shouldn't be sitting in log storage. Low risk, worth removing.
+- **Acceptance:** The two `console.log` lines in `app/api/ibkr/connect/route.ts` either removed or downgraded to `console.debug` with the queryId stripped. `grep -rn 'console.log' app/api/` shows no user-scoped identifiers.
+
+#### [ ] X18. Pricing strings duplicated across three files with hand-copied values
+- **Where:** [app/page.tsx:130-147](../../app/page.tsx:130), [components/billing/pro-required-banner.tsx:26](../../components/billing/pro-required-banner.tsx:26), [components/profile/tab-billing.tsx:13-21](../../components/profile/tab-billing.tsx:13). All hardcode `$14.99` / `$149.99` / `$9.99` / `$99.99`.
+- **Issue:** Not a security bug per se, but a price-consistency risk during a launch. The current working-tree diff already shows a bug of exactly this shape — the file `pro-required-banner.tsx` was updated from `$19.99` → `$14.99` in a separate commit than the landing page. If the owner rethinks pricing, three files must move together.
+- **Acceptance:** One `PRICING` constant exported from `lib/billing/lemon-squeezy.ts` (or a new `lib/billing/prices.ts`) that the three files import. Any price change lands in one file.
+
+#### [ ] X19. Audit-log enum drift between TS type and DB CHECK constraint
+- **Where:** [lib/audit/log.ts:4-12](../../lib/audit/log.ts:4) adds `tier_upgraded` / `tier_downgraded` / `subscription_updated` to the TS union; DB `AuditEvent` table has no CHECK constraint on `eventType` (verified against migration `20260621170928`).
+- **Issue:** The TS union is enforced at compile time inside the app, but any direct DB write or a future test writing a different string will succeed silently. Not exploitable, but the intent is stronger than the schema currently reflects.
+- **Acceptance:** Migration adds `ALTER TABLE "AuditEvent" ADD CONSTRAINT audit_event_type_check CHECK (eventType IN ('password_changed','email_changed','account_deleted','reauth_failed','rate_limit_hit','tier_upgraded','tier_downgraded','subscription_updated'))`. Verified by attempting an insert with a bogus type and observing the CHECK violation.
+
+#### [ ] X20. Sentry `withSentryConfig` uses `widenClientFileUpload: true` — audit non-`NEXT_PUBLIC_` env-var references in client code
+- **Where:** [next.config.mjs:6-13](../../next.config.mjs:6).
+- **Issue:** `widenClientFileUpload: true` uploads all client bundles to Sentry — including bundles for authenticated routes. Sentry stores them for source-mapping errors, which is what you want. But the setting also means any accidentally-inlined secret (e.g., a `.env` variable that wasn't `NEXT_PUBLIC_` but was mistakenly imported into a client file) would sit in the Sentry organisation's storage as well as the Vercel edge cache. Not exploitable today, but the failure mode is worth a one-time review: no client-side file imports anything from `process.env` other than `NEXT_PUBLIC_*` keys.
+- **Acceptance:** `grep -rn "process.env" app/ components/ lib/ | grep -v NEXT_PUBLIC_` reviewed; only server-only files (route handlers, `lib/supabase/admin.ts`, `lib/billing/*` server helpers, `sentry.*.config.ts`, `instrumentation*.ts`) appear. No client component or client-safe helper references a non-`NEXT_PUBLIC_` env var. Documented in `CLAUDE.md` as a standing rule.
+
+---
+
+## Open Questions / Items Requiring Owner Input
+
+- **Do we ship PostHog session replay at all, and if yes, at what sampling rate?** PostHog replay is unusual for financial-data apps and doubles the privacy-policy surface area even after masking is turned on. Given the beta cohort is <300 users, is the qualitative UX signal from replay worth the ongoing masking maintenance cost? If not, `disable_session_recording: true` is one line and closes half of X2.
+- **What is the acceptable dunning window for `past_due` before we downgrade?** LS's default dunning is ~14 days; keeping Pro live for the full window costs Gemini-2.5-pro calls at pro-mode context sizes. Owner picks: 0 days (strict), 3 days (default recommendation), 7 days (generous), 14 days (matches LS).
+- **Should the webhook honour `subscription_paused` as still-Pro or as Free?** LS supports customer-initiated pauses (holiday, etc.). Current `isActiveStatus` treats `paused` as Free (correct default) but no explicit UX exists for a paused user re-opening the app. Do we want a "your subscription is paused" banner on `/profile?tab=billing`?
+- **What happens on account deletion — do we forward a subscription cancellation to Lemon Squeezy or leave the LS subscription hanging?** Right now `/api/auth/delete` (if it exists) doesn't touch LS. GDPR Article 17 language in `docs/RUNBOOK.md` suggests it should; needs a decision + a code path.
+- **Sentry Session Replay retention / redaction policy.** Sentry stores replays for the org's plan retention window (30 days on team plans). Post-masking, is that acceptable, or do we want to configure shorter retention?
+- **PostHog data-residency choice.** Current default is `https://us.i.posthog.com`. Given a Hebrew-Israel-focused user base and GDPR posture, does the owner want to switch to `https://eu.i.posthog.com` before the wider launch? The env var already supports it; the data-region migration on PostHog side is a one-way door.
+- **Is `/api/healthz` used by an external monitor today?** If yes (Vercel deployment probe, UptimeRobot, etc.), collapsing the response shape (X12) needs coordination with the monitor's configured expectations.
+- **Do we want a `report-to` endpoint for CSP violations wired to Sentry?** Alternative: delete the report-only header entirely and revisit CSP after the launch dust settles. Owner picks.
+
+---
+
+## Discovered During Remediation
+
+> Add new findings here as they surface while working through the plan. Same format: `[ ] X##. Title` + Where / Issue / Acceptance.

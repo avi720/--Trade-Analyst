@@ -20,7 +20,7 @@ import {
 } from 'recharts'
 import { formatUsd } from '@/lib/utils/position-calc'
 import { CHART_INFO } from '@/components/research-info'
-import { ChartCard, DayHourInner, ltr, SETUP_COLORS, TOOLTIP_STYLE, AXIS_TICK, GRID_STROKE, AXIS_STROKE } from './shell'
+import { ChartCard, DayHourInner, ltr, SETUP_COLORS, TOOLTIP_STYLE, TOOLTIP_ITEM_STYLE, TOOLTIP_LABEL_STYLE, AXIS_TICK, GRID_STROKE, AXIS_STROKE } from './shell'
 import type { ChartId, SetupSeries } from './lib'
 
 export interface ChartData {
@@ -69,6 +69,8 @@ export const EquityChart = React.memo(function EquityChart({
           <YAxis stroke={AXIS_STROKE} tick={AXIS_TICK} tickMargin={6} tickFormatter={v => ltr(`${v}R`)} />
           <Tooltip
             contentStyle={TOOLTIP_STYLE}
+            itemStyle={TOOLTIP_ITEM_STYLE}
+            labelStyle={TOOLTIP_LABEL_STYLE}
             labelFormatter={v => new Date(v as number).toLocaleDateString('he-IL')}
             formatter={(v: number) => [ltr(`${v >= 0 ? '+' : ''}${v.toFixed(2)}R`), 'R מצטבר']}
           />
@@ -96,7 +98,7 @@ export const RDistributionChart = React.memo(function RDistributionChart({
           <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
           <XAxis dataKey="label" stroke={AXIS_STROKE} tick={AXIS_TICK} tickMargin={6} tickFormatter={ltr} />
           <YAxis stroke={AXIS_STROKE} tick={AXIS_TICK} tickMargin={6} allowDecimals={false} />
-          <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [v, 'טריידים']} />
+          <Tooltip contentStyle={TOOLTIP_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} formatter={(v: number) => [v, 'טריידים']} />
           <Bar dataKey="count" radius={[3, 3, 0, 0]} isAnimationActive={false}>
             {data.map((entry, i) => (
               <Cell
@@ -242,7 +244,7 @@ export const PnlByTickerChart = React.memo(function PnlByTickerChart({
             }
           />
           <YAxis type="category" dataKey="ticker" stroke={AXIS_STROKE} tick={AXIS_TICK} tickMargin={6} width={55} interval={0} />
-          <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [formatUsd(v), 'P&L']} />
+          <Tooltip contentStyle={TOOLTIP_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} formatter={(v: number) => [formatUsd(v), 'P&L']} />
           <ReferenceLine x={0} stroke="#444444" strokeDasharray="4 4" />
           <Bar dataKey="totalPnl" radius={[0, 3, 3, 0]} isAnimationActive={false}>
             {data.map((entry, i) => (
