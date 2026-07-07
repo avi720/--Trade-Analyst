@@ -26,7 +26,7 @@ function isLaunchPromo() { return Date.now() < LAUNCH_PROMO_END.getTime() }
 type Plan = keyof typeof PRICES;
 
 const FREE_FEATURES = [
-  "ייבוא ידני של עסקאות",
+  "הזנה ידנית — עד 30 טריידים",
   "לוח research מלא",
   "חיפוש וסינון עסקאות",
   "3 הודעות לחנן (AI) ביום, מצב בסיסי",
@@ -34,6 +34,8 @@ const FREE_FEATURES = [
 
 const PRO_FEATURES = [
   "כל מה שיש ב-Free",
+  "הזנה ידנית — ללא הגבלה",
+  "ייבוא Excel של עסקאות",
   "סנכרון אוטומטי מ-Interactive Brokers",
   "חנן ללא הגבלה + מצב Pro מעמיק (גישה לכל ההיסטוריה)",
   "ייצוא CSV של פעילות",

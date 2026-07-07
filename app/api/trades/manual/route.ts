@@ -6,6 +6,13 @@ import type { TablesUpdate } from '@/lib/db/types'
 import { processExecutions } from '@/lib/ibkr/process-executions'
 import { recomputeActualR } from '@/lib/trade/recompute-actual-r'
 import type { ManualLeg } from '@/lib/trade/manual-entry'
+import {
+  getUserTier,
+  isProTier,
+  getUserTradeCount,
+  tradeLimitReachedResponse,
+  MANUAL_TRADE_LIMIT_FREE,
+} from '@/lib/billing/tier'
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -13,6 +20,14 @@ export async function POST(req: NextRequest) {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const { tier } = await getUserTier(user.id)
+  if (!isProTier(tier)) {
+    const currentCount = await getUserTradeCount(user.id)
+    if (currentCount >= MANUAL_TRADE_LIMIT_FREE) {
+      return tradeLimitReachedResponse(currentCount, MANUAL_TRADE_LIMIT_FREE)
+    }
   }
 
   let legs: ManualLeg[]

@@ -29,7 +29,7 @@ export function PricingSection() {
             priceSuffix="לתמיד"
             cta="התחל עכשיו"
             features={[
-              'ייבוא ידני של עסקאות',
+              'הזנה ידנית — עד 30 טריידים',
               'לוח research מלא',
               'חיפוש וסינון מתקדם',
               '3 הודעות לחנן ביום (מצב בסיסי)',
@@ -45,10 +45,11 @@ export function PricingSection() {
             launchNote={isAnnual ? 'לשנה הראשונה' : 'ל-3 חודשים ראשונים'}
             features={[
               'כל מה שב-Free',
+              'הזנה ידנית — ללא הגבלה',
+              'ייבוא Excel של עסקאות',
               'סנכרון אוטומטי מ-Interactive Brokers',
               'חנן ללא הגבלה + מצב Pro מעמיק',
               'ייצוא CSV מלא',
-              'תמיכה מהירה',
             ]}
           />
         </div>

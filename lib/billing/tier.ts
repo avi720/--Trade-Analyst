@@ -46,3 +46,28 @@ export function proRequiredResponse(feature: string): NextResponse {
     { status: 403 },
   )
 }
+
+// Free tier caps manual trade entry at this many Trade rows (open + closed).
+// Beyond this, POST /api/trades/manual returns errorCode='trade_limit_reached'.
+export const MANUAL_TRADE_LIMIT_FREE = 30
+
+export async function getUserTradeCount(userId: string): Promise<number> {
+  const admin = createAdminClient()
+  const { count } = await admin
+    .from('Trade')
+    .select('*', { count: 'exact', head: true })
+    .eq('userId', userId)
+  return count ?? 0
+}
+
+export function tradeLimitReachedResponse(current: number, limit: number): NextResponse {
+  return NextResponse.json(
+    {
+      error: `הגעת למגבלת המסלול החינמי (${limit} טריידים). שדרג ל-Pro להסרת המגבלה.`,
+      errorCode: 'trade_limit_reached',
+      current,
+      limit,
+    },
+    { status: 403 },
+  )
+}

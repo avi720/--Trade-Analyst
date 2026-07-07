@@ -21,6 +21,13 @@
   box-sizing: border-box;
 }
 
+/* Suppress any accidental horizontal overflow. The ChatSidebar is a fixed,
+   translate-x-full off-canvas panel; without this rule its off-screen bounds
+   leak into scrollWidth and users can scroll into a black void. */
+html, body {
+  overflow-x: hidden;
+}
+
 body {
   background-color: var(--bg-dark);
   color: var(--text-main);
@@ -126,14 +133,28 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   opacity: 1;
 }
 
-/* Skip-to-content link — visible only when focused via keyboard */
+/* Skip-to-content link — visible only when focused via keyboard.
+   Uses the clip technique instead of left:-9999px so it doesn't inflate the
+   document scrollWidth (which used to let users scroll ~10k px into a black
+   void on RTL layouts). */
 .skip-link {
   position: absolute;
-  left: -9999px;
   top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
   z-index: 100;
 }
 .skip-link:focus {
+  width: auto;
+  height: auto;
+  clip: auto;
+  clip-path: none;
+  white-space: normal;
   left: 1rem;
   top: 1rem;
   background: var(--panel-bg);

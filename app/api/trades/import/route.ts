@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { parseExcelBuffer, generateTemplate } from '@/lib/trade/excel-import'
+import { getUserTier, isProTier, proRequiredResponse } from '@/lib/billing/tier'
 
 const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 // 2 MB
 const ALLOWED_MIME_TYPES = new Set([
@@ -37,6 +38,11 @@ export async function POST(req: NextRequest) {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const { tier } = await getUserTier(user.id)
+  if (!isProTier(tier)) {
+    return proRequiredResponse('excel_import')
   }
 
   let formData: FormData
