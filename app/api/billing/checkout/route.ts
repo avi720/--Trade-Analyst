@@ -8,6 +8,8 @@ import {
   type BillingPlan,
 } from '@/lib/billing/lemon-squeezy'
 import { getBaseUrl } from '@/lib/utils'
+import { checkRateLimit, rateLimitedResponse } from '@/lib/auth/rate-limit'
+import { logAuditEvent } from '@/lib/audit/log'
 
 const schema = z.object({
   plan: z.enum(['monthly', 'annual']),
@@ -18,6 +20,35 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // Rate limit: each call fires a signed request to Lemon Squeezy's checkout API
+  // with the owner's store-wide API key. Without this cap, a single authenticated
+  // account could loop the endpoint and exhaust the LS 120 req/min store limit,
+  // DoS-ing the payment flow for everyone. Two buckets — 10/hr for burst,
+  // 30/day for sustained abuse.
+  const rlHour = await checkRateLimit(`user:${user.id}:billing-checkout`, 10, 3600)
+  if (!rlHour.ok) {
+    await logAuditEvent({
+      userId: user.id,
+      eventType: 'rate_limit_hit',
+      status: 'failure',
+      metadata: { action: 'billing_checkout', bucket: 'hourly' },
+      request,
+    })
+    return rateLimitedResponse(rlHour, 'יותר מדי ניסיונות תשלום. נסה שוב בעוד שעה')
+  }
+
+  const rlDay = await checkRateLimit(`user:${user.id}:billing-checkout:daily`, 30, 86400)
+  if (!rlDay.ok) {
+    await logAuditEvent({
+      userId: user.id,
+      eventType: 'rate_limit_hit',
+      status: 'failure',
+      metadata: { action: 'billing_checkout', bucket: 'daily' },
+      request,
+    })
+    return rateLimitedResponse(rlDay, 'הגעת למגבלת ניסיונות התשלום היומית. נסה שוב מחר')
   }
 
   const config = getLemonSqueezyConfig()

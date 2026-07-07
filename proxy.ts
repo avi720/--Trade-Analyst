@@ -46,12 +46,11 @@ export async function proxy(request: NextRequest) {
   const isResetPwd     = pathname === '/reset-password'
   const isLandingPage  = pathname === '/'
   const isPublicPage   = pathname === '/terms' || pathname === '/privacy'
-  const isHealthz      = pathname === '/api/healthz'
   const isBillingWebhook = pathname === '/api/billing/webhook'
   const isOgImage      = pathname === '/og'
 
-  // Unauthenticated: allow landing, login, signup, password-reset, public pages, healthz, billing webhook, and OG image
-  if (!user && !isLandingPage && !isLoginPage && !isSignupPage && !isAuthCallback && !isForgotPwd && !isResetPwd && !isPublicPage && !isHealthz && !isBillingWebhook && !isOgImage) {
+  // Unauthenticated: allow landing, login, signup, password-reset, public pages, billing webhook, and OG image
+  if (!user && !isLandingPage && !isLoginPage && !isSignupPage && !isAuthCallback && !isForgotPwd && !isResetPwd && !isPublicPage && !isBillingWebhook && !isOgImage) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return setSecurityHeaders(NextResponse.redirect(url))
