@@ -148,4 +148,44 @@ describe('X3 — /api/billing/checkout rate limit', () => {
     expect(res.status).toBe(401)
     expect(vi.mocked(checkRateLimit)).not.toHaveBeenCalled()
   })
+
+  it('X8 — authenticated user with missing email → 400 before rate limit + LS call', async () => {
+    // Simulate an edge case: magic-link / OAuth session where the user record
+    // exists but has no email attached. The route must short-circuit with a
+    // debuggable Hebrew instruction so the user knows to complete their profile
+    // instead of seeing a generic checkout failure.
+    vi.mocked(createClient).mockResolvedValue({
+      auth: {
+        getUser: async () => ({
+          data: { user: { id: TEST_USER_ID, email: null } },
+          error: null,
+        }),
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any)
+
+    const res = await POST(makeReq({ plan: 'monthly' }))
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.error).toMatch(/כתובת מייל/)
+    expect(body.error).toMatch(/פרופיל/)
+    expect(vi.mocked(checkRateLimit)).not.toHaveBeenCalled()
+    expect(vi.mocked(createCheckoutSession)).not.toHaveBeenCalled()
+  })
+
+  it('X8 — authenticated user with empty-string email → 400 (falsy guard covers both null and "")', async () => {
+    vi.mocked(createClient).mockResolvedValue({
+      auth: {
+        getUser: async () => ({
+          data: { user: { id: TEST_USER_ID, email: '' } },
+          error: null,
+        }),
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any)
+
+    const res = await POST(makeReq({ plan: 'monthly' }))
+    expect(res.status).toBe(400)
+    expect(vi.mocked(createCheckoutSession)).not.toHaveBeenCalled()
+  })
 })

@@ -138,7 +138,14 @@ export interface WebhookPayload {
 }
 
 // Active subscription statuses that grant Pro tier.
-// Lemon Squeezy uses: on_trial, active, paused, past_due, unpaid, cancelled, expired
+// Lemon Squeezy uses: on_trial, active, paused, past_due, unpaid, cancelled, expired.
+//
+// X6 (owner decision 2026-07-07 — 0-day dunning): user paid for period P; while
+// `active`/`on_trial` they get Pro. When renewal fails and status flips to
+// `past_due`, the paid period is already over — they immediately drop to Free.
+// This keeps failed-card users from extracting weeks of Gemini-2.5-pro chat via
+// LS's default 14-day dunning window before the transition to `unpaid`/`expired`
+// fires and the webhook downgrades them.
 export function isActiveStatus(status: string): boolean {
-  return status === 'on_trial' || status === 'active' || status === 'past_due'
+  return status === 'on_trial' || status === 'active'
 }

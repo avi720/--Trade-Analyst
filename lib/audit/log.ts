@@ -9,7 +9,8 @@ export type AuditEventType =
   | "rate_limit_hit"
   | "tier_upgraded"
   | "tier_downgraded"
-  | "subscription_updated";
+  | "subscription_updated"
+  | "subscription_orphaned"; // X14 — webhook fired for a user_id with no matching User row
 
 export type AuditStatus = "success" | "failure";
 

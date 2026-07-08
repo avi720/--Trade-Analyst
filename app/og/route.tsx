@@ -2,6 +2,13 @@ import { ImageResponse } from 'next/og'
 
 export const runtime = 'edge'
 
+// X13: /og output is fully deterministic (no query params, no request-scoped state)
+// so cache aggressively at the edge. Without this, every social-preview scrape or
+// hostile request costs ~50-100ms of edge CPU on Vercel's tab.
+const CACHE_HEADERS = {
+  'Cache-Control': 'public, max-age=31536000, s-maxage=31536000, immutable',
+} as const
+
 export async function GET() {
   return new ImageResponse(
     (
@@ -222,6 +229,6 @@ export async function GET() {
         </div>
       </div>
     ),
-    { width: 1200, height: 630 }
+    { width: 1200, height: 630, headers: CACHE_HEADERS }
   )
 }

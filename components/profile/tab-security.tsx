@@ -157,6 +157,11 @@ export function TabSecurity({ userEmail }: { userEmail: string }) {
         setDeleteError(json.error ?? "שגיאה במחיקת החשבון");
         return;
       }
+      // X10: clear PostHog identity before redirecting so the deleted user's
+      // distinct_id doesn't stick around to be re-associated with the next
+      // signed-in user on this browser.
+      const { resetUser } = await import("@/lib/analytics/posthog");
+      resetUser();
       await supabase.auth.signOut();
       router.push("/login");
     } catch {

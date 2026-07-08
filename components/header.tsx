@@ -59,7 +59,12 @@ export function Header({ userEmail }: HeaderProps) {
 
   async function handleSignOut() {
     const { createClient } = await import('@/lib/supabase/client')
+    const { resetUser } = await import('@/lib/analytics/posthog')
     const supabase = createClient()
+    // Clear PostHog identity BEFORE the redirect so the next signed-out
+    // browsing session starts with a fresh anonymous distinct_id. Otherwise
+    // A's identity persists into B's session on a shared device. (X10)
+    resetUser()
     await supabase.auth.signOut()
     router.push('/login')
     router.refresh()

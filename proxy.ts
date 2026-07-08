@@ -7,10 +7,16 @@ function setSecurityHeaders(response: NextResponse): NextResponse {
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()')
-  response.headers.set(
-    'Content-Security-Policy-Report-Only',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vitals.vercel-insights.com https://*.ingest.de.sentry.io https://*.ingest.sentry.io; frame-ancestors 'none'"
-  )
+  // TODO(post-launch, X4 in docs/in-progress/SECURITY-AUDIT-LAUNCH.md): re-enable
+  // CSP once we have someone to triage violation reports. Report-only mode with
+  // no report-to endpoint just emits noise; deleted per owner decision 2026-07-07.
+  // The directive list is preserved here as a starting point when it comes back —
+  // switch to `Content-Security-Policy` (enforcing) and add `report-to` pointing
+  // at a `/api/csp-report` handler that forwards to Sentry.
+  // response.headers.set(
+  //   'Content-Security-Policy-Report-Only',
+  //   "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vitals.vercel-insights.com https://*.ingest.de.sentry.io https://*.ingest.sentry.io; frame-ancestors 'none'"
+  // )
   return response
 }
 

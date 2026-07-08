@@ -82,6 +82,27 @@ export type Database = {
         }
         Relationships: []
       }
+      BillingWebhookEvent: {
+        Row: {
+          event_id: string
+          event_name: string
+          id: string
+          received_at: string
+        }
+        Insert: {
+          event_id: string
+          event_name: string
+          id?: string
+          received_at?: string
+        }
+        Update: {
+          event_id?: string
+          event_name?: string
+          id?: string
+          received_at?: string
+        }
+        Relationships: []
+      }
       BrokerConnection: {
         Row: {
           accountId: string | null

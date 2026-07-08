@@ -22,6 +22,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  // X8: LS rejects checkouts without an email (or creates an orphan checkout
+  // that breaks receipt delivery). Rare edge case — magic-link / OAuth flows
+  // where the user record lacks a verified email — but the failure is
+  // undebuggable from the user's side ("יצירת מנוי נכשלה" with no cue what to
+  // fix). Short-circuit with a specific instruction to complete profile first.
+  if (!user.email) {
+    return NextResponse.json(
+      { error: 'כתובת מייל חסרה בחשבון. אנא השלם את פרטי הפרופיל לפני הרשמה למנוי.' },
+      { status: 400 },
+    )
+  }
+
   // Rate limit: each call fires a signed request to Lemon Squeezy's checkout API
   // with the owner's store-wide API key. Without this cap, a single authenticated
   // account could loop the endpoint and exhaust the LS 120 req/min store limit,
@@ -80,7 +92,7 @@ export async function POST(request: Request) {
     const { url } = await createCheckoutSession(config, {
       plan,
       userId: user.id,
-      userEmail: user.email ?? '',
+      userEmail: user.email, // Guaranteed present — validated at top of handler (X8).
       successUrl,
       discountCode,
     })
