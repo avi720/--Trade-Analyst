@@ -41,7 +41,6 @@ export async function POST(req: NextRequest) {
   }
 
   const { flexToken, flexQueryIdActivity } = parsed.data;
-  console.log(`[ibkr/connect] Saving connection: queryId=${flexQueryIdActivity}`);
 
   let flexTokenEncrypted: string;
   try {
@@ -70,7 +69,6 @@ export async function POST(req: NextRequest) {
 
   // Fire-and-forget initial sync — runs after response is returned
   const userId = user.id;
-  console.log("[ibkr/connect] Background sync started");
   waitUntil((async () => {
     const adminBg = createAdminClient();
     try {

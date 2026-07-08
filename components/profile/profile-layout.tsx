@@ -34,6 +34,7 @@ interface ProfileLayoutProps {
   userTier: SubscriptionTier;
   subscriptionStatus: string | null;
   subscriptionRenewsAt: string | null;
+  isLaunchPromo: boolean;
 }
 
 const TABS = [
@@ -54,6 +55,7 @@ export function ProfileLayout({
   userTier,
   subscriptionStatus,
   subscriptionRenewsAt,
+  isLaunchPromo,
 }: ProfileLayoutProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -178,6 +180,7 @@ export function ProfileLayout({
               userTier={userTier}
               subscriptionStatus={subscriptionStatus}
               subscriptionRenewsAt={subscriptionRenewsAt}
+              isLaunchPromo={isLaunchPromo}
             />
           )}
         </div>

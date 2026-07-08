@@ -157,6 +157,12 @@ export function TabSecurity({ userEmail }: { userEmail: string }) {
         setDeleteError(json.error ?? "שגיאה במחיקת החשבון");
         return;
       }
+      // X21: if LS auto-cancellation failed, surface the warning so the user
+      // knows they still need to cancel via LS customer portal before the
+      // next charge.
+      if (json.lsCancelWarning) {
+        window.alert(json.lsCancelWarning);
+      }
       // X10: clear PostHog identity before redirecting so the deleted user's
       // distinct_id doesn't stick around to be re-associated with the next
       // signed-in user on this browser.

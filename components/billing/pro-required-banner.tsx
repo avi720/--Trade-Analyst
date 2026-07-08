@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
+import { PRICE_MONTHLY_USD } from "@/lib/billing/prices";
 
 interface ProRequiredBannerProps {
   feature: string;
@@ -23,7 +24,7 @@ export function ProRequiredBanner({ feature, className }: ProRequiredBannerProps
             {feature} זמין במסלול Pro בלבד
           </p>
           <p className="text-xs text-text-dim mt-1">
-            שדרג ל-Pro ל-$14.99/חודש לקבלת גישה מלאה (14 ימי ניסיון חינם).
+            שדרג ל-Pro ל-${PRICE_MONTHLY_USD}/חודש לקבלת גישה מלאה (14 ימי ניסיון חינם).
           </p>
           <Link
             href="/profile?tab=billing"

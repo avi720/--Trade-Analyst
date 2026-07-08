@@ -145,6 +145,8 @@ The required names are listed in `.env.example` (do not commit values). Brief pu
 
 If you add a new env var, add the **name** to `.env.example` and document its purpose here.
 
+**Client-bundle env var rule (X20 standing rule).** Only `NEXT_PUBLIC_*` env vars may be referenced from client-side files (anything under a `"use client"` boundary or imported into one). Non-prefixed vars evaluate to `undefined` in client bundles — Next.js does not inline them — so referencing them from a client component is a code smell that risks confusion + could leak into a Sentry-uploaded source map. Enforce with `grep -rn "process.env" app/ components/ lib/ | grep -v NEXT_PUBLIC_` — every hit must be in a server-only file (route handler, `lib/supabase/admin.ts`, `lib/billing/*` server helper, `sentry.*.config.ts`, `instrumentation*.ts`, or a `lib/**/*` module never imported from a `"use client"` component).
+
 ## Phase history
 
 The project shipped in eight phases plus several post-Phase-8 refactors. The **invariants** that survive each phase have been pulled into the sections above; the phase logs themselves were not persisted as separate files — read them out of git history when needed:

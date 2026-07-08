@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ProfileLayout } from "@/components/profile/profile-layout";
 import type { SubscriptionTier } from "@/lib/billing/tier";
+import { isLaunchPromoActive } from "@/lib/billing/prices";
 
 export default async function ProfilePage() {
   const supabase = await createClient();
@@ -43,6 +44,7 @@ export default async function ProfilePage() {
         userTier={tier}
         subscriptionStatus={userRow?.subscriptionStatus ?? null}
         subscriptionRenewsAt={userRow?.subscriptionRenewsAt ?? null}
+        isLaunchPromo={isLaunchPromoActive()}
       />
     </Suspense>
   );

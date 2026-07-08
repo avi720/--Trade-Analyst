@@ -3,6 +3,12 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { Check, Zap } from 'lucide-react'
+import {
+  PRICE_MONTHLY_USD,
+  PRICE_ANNUAL_USD,
+  PROMO_MONTHLY_USD,
+  PROMO_ANNUAL_USD,
+} from '@/lib/billing/prices'
 
 type Billing = 'monthly' | 'annual'
 
@@ -37,11 +43,11 @@ export function PricingSection() {
           />
           <PricingCard
             name="Pro"
-            price={isAnnual ? '$149.99' : '$14.99'}
+            price={isAnnual ? `$${PRICE_ANNUAL_USD}` : `$${PRICE_MONTHLY_USD}`}
             priceSuffix={isAnnual ? 'לשנה' : 'לחודש'}
-            cta={isAnnual ? '14 ימי ניסיון חינם' : '14 ימי ניסיון חינם'}
+            cta="14 ימי ניסיון חינם"
             highlighted
-            launchPrice={isAnnual ? '$99.99' : '$9.99'}
+            launchPrice={isAnnual ? `$${PROMO_ANNUAL_USD}` : `$${PROMO_MONTHLY_USD}`}
             launchNote={isAnnual ? 'לשנה הראשונה' : 'ל-3 חודשים ראשונים'}
             features={[
               'כל מה שב-Free',

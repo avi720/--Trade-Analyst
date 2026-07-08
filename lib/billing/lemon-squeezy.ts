@@ -8,11 +8,11 @@ export interface LemonSqueezyConfig {
   discountCodeLaunchAnnual: string | null
 }
 
-export const LAUNCH_PROMO_END = new Date('2026-08-01T00:00:00Z')
-
-export function isLaunchPromoActive(): boolean {
-  return Date.now() < LAUNCH_PROMO_END.getTime()
-}
+// LAUNCH_PROMO_END + isLaunchPromoActive moved to lib/billing/prices.ts (X16 —
+// single source of truth for pricing + promo date). Re-exported here so existing
+// callers (webhook route, checkout route) keep working; new code should import
+// directly from lib/billing/prices.ts.
+export { LAUNCH_PROMO_END, isLaunchPromoActive } from './prices'
 
 export function getLemonSqueezyConfig(): LemonSqueezyConfig | null {
   const apiKey = process.env.LEMONSQUEEZY_API_KEY
@@ -135,6 +135,101 @@ export interface WebhookPayload {
     custom_data?: { user_id?: string }
   }
   data: WebhookSubscriptionData
+}
+
+// X21 — cancel a subscription at Lemon Squeezy.
+//
+// Called from the account-deletion flow before we delete the app-level User
+// row (which cascades to the auth identity). The audit finding rationale: it
+// is unethical to keep charging a subscription tied to an account that no
+// longer exists in our DB. LS supports two shapes for cancellation — PATCH
+// with `cancelled:true` and DELETE. PATCH is the canonical shape per the audit
+// acceptance; both produce the same subscription state on LS's side.
+//
+// The cancellation is "cancel at period end" — LS honors the paid period the
+// user already paid for. This matches the X6 owner decision (0-day dunning):
+// user's paid period is honored, then Free.
+//
+// Return shape lets the caller distinguish "already cancelled" from a real
+// failure so the UI can react appropriately.
+export type LemonSqueezyCancelResult =
+  | { ok: true }
+  | { ok: false; status: number; body: string }
+
+export async function cancelSubscription(
+  config: LemonSqueezyConfig,
+  subscriptionId: string,
+): Promise<LemonSqueezyCancelResult> {
+  const res = await fetch(`https://api.lemonsqueezy.com/v1/subscriptions/${subscriptionId}`, {
+    method: 'PATCH',
+    headers: {
+      Accept: 'application/vnd.api+json',
+      'Content-Type': 'application/vnd.api+json',
+      Authorization: `Bearer ${config.apiKey}`,
+    },
+    body: JSON.stringify({
+      data: {
+        type: 'subscriptions',
+        id: subscriptionId,
+        attributes: { cancelled: true },
+      },
+    }),
+  })
+
+  if (res.ok) return { ok: true }
+  const body = await res.text().catch(() => '')
+  return { ok: false, status: res.status, body: body.slice(0, 500) }
+}
+
+// X22 — pause / resume a subscription at Lemon Squeezy.
+//
+// LS supports customer-initiated pause via its own portal. This helper lets us
+// surface the same action from `/profile?tab=billing` so users don't have to
+// leave the app. Pause with `mode: 'void'` means the subscription stops
+// billing entirely during the pause window (as opposed to `mode: 'free'`
+// which continues delivery without billing). Void matches the owner's intent
+// — paused users become Free until they resume.
+//
+// The webhook fires `subscription_paused` on pause and `subscription_resumed`
+// on resume; those flows already downgrade / upgrade `subscriptionTier`
+// correctly via `isActiveStatus`.
+
+export type LemonSqueezyMutateResult = LemonSqueezyCancelResult
+
+async function patchSubscription(
+  config: LemonSqueezyConfig,
+  subscriptionId: string,
+  attributes: Record<string, unknown>,
+): Promise<LemonSqueezyMutateResult> {
+  const res = await fetch(`https://api.lemonsqueezy.com/v1/subscriptions/${subscriptionId}`, {
+    method: 'PATCH',
+    headers: {
+      Accept: 'application/vnd.api+json',
+      'Content-Type': 'application/vnd.api+json',
+      Authorization: `Bearer ${config.apiKey}`,
+    },
+    body: JSON.stringify({
+      data: { type: 'subscriptions', id: subscriptionId, attributes },
+    }),
+  })
+  if (res.ok) return { ok: true }
+  const body = await res.text().catch(() => '')
+  return { ok: false, status: res.status, body: body.slice(0, 500) }
+}
+
+export function pauseSubscription(
+  config: LemonSqueezyConfig,
+  subscriptionId: string,
+): Promise<LemonSqueezyMutateResult> {
+  return patchSubscription(config, subscriptionId, { pause: { mode: 'void' } })
+}
+
+export function resumeSubscription(
+  config: LemonSqueezyConfig,
+  subscriptionId: string,
+): Promise<LemonSqueezyMutateResult> {
+  // Setting pause to null clears the pause; LS resumes immediately.
+  return patchSubscription(config, subscriptionId, { pause: null })
 }
 
 // Active subscription statuses that grant Pro tier.

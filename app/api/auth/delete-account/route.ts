@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyCurrentPassword } from "@/lib/auth/reauth";
 import { checkRateLimit, rateLimitedResponse } from "@/lib/auth/rate-limit";
 import { logAuditEvent } from "@/lib/audit/log";
+import { cancelSubscription, getLemonSqueezyConfig } from "@/lib/billing/lemon-squeezy";
 import type { Database } from "@/lib/db/types";
 
 export async function POST(req: NextRequest) {
@@ -47,6 +48,50 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "הסיסמה הנוכחית שגויה" }, { status: 401 });
   }
 
+  const admin = createAdminClient();
+
+  // X21: cancel the Lemon Squeezy subscription BEFORE we delete the app row.
+  // Keeping the LS subscription alive after account deletion would keep
+  // charging a user whose account no longer exists in our DB. If LS returns
+  // a non-2xx (network flake, already-cancelled, unknown subscription id),
+  // account deletion still proceeds — the user gets a warning in the response
+  // so they can act. Never block deletion on this call.
+  let lsCancelled: boolean | null = null;
+  let lsCancelWarning: string | null = null;
+
+  const { data: userRow } = await admin
+    .from("User")
+    .select("lemonsqueezySubscriptionId")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const lsSubscriptionId = userRow?.lemonsqueezySubscriptionId ?? null;
+  if (lsSubscriptionId) {
+    const config = getLemonSqueezyConfig();
+    if (config) {
+      const result = await cancelSubscription(config, lsSubscriptionId);
+      if (result.ok) {
+        lsCancelled = true;
+      } else {
+        lsCancelled = false;
+        lsCancelWarning =
+          "לא הצלחנו לבטל אוטומטית את המנוי ב-Lemon Squeezy. עבור לפורטל הלקוחות של Lemon Squeezy כדי לבטל ידנית.";
+        console.error(
+          "[delete-account] LS cancel failed:",
+          result.status,
+          result.body,
+          "subscriptionId:",
+          lsSubscriptionId,
+        );
+      }
+    } else {
+      // Billing not configured (dev/local) — the subscription exists on LS but
+      // we can't reach the API. Surface as a warning; don't block deletion.
+      lsCancelled = false;
+      lsCancelWarning = "מנוי Lemon Squeezy קיים אך ה-API לא מוגדר בסביבה זו.";
+    }
+  }
+
   // Log BEFORE the delete — the row is cascade-removed when the auth user is deleted,
   // but at least the failure path can still record. Use a separate try/catch since
   // we don't want logging to block deletion.
@@ -54,13 +99,16 @@ export async function POST(req: NextRequest) {
     userId: user.id,
     eventType: "account_deleted",
     status: "success",
-    metadata: { email: user.email },
+    metadata: {
+      email: user.email,
+      lsSubscriptionId,
+      lsCancelled, // true | false | null (null = no LS subscription attached)
+    },
     request: req,
   });
 
-  const admin = createAdminClient();
   const { error } = await admin.auth.admin.deleteUser(user.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, lsCancelled, lsCancelWarning });
 }
