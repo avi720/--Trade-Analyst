@@ -1,6 +1,18 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Public marketing/legal pages reachable without a session. Feature landing
+// pages (/ibkr-sync etc.) live here too — omitting a new public route sends
+// anonymous visitors to /login, which defeats the SEO purpose of the page.
+const PUBLIC_PATHS = new Set([
+  '/terms',
+  '/privacy',
+  '/pricing',
+  '/ibkr-sync',
+  '/fifo-analytics',
+  '/ai-trading-assistant',
+])
+
 function setSecurityHeaders(response: NextResponse): NextResponse {
   response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload')
   response.headers.set('X-Frame-Options', 'DENY')
@@ -51,7 +63,7 @@ export async function proxy(request: NextRequest) {
   const isForgotPwd    = pathname === '/forgot-password'
   const isResetPwd     = pathname === '/reset-password'
   const isLandingPage  = pathname === '/'
-  const isPublicPage   = pathname === '/terms' || pathname === '/privacy' || pathname === '/pricing'
+  const isPublicPage   = PUBLIC_PATHS.has(pathname)
   const isBillingWebhook = pathname === '/api/billing/webhook'
   const isOgImage      = pathname === '/og'
 

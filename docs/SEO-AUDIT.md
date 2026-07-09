@@ -3,7 +3,7 @@
 > **Audit date:** 2026-07-09
 > **Auditor:** Claude (searchfit-seo:seo-audit skill)
 > **App version reviewed:** main branch at commit `d949e26` + production at https://tradeanalyst.app
-> **Status:** ✅ COMPLETED 2026-07-09 — all 12 findings closed (S10 deferred by owner decision and marked accordingly; S8 was deferred then reopened and implemented at owner request). Open questions answered inline. Discovered finding S12 closed. Re-open by changing Status to ACTIVE and adding new findings under "Discovered During Remediation".
+> **Status:** ✅ COMPLETED 2026-07-09 — all 12 findings closed and implemented (S8 and S10 were each deferred by owner then reopened and built at owner request; no findings remain deferred). Open questions answered inline. Discovered finding S12 closed. Re-open by changing Status to ACTIVE and adding new findings under "Discovered During Remediation".
 
 ---
 
@@ -117,9 +117,9 @@ ID convention: `S##` numbered globally across phases. Where a finding was confir
 - **Acceptance:** The `keywords` field is either removed from the metadata export or left as-is with no further maintenance effort. **Closed 2026-07-09** — kept as-is per the "no further maintenance" clause of Acceptance. No behavioural change needed.
 
 #### [x] S10. No content pages exist for organic discovery
-- **Where:** Site-wide — the sitemap contains only functional pages (home, auth, legal). No blog, guides, or educational content.
-- **Issue:** **Deferred 2026-07-09** — owner decision. No blog planned; marketing focus is TikTok (not indexable by search engines). Feature-specific landing pages (e.g., `/ibkr-sync`, `/fifo-analytics`) were noted as a lower-effort alternative but deferred to a future round. The site has zero content pages targeting informational search queries. Competitors in the trading journal space publish guides about journaling best practices, FIFO accounting, trading psychology, and broker integration tutorials. Without content, the site relies entirely on branded search and direct traffic for organic discovery.
-- **Acceptance:** ~~At least one content section (e.g., `/blog` or `/guides`) exists with indexable pages that target non-branded informational queries relevant to the product's audience. Verified by checking the sitemap for content URLs and confirming they render with appropriate meta tags and heading structure.~~ Deferred by owner decision — closure by decision, not by implementation.
+- **Where:** `app/(public)/ibkr-sync/`, `app/(public)/fifo-analytics/`, `app/(public)/ai-trading-assistant/`, sharing `components/landing/feature-landing.tsx`.
+- **Issue:** **Reopened + implemented 2026-07-09** — initially deferred (no blog planned, TikTok-first marketing), then owner chose the lower-effort alternative flagged earlier: feature-specific landing pages instead of a blog. Built three deep-dive pages — IBKR sync, FIFO analytics, and the AI assistant — each targeting a non-branded feature/solution query ("סנכרון אוטומטי IBKR", "אנליטיקת FIFO", "עוזר AI למסחר") rather than pure informational queries. All three share one `FeatureLanding` server-component template (hero + benefits + how-it-works + CTA), reached via contextual "מידע נוסף" links from the three matching cards in the homepage Features section (highest-authority internal link, descriptive anchor text). Copy is human and non-pushy, and the AI page carries a "תובנה, לא ייעוץ" disclaimer consistent with the terms. A future round can still add a true blog if content resources appear.
+- **Acceptance:** At least one content section exists with indexable pages that target non-branded queries relevant to the product's audience, rendering with appropriate meta tags and heading structure. **Confirmed** on localhost: all three routes return 200 (no auth redirect — added to the `proxy.ts` public allowlist), each has a unique `<title>` and meta description, exactly one h1, sectioned h2s, no horizontal overflow, and all three appear in `sitemap.xml` and are linked from the homepage.
 
 #### [x] S11. Footer internal linking is minimal
 - **Where:** `components/public-footer.tsx:8-21` — only links to `/terms`, `/privacy`, and `mailto:`.

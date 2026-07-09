@@ -203,16 +203,19 @@ function Features() {
       Icon: Link2,
       title: 'סנכרון אוטומטי מ-IBKR',
       body: 'חיבור חד-פעמי ל-Flex Web Service, ומהיום אנחנו מושכים את העסקאות שלך אוטומטית. ללא CSV, ללא טעויות.',
+      href: '/ibkr-sync',
     },
     {
       Icon: LineChart,
       title: 'אנליטיקה עמוקה',
       body: 'R-multiples, FIFO accounting, win-rate, max drawdown, התפלגות לפי setup, ביצועים לפי שעת יום ורגש.',
+      href: '/fifo-analytics',
     },
     {
       Icon: Sparkles,
       title: 'עוזר AI: חנן',
       body: 'שאלות חופשיות על הנתונים שלך. חנן עונה לפי הסטטיסטיקה האמיתית של הטריידים שלך, לא לפי דעות גנריות.',
+      href: '/ai-trading-assistant',
     },
     {
       Icon: Search,
@@ -244,16 +247,25 @@ function Features() {
         </div>
 
         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {items.map(({ Icon, title, body }) => (
+          {items.map(({ Icon, title, body, href }) => (
             <div
               key={title}
-              className="group rounded-xl border border-border bg-panel-bg p-6 transition-colors hover:border-amber/40"
+              className="group flex flex-col rounded-xl border border-border bg-panel-bg p-6 transition-colors hover:border-amber/40"
             >
               <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-amber/10 text-amber transition-colors group-hover:bg-amber/20">
                 <Icon className="h-5 w-5" strokeWidth={2} />
               </div>
               <h3 className="text-base font-semibold text-text-main">{title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-text-dim">{body}</p>
+              <p className="mt-2 flex-1 text-sm leading-relaxed text-text-dim">{body}</p>
+              {href && (
+                <Link
+                  href={href}
+                  className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-amber transition-colors hover:text-amber/80"
+                >
+                  מידע נוסף
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                </Link>
+              )}
             </div>
           ))}
         </div>
