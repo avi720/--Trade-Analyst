@@ -6,6 +6,15 @@ export function PublicFooter() {
       <div className="mx-auto flex max-w-4xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>© {new Date().getFullYear()} Trade Analyst · אביאור פז</div>
         <nav className="flex flex-wrap items-center gap-4">
+          <Link href="/" className="hover:text-text-main transition-colors">
+            דף הבית
+          </Link>
+          <Link href="/signup" className="hover:text-text-main transition-colors">
+            הרשמה
+          </Link>
+          <Link href="/login" className="hover:text-text-main transition-colors">
+            כניסה
+          </Link>
           <Link href="/terms" className="hover:text-text-main transition-colors">
             תנאי שימוש
           </Link>

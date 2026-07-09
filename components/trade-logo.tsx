@@ -11,7 +11,7 @@ export function TradeLogoIcon({ size = 40, className }: TradeLogoIconProps) {
   return (
     <Image
       src="/logo.png"
-      alt="Trade Analysis logo"
+      alt="Trade Analyst logo"
       width={size}
       height={size}
       className={className}

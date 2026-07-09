@@ -412,7 +412,7 @@ export default function SignupPage() {
                   <p className="text-amber font-semibold text-sm">אימות מייל נשלח</p>
                   <ol className="text-text-main text-sm space-y-2 list-decimal list-inside leading-relaxed">
                     <li>פתח את תיבת הדואר שלך</li>
-                    <li>מצא מייל מ-Trade Analysis עם קישור אימות</li>
+                    <li>מצא מייל מ-Trade Analyst עם קישור אימות</li>
                     <li>לחץ על קישור האימות (ייפתח בכרטיסייה חדשה)</li>
                     <li>חזור לכאן ולחץ על "בדוק אימות"</li>
                   </ol>

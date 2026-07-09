@@ -3,7 +3,7 @@
 > **Audit date:** 2026-07-09
 > **Auditor:** Claude (searchfit-seo:seo-audit skill)
 > **App version reviewed:** main branch at commit `d949e26` + production at https://tradeanalyst.app
-> **Status:** 🟡 ACTIVE
+> **Status:** ✅ COMPLETED 2026-07-09 — all 12 findings closed (with S8 and S10 deferred by owner decision and marked accordingly). Open questions answered inline. Discovered finding S12 closed. Re-open by changing Status to ACTIVE and adding new findings under "Discovered During Remediation".
 
 ---
 
@@ -49,7 +49,7 @@ Preserve these patterns when implementing fixes:
 - Fonts are self-hosted via `next/font` (`app/layout.tsx:10-22`) with `display: 'swap'` — zero layout shift, no external DNS lookup to fonts.googleapis.com.
 - `<html lang="he" dir="rtl">` is correctly set at the root level, signaling language and text direction to search engines.
 - The landing page (`app/page.tsx`) is a server component — no client-side JS needed for initial render, which benefits Core Web Vitals (LCP, FID).
-- Logo image uses `next/image` with proper `alt="Trade Analysis logo"` in `components/trade-logo.tsx:14`.
+- Logo image uses `next/image` with proper `alt="Trade Analyst logo"` in `components/trade-logo.tsx:14`.
 - Landing page video uses `preload="metadata"` and `aria-label` for accessibility (`components/landing/landing-video.tsx:56-69`).
 - Terms and Privacy pages (`app/(public)/terms/page.tsx`, `app/(public)/privacy/page.tsx`) both export dedicated `metadata` objects with unique titles and descriptions.
 
@@ -106,22 +106,22 @@ ID convention: `S##` numbered globally across phases. Where a finding was confir
 
 ### Phase 3 — Polish (consistency / hygiene)
 
-#### [ ] S8. No dedicated pricing page for organic search
+#### [x] S8. No dedicated pricing page for organic search
 - **Where:** Pricing content lives inline in `components/landing/pricing-section.tsx`, embedded in the landing page.
-- **Issue:** The pricing section is not independently addressable — there is no `/pricing` URL in the sitemap. Users searching for "trading journal pricing" or "יומן מסחר מחירים" cannot land on a dedicated pricing page. Competitor sites typically have standalone pricing pages that rank for price-comparison queries.
-- **Acceptance:** A `/pricing` page exists in the sitemap, renders the pricing content with a unique title and description, and is reachable via internal navigation. Verified by fetching `/pricing` and confirming a 200 response with appropriate meta tags.
+- **Issue:** **Deferred 2026-07-09** — owner decision. Marketing is TikTok-first, not SEO-first; the inline pricing section on the landing page is sufficient for the current stage. Revisit when organic search becomes a growth channel. The pricing section is not independently addressable — there is no `/pricing` URL in the sitemap. Users searching for "trading journal pricing" or "יומן מסחר מחירים" cannot land on a dedicated pricing page. Competitor sites typically have standalone pricing pages that rank for price-comparison queries.
+- **Acceptance:** ~~A `/pricing` page exists in the sitemap, renders the pricing content with a unique title and description, and is reachable via internal navigation. Verified by fetching `/pricing` and confirming a 200 response with appropriate meta tags.~~ Deferred by owner decision — closure by decision, not by implementation.
 
-#### [ ] S9. `keywords` meta tag provides negligible SEO value
+#### [x] S9. `keywords` meta tag provides negligible SEO value
 - **Where:** `app/layout.tsx:37` — `keywords: ['יומן מסחר', 'trading journal', 'AI', 'IBKR', 'אנליטיקה', 'מסחר']`
 - **Issue:** Google has publicly stated since 2009 that the `keywords` meta tag carries no weight in ranking. The tag is harmless but creates a false sense of SEO coverage. Effort spent maintaining it is better directed at content and structured data.
-- **Acceptance:** The `keywords` field is either removed from the metadata export or left as-is with no further maintenance effort. No action required — this is informational.
+- **Acceptance:** The `keywords` field is either removed from the metadata export or left as-is with no further maintenance effort. **Closed 2026-07-09** — kept as-is per the "no further maintenance" clause of Acceptance. No behavioural change needed.
 
-#### [ ] S10. No content pages exist for organic discovery
+#### [x] S10. No content pages exist for organic discovery
 - **Where:** Site-wide — the sitemap contains only functional pages (home, auth, legal). No blog, guides, or educational content.
-- **Issue:** The site has zero content pages targeting informational search queries. Competitors in the trading journal space publish guides about journaling best practices, FIFO accounting, trading psychology, and broker integration tutorials. Without content, the site relies entirely on branded search and direct traffic for organic discovery.
-- **Acceptance:** At least one content section (e.g., `/blog` or `/guides`) exists with indexable pages that target non-branded informational queries relevant to the product's audience. Verified by checking the sitemap for content URLs and confirming they render with appropriate meta tags and heading structure.
+- **Issue:** **Deferred 2026-07-09** — owner decision. No blog planned; marketing focus is TikTok (not indexable by search engines). Feature-specific landing pages (e.g., `/ibkr-sync`, `/fifo-analytics`) were noted as a lower-effort alternative but deferred to a future round. The site has zero content pages targeting informational search queries. Competitors in the trading journal space publish guides about journaling best practices, FIFO accounting, trading psychology, and broker integration tutorials. Without content, the site relies entirely on branded search and direct traffic for organic discovery.
+- **Acceptance:** ~~At least one content section (e.g., `/blog` or `/guides`) exists with indexable pages that target non-branded informational queries relevant to the product's audience. Verified by checking the sitemap for content URLs and confirming they render with appropriate meta tags and heading structure.~~ Deferred by owner decision — closure by decision, not by implementation.
 
-#### [ ] S11. Footer internal linking is minimal
+#### [x] S11. Footer internal linking is minimal
 - **Where:** `components/public-footer.tsx:8-21` — only links to `/terms`, `/privacy`, and `mailto:`.
 - **Issue:** The footer appears on every public page and is a valuable site-wide internal linking surface. It currently links only to legal pages. Adding links to key conversion pages (signup, login) and any future content sections would distribute link equity and provide crawlers with consistent navigation signals.
 - **Acceptance:** The footer includes links to at least the homepage, signup, and any content section that exists at the time of implementation. Verified by inspecting the footer HTML and confirming the links are present and functional.
@@ -130,13 +130,18 @@ ID convention: `S##` numbered globally across phases. Where a finding was confir
 
 ## Open Questions / Items Requiring Owner Input
 
-- **Is `/reset-password` intentionally in the robots.txt allow list?** It is a transient page only accessed via email links. Allowing it is harmless but inconsistent with the sitemap omission. Owner should decide: include in sitemap (low priority) or remove from the explicit allow list.
-- **Is a blog or content section planned?** S10 notes the absence of content pages, but adding a blog is a product decision that depends on available writing resources and content strategy. If a blog is planned, the SEO foundation (sitemap integration, structured data for articles) should be part of the initial implementation.
-- **Should the OG image vary per page?** Currently all pages share a single `/og` image. For a 6-page site this is fine, but if content pages are added, per-page OG images (especially for blog posts) significantly improve social sharing click-through.
-- **Video captions: is the demo video narrated or silent?** If silent (UI walkthrough only), a descriptive text track of the actions shown is still valuable for SEO and accessibility but lower priority than captioning spoken content.
+- ~~**Is `/reset-password` intentionally in the robots.txt allow list?**~~ **Resolved:** Owner confirmed it is email-only. Remove from allow list (covered by S7).
+- ~~**Is a blog or content section planned?**~~ **Resolved:** No blog planned. Owner is considering TikTok as a marketing channel (not indexable by search engines). Feature-specific landing pages (e.g., `/ibkr-sync`, `/fifo-analytics`) are a lower-effort alternative to a blog for organic discovery — deferred to a future round. S10 remains open but deprioritized.
+- ~~**Should the OG image vary per page?**~~ **Resolved:** No blog or content expansion planned, so a single OG image is sufficient. Revisit if feature landing pages are added.
+- ~~**Video captions: is the demo video narrated or silent?**~~ **Resolved:** Silent with some existing on-screen captions. S5 remains valid (a `<track>` element is still needed for accessibility/SEO) but is lower priority than it would be for narrated content.
 
 ---
 
 ## Discovered During Remediation
 
 > Add new findings here as they surface while working through the plan. Same format: `[ ] S##. Title` + Where / Issue / Acceptance.
+
+#### [x] S12. Stale "Trade Analysis" brand name in signup verification instructions
+- **Where:** `app/(auth)/signup/page.tsx:415` — `<li>מצא מייל מ-Trade Analysis עם קישור אימות</li>`
+- **Issue:** **Confirmed.** Surfaced while verifying S4. The h1 tags on login/signup were fixed to "Trade Analyst", but a leftover reference to "Trade Analysis" remains in the email verification instructions list. Not indexable content (behind a form interaction), so the SEO impact is negligible, but it perpetuates the same brand-consistency issue S4 was meant to eliminate. Additional stale occurrences found and fixed during remediation: `components/header.tsx:79` (dashboard header, user-visible), `components/trade-logo.tsx:14` (logo alt text, SEO-indexable), and `README.md:1` (repo landing on GitHub).
+- **Acceptance:** All user-visible occurrences of "Trade Analysis" across the codebase are updated to "Trade Analyst". Verified by grepping the codebase for `Trade Analysis` and confirming no user-visible matches remain (comments and identifiers are out of scope).

@@ -76,7 +76,7 @@ export function Header({ userEmail }: HeaderProps) {
       <div className="flex items-center gap-3 flex-shrink-0">
         <TradeLogoIcon size={36} />
         <span className="font-mono font-semibold text-amber text-xl tracking-tight">
-          Trade Analysis
+          Trade Analyst
         </span>
       </div>
 

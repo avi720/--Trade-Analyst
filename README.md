@@ -1,4 +1,4 @@
-# Trade Analysis
+# Trade Analyst
 
 יומן מסחר חכם עם AI — Next.js 14 + Supabase + IBKR + Polygon
 
