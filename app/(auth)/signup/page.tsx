@@ -318,7 +318,7 @@ export default function SignupPage() {
       <div className="panel p-8 w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-text-main font-mono">Trade Analysis</h1>
+          <h1 className="text-2xl font-bold text-text-main font-mono">Trade Analyst</h1>
           <p className="text-text-dim text-sm mt-1">יצירת חשבון</p>
         </div>
 

@@ -66,7 +66,15 @@ export function LandingVideo() {
           className="w-full rounded-lg"
           dir="ltr"
           aria-label="הדגמה של אתר Trade Analyst"
-        />
+        >
+          <track
+            kind="captions"
+            src="/landing-demo-captions.vtt"
+            srcLang="he"
+            label="עברית"
+            default
+          />
+        </video>
       </div>
     </div>
   )

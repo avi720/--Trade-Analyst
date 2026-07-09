@@ -82,22 +82,22 @@ ID convention: `S##` numbered globally across phases. Where a finding was confir
 
 ### Phase 2 — Important (correctness & integrity)
 
-#### [ ] S4. Login and signup h1 tags say "Trade Analysis" instead of "Trade Analyst"
+#### [x] S4. Login and signup h1 tags say "Trade Analysis" instead of "Trade Analyst"
 - **Where:** `app/(auth)/login/page.tsx:44` — `<h1>Trade Analysis</h1>`, `app/(auth)/signup/page.tsx:320` — `<h1>Trade Analysis</h1>`
 - **Issue:** **Confirmed.** The brand name in the root layout metadata, OG tags, footer, and sitemap is "Trade Analyst", but the login and signup page h1 headings say "Trade Analysis". Search engines use h1 content for relevance signals and entity recognition. Inconsistent naming across pages weakens brand signal consolidation.
 - **Acceptance:** All h1 tags across the site use the same brand name that appears in the root layout metadata. Verified by fetching `/login` and `/signup` and confirming the h1 text matches the `<title>` brand name.
 
-#### [ ] S5. Landing page demo video has no captions track
+#### [x] S5. Landing page demo video has no captions track
 - **Where:** `components/landing/landing-video.tsx:56-69` — `<video>` element has no `<track>` child.
 - **Issue:** The product demo video autoplays on the landing page but has no `<track kind="captions">` element. Search engines cannot index video content without text alternatives. Additionally, WCAG 1.2.2 requires captions for prerecorded audio content. While the video has `aria-label`, that describes what the element *is*, not what is shown/said in the video.
 - **Acceptance:** The video element includes a `<track>` element with Hebrew captions (or English if the video has no spoken audio — a descriptive track of the UI actions shown). Verified by inspecting the rendered `<video>` element and confirming a `<track>` child is present.
 
-#### [ ] S6. OG description inherits the too-short root description
+#### [x] S6. OG description inherits the too-short root description
 - **Where:** `app/layout.tsx:44` — `description: SITE_TAGLINE` inside the `openGraph` block.
 - **Issue:** The Open Graph description is the same 20-character `SITE_TAGLINE` string. When the page is shared on social media (LinkedIn, Twitter, Facebook, WhatsApp), the preview card shows a near-empty description. This reduces click-through from social shares.
 - **Acceptance:** The OG description is 60-120 characters and compellingly summarizes the product for social preview cards. Verified by pasting the URL into the Facebook Sharing Debugger or Twitter Card Validator and seeing a meaningful description in the preview.
 
-#### [ ] S7. `reset-password` in robots.txt allow list but missing from sitemap
+#### [x] S7. `reset-password` in robots.txt allow list but missing from sitemap
 - **Where:** `app/robots.ts:10` allows `/reset-password`, but `app/sitemap.ts` does not include it.
 - **Issue:** Minor inconsistency between robots.txt and sitemap. If a page is worth allowing crawlers to access, it is generally worth including in the sitemap so crawlers discover it. Conversely, if the page is transient (only accessed via email links), it should not be in the allow list.
 - **Acceptance:** Either `/reset-password` is added to the sitemap with low priority, or it is removed from the robots.txt explicit allow list (the default `allow: /` already permits it unless disallowed). The robots.txt and sitemap are consistent in their treatment of this URL.

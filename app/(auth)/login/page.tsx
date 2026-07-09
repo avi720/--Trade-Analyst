@@ -42,7 +42,7 @@ export default function LoginPage() {
             <TradeLogoIcon size={56} />
           </div>
           <h1 className="text-2xl font-bold text-text-main font-mono">
-            Trade Analysis
+            Trade Analyst
           </h1>
           <p className="text-text-dim text-sm mt-1">יומן מסחר חכם</p>
         </div>
