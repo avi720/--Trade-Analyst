@@ -58,7 +58,7 @@ export type Database = {
           metadata: Json | null
           status: string
           userAgent: string | null
-          userId: string
+          userId: string | null
         }
         Insert: {
           createdAt?: string
@@ -68,7 +68,7 @@ export type Database = {
           metadata?: Json | null
           status: string
           userAgent?: string | null
-          userId: string
+          userId?: string | null
         }
         Update: {
           createdAt?: string
@@ -78,9 +78,17 @@ export type Database = {
           metadata?: Json | null
           status?: string
           userAgent?: string | null
-          userId?: string
+          userId?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "AuditEvent_userId_fkey"
+            columns: ["userId"]
+            isOneToOne: false
+            referencedRelation: "User"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       BillingWebhookEvent: {
         Row: {

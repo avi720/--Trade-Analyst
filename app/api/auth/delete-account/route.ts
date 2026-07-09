@@ -92,9 +92,10 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Log BEFORE the delete — the row is cascade-removed when the auth user is deleted,
-  // but at least the failure path can still record. Use a separate try/catch since
-  // we don't want logging to block deletion.
+  // Log BEFORE the delete. The AuditEvent.userId FK is ON DELETE SET NULL (see
+  // migration 20260709_audit_event_userid_on_delete_set_null), so the audit row
+  // survives with metadata.email intact after the User is removed. Logging is
+  // still fire-and-forget — a write failure must not block deletion.
   await logAuditEvent({
     userId: user.id,
     eventType: "account_deleted",
