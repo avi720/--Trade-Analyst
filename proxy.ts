@@ -51,7 +51,7 @@ export async function proxy(request: NextRequest) {
   const isForgotPwd    = pathname === '/forgot-password'
   const isResetPwd     = pathname === '/reset-password'
   const isLandingPage  = pathname === '/'
-  const isPublicPage   = pathname === '/terms' || pathname === '/privacy'
+  const isPublicPage   = pathname === '/terms' || pathname === '/privacy' || pathname === '/pricing'
   const isBillingWebhook = pathname === '/api/billing/webhook'
   const isOgImage      = pathname === '/og'
 

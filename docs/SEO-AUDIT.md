@@ -3,7 +3,7 @@
 > **Audit date:** 2026-07-09
 > **Auditor:** Claude (searchfit-seo:seo-audit skill)
 > **App version reviewed:** main branch at commit `d949e26` + production at https://tradeanalyst.app
-> **Status:** ✅ COMPLETED 2026-07-09 — all 12 findings closed (with S8 and S10 deferred by owner decision and marked accordingly). Open questions answered inline. Discovered finding S12 closed. Re-open by changing Status to ACTIVE and adding new findings under "Discovered During Remediation".
+> **Status:** ✅ COMPLETED 2026-07-09 — all 12 findings closed (S10 deferred by owner decision and marked accordingly; S8 was deferred then reopened and implemented at owner request). Open questions answered inline. Discovered finding S12 closed. Re-open by changing Status to ACTIVE and adding new findings under "Discovered During Remediation".
 
 ---
 
@@ -107,9 +107,9 @@ ID convention: `S##` numbered globally across phases. Where a finding was confir
 ### Phase 3 — Polish (consistency / hygiene)
 
 #### [x] S8. No dedicated pricing page for organic search
-- **Where:** Pricing content lives inline in `components/landing/pricing-section.tsx`, embedded in the landing page.
-- **Issue:** **Deferred 2026-07-09** — owner decision. Marketing is TikTok-first, not SEO-first; the inline pricing section on the landing page is sufficient for the current stage. Revisit when organic search becomes a growth channel. The pricing section is not independently addressable — there is no `/pricing` URL in the sitemap. Users searching for "trading journal pricing" or "יומן מסחר מחירים" cannot land on a dedicated pricing page. Competitor sites typically have standalone pricing pages that rank for price-comparison queries.
-- **Acceptance:** ~~A `/pricing` page exists in the sitemap, renders the pricing content with a unique title and description, and is reachable via internal navigation. Verified by fetching `/pricing` and confirming a 200 response with appropriate meta tags.~~ Deferred by owner decision — closure by decision, not by implementation.
+- **Where:** Pricing content lived inline in `components/landing/pricing-section.tsx`. Now also at `app/(public)/pricing/page.tsx`.
+- **Issue:** **Reopened + implemented 2026-07-09** — initially deferred by owner (TikTok-first marketing), then owner reversed the decision and requested the page built. The pricing section was not independently addressable, so Google could not rank a focused page for commercial queries ("trading journal pricing", "יומן מסחר מחירים"). Built a standalone `/pricing` page that reuses a shared `PricingPlans` component (extracted from the landing section so the two surfaces never drift), plus human, non-pushy copy: warm intro, reassurance row (no card to start / 14-day trial / cancel anytime), and a billing FAQ. Top-nav link intentionally omitted per owner; footer link added for discoverability. Note: `/pricing` also had to be added to the `proxy.ts` public-route allowlist — without it, unauthenticated visitors were redirected to `/login` (caught in browser verification, not by tsc/build).
+- **Acceptance:** A `/pricing` page exists in the sitemap, renders the pricing content with a unique title and description, and is reachable via internal navigation. **Confirmed** on localhost: `/pricing` returns 200, `<title>` = "תמחור · Trade Analyst", unique meta description present, single h1 "תמחור פשוט ושקוף", reachable from the footer nav, and the monthly/annual toggle renders correct launch/standard prices ($9.99/$14.99 monthly, $99.99/$149.99 annual).
 
 #### [x] S9. `keywords` meta tag provides negligible SEO value
 - **Where:** `app/layout.tsx:37` — `keywords: ['יומן מסחר', 'trading journal', 'AI', 'IBKR', 'אנליטיקה', 'מסחר']`

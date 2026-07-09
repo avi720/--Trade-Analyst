@@ -9,6 +9,9 @@ export function PublicFooter() {
           <Link href="/" className="hover:text-text-main transition-colors">
             דף הבית
           </Link>
+          <Link href="/pricing" className="hover:text-text-main transition-colors">
+            תמחור
+          </Link>
           <Link href="/signup" className="hover:text-text-main transition-colors">
             הרשמה
           </Link>
