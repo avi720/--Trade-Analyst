@@ -22,8 +22,38 @@ export default async function RootPage() {
     redirect('/research')
   }
 
+  const organizationSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'Trade Analyst',
+    url: 'https://tradeanalyst.app',
+    logo: 'https://tradeanalyst.app/og',
+    sameAs: [],
+  }
+
+  const faqSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqItems.map((it) => ({
+      '@type': 'Question',
+      name: it.q,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: it.a,
+      },
+    })),
+  }
+
   return (
     <div className="flex min-h-dvh flex-col bg-bg-dark">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+      />
       <header className="sticky top-0 z-40 border-b border-border bg-bg-dark/80 px-6 py-3 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
@@ -235,29 +265,30 @@ function Features() {
 
 /* ─────────── FAQ ─────────── */
 
+const faqItems = [
+  {
+    q: 'איך הנתונים שלי מוגנים?',
+    a: 'טוקני IBKR שלך מוצפנים ב-AES-256-GCM לפני שהם נשמרים בבסיס הנתונים. הגישה למידע מוגבלת ברמת המסד (Row-Level Security) — כל שאילתא רואה רק את השורות שלך. אין מעקב צד שלישי.',
+  },
+  {
+    q: 'האם אני צריך את Interactive Brokers?',
+    a: 'לא. אפשר להשתמש בייבוא ידני של עסקה בודדת, בהעלאת קובץ Excel לפי התבנית שלנו, או בסנכרון אוטומטי מ-IBKR. אם אתה סוחר בברוקר אחר — הפורמט הידני יתאים.',
+  },
+  {
+    q: 'איך אני מבטל את המנוי?',
+    a: 'בקליק אחד מתפריט הפרופיל. אין שאלות, אין תקופת ביטול. תמשיך להיות Pro עד סוף התקופה שכבר שילמת עליה, ואז תעבור אוטומטית ל-Free.',
+  },
+  {
+    q: 'מה ההבדל בין חנן ב-Free לב-Pro?',
+    a: 'ב-Free יש עד 3 הודעות ביום במצב בסיסי. ב-Pro אין הגבלת הודעות ומצב "עמוק" שמריץ סטטיסטיקות מותאמות אישית על השאלה שלך במקום לענות מהזיכרון.',
+  },
+  {
+    q: 'יש תמיכה מלאה בעברית ו-RTL?',
+    a: 'כן — הממשק נבנה RTL מהיסוד, כולל טבלאות, גרפים, פורמטים של מספרים ותאריכים, ומיילים אוטומטיים. אין רכיבים שבורים כשעוברים בין דפים.',
+  },
+]
+
 function FAQ() {
-  const items = [
-    {
-      q: 'איך הנתונים שלי מוגנים?',
-      a: 'טוקני IBKR שלך מוצפנים ב-AES-256-GCM לפני שהם נשמרים בבסיס הנתונים. הגישה למידע מוגבלת ברמת המסד (Row-Level Security) — כל שאילתא רואה רק את השורות שלך. אין מעקב צד שלישי.',
-    },
-    {
-      q: 'האם אני צריך את Interactive Brokers?',
-      a: 'לא. אפשר להשתמש בייבוא ידני של עסקה בודדת, בהעלאת קובץ Excel לפי התבנית שלנו, או בסנכרון אוטומטי מ-IBKR. אם אתה סוחר בברוקר אחר — הפורמט הידני יתאים.',
-    },
-    {
-      q: 'איך אני מבטל את המנוי?',
-      a: 'בקליק אחד מתפריט הפרופיל. אין שאלות, אין תקופת ביטול. תמשיך להיות Pro עד סוף התקופה שכבר שילמת עליה, ואז תעבור אוטומטית ל-Free.',
-    },
-    {
-      q: 'מה ההבדל בין חנן ב-Free לב-Pro?',
-      a: 'ב-Free יש עד 3 הודעות ביום במצב בסיסי. ב-Pro אין הגבלת הודעות ומצב "עמוק" שמריץ סטטיסטיקות מותאמות אישית על השאלה שלך במקום לענות מהזיכרון.',
-    },
-    {
-      q: 'יש תמיכה מלאה בעברית ו-RTL?',
-      a: 'כן — הממשק נבנה RTL מהיסוד, כולל טבלאות, גרפים, פורמטים של מספרים ותאריכים, ומיילים אוטומטיים. אין רכיבים שבורים כשעוברים בין דפים.',
-    },
-  ]
 
   return (
     <section className="px-6 py-20">
@@ -268,7 +299,7 @@ function FAQ() {
         </div>
 
         <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-panel-bg">
-          {items.map((it) => (
+          {faqItems.map((it) => (
             <details key={it.q} className="group px-6 py-4">
               <summary className="flex cursor-pointer items-center justify-between gap-4 text-right text-base font-medium text-text-main [&::-webkit-details-marker]:hidden">
                 <span>{it.q}</span>

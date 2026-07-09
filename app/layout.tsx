@@ -23,7 +23,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 
 const BASE_URL = getBaseUrl()
 const SITE_NAME = 'Trade Analyst'
-const SITE_TAGLINE = 'יומן מסחר חכם עם AI'
+const SITE_TAGLINE = 'יומן מסחר חכם מבוסס AI המציע סנכרון אוטומטי מ-Interactive Brokers, אנליטיקה מתקדמת עם מתודולוגיית FIFO, ועוזר אישי לשיפור ביצועי המסחר שלך.'
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
