@@ -64,7 +64,7 @@ Fonts: **IBM Plex Mono** (numbers) + **Assistant** (UI, Hebrew).
 - `Trade` + `Order` — FIFO-based. Each execution = one `Order`. A `Trade` aggregates multiple `Order`s.
 - `Order.brokerExecId` — UNIQUE. Global idempotency key for IBKR dedup.
 - `Order.brokerOrderId` — NOT unique. Groups partial fills.
-- `Order` columns in use: `id`, `tradeId`, `userId`, `side`, `quantity`, `price`, `commission`, `executedAt`, `brokerExecId`, `brokerOrderId`, `brokerClientAccountId`, `currency`, `orderType`, `rawPayload`, `netCash`, `commissionCurrency`, `orderTime`. Removed in cleanup: `tax`, `tradeDate`, `exchange`, `proceeds`, `brokerTradeId`.
+- `Order` columns in use: `id`, `tradeId`, `userId`, `side`, `quantity`, `price`, `commission`, `executedAt`, `brokerExecId`, `brokerOrderId`, `brokerClientAccountId`, `currency`, `orderType`, `netCash`, `commissionCurrency`, `orderTime`. Removed in cleanup: `tax`, `tradeDate`, `exchange`, `proceeds`, `brokerTradeId`, `rawPayload` (dropped in P8 of `docs/completed/PERFORMANCE-AUDIT.md` — audit trail lives on `BrokerEvent.rawPayload` instead).
 - `User` columns: `id`, `email`, `name` (display name = firstName + lastName), `firstName`, `lastName`, `phone`, `addressStreet`, `addressCity`, `addressCountry`, `settings` (Json), `createdAt`. Display preferences (currency, dateFormat, numberFormat, timezone) live in `settings.display` JSON — no dedicated columns. API: `GET/PATCH /api/profile`.
 - `BrokerEvent` — raw XML audit log of every IBKR fetch.
 - `BrokerConnection.flexTokenEncrypted` — AES-256-GCM. Never returned in API responses.
@@ -94,10 +94,10 @@ The Flex parser also has a dual-root quirk documented in the same rule file.
 - **Optional Trade-level annotations** (6): `setupType`, `emotionalState`, `stopPrice`, `targetPrice`, `notes`, `didRight` (`wouldChange` was removed from open-trade entry — it only makes sense at close and is set via the manual-close flow)
 
 Key implementation details:
-- `buildExecution()` always sets `rawPayload.ibCommissionCurrency` (falls back to `currency`); also stores `_manualOrderTime` and `broker` when provided. The `_manualOrderTime` contract is a rule — see [`.claude/rules/manual-order-time.md`](.claude/rules/manual-order-time.md).
+- `buildExecution()` populates `commissionCurrency` (falls back to leg `currency`) and `orderTimeIso` (pre-parsed ISO instant, or `null` if the leg didn't provide `orderPlacedDate`) as explicit fields on `NormalizedExecution`. `netCash` is IBKR-only and stays `null` for manual entries. The `broker` and `_manualClose` fields formerly stashed in `rawPayload` are gone — no downstream consumer.
 - `extractAnnotations()` strips Order-level fields and returns only Trade-level annotation fields ready for a Supabase `.update()` call.
 - The route (`app/api/trades/manual/route.ts`) calls `processExecutions` first (FIFO), then applies annotations to the resulting `tradeId` via the admin client.
-- IBKR imports set `netCash`/`commissionCurrency`/`orderTime` from `rawPayload` in `buildOrderInsert`; camelCase fields take priority over PascalCase (e.g., `raw.netCash ?? raw.NetCash`).
+- IBKR imports set `netCash`/`commissionCurrency`/`orderTimeIso` at parse time in `parse-flex-xml.ts` (camelCase real IBKR takes priority over PascalCase legacy fixtures). `buildOrderInsert` reads these explicit fields directly.
 
 ## Backfill / cron behavior
 

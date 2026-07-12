@@ -30,8 +30,12 @@ export interface NormalizedExecution {
   executedAt: Date
   currency?: string
   orderType?: string
-  rawPayload: Record<string, unknown>
   brokerClientAccountId?: string
+  // Optional broker-provided facts — populated by the IBKR parser + manual
+  // entry, consumed by buildOrderInsert to populate dedicated Order columns.
+  netCash?: number | null
+  commissionCurrency?: string | null
+  orderTimeIso?: string | null  // pre-parsed ISO instant (parseIbkrDate applied at parse time)
 }
 
 // Minimal snapshot of an existing open Trade passed to FIFO logic.
@@ -88,7 +92,9 @@ export interface OrderCreate {
   brokerClientAccountId?: string
   currency?: string
   orderType?: string
-  rawPayload: Record<string, unknown>
+  netCash?: number | null
+  commissionCurrency?: string | null
+  orderTimeIso?: string | null
 }
 
 export type FifoAction =

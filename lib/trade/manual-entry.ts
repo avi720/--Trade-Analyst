@@ -149,16 +149,12 @@ export function buildExecution(leg: ManualLeg, index: number): NormalizedExecuti
     executedAt,
     currency: leg.currency.trim().toUpperCase(),
     orderType: leg.orderType?.trim() || undefined,
-    rawPayload: {
-      // Commission currency — picked up by buildOrderInsert as ibCommissionCurrency
-      ibCommissionCurrency:
-        leg.commissionCurrency?.trim().toUpperCase() ||
-        leg.currency.trim().toUpperCase(),
-      // Pre-parsed order-placement time (bypasses IBKR date parser in buildOrderInsert)
-      ...(manualOrderTimeISO ? { _manualOrderTime: manualOrderTimeISO } : {}),
-      // Broker name — informational, stored in rawPayload only
-      ...(leg.broker?.trim() ? { broker: leg.broker.trim() } : {}),
-    },
+    // netCash is IBKR-only — manual entries don't populate it.
+    netCash: null,
+    commissionCurrency:
+      leg.commissionCurrency?.trim().toUpperCase() ||
+      leg.currency.trim().toUpperCase(),
+    orderTimeIso: manualOrderTimeISO ?? null,
   }
 }
 

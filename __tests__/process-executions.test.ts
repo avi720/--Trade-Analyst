@@ -35,7 +35,6 @@ function makeExec(overrides: Partial<NormalizedExecution> = {}): NormalizedExecu
     price: 175.5,
     commission: 1.5,
     executedAt: new Date("2026-04-23T14:30:00Z"),
-    rawPayload: {},
     ...overrides,
   };
 }

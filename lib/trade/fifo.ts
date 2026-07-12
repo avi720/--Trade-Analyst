@@ -67,7 +67,9 @@ function buildOrderCreate(exec: NormalizedExecution, side: 'BUY' | 'SELL', commi
     brokerClientAccountId: exec.brokerClientAccountId,
     currency: exec.currency,
     orderType: exec.orderType,
-    rawPayload: exec.rawPayload,
+    netCash: exec.netCash,
+    commissionCurrency: exec.commissionCurrency,
+    orderTimeIso: exec.orderTimeIso,
   }
 }
 

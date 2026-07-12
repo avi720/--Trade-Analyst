@@ -40,7 +40,6 @@ function makeExec(brokerExecId: string, overrides: Partial<NormalizedExecution> 
     commission: 1,
     executedAt: new Date('2026-04-23T14:30:00Z'),
     currency: 'USD',
-    rawPayload: { source: 'concurrency-test' },
     ...overrides,
   }
 }

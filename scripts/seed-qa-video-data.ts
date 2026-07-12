@@ -412,7 +412,6 @@ async function insertOne(t: TradeTemplate, seq: number) {
       brokerOrderId: orderIdOpen,
       brokerClientAccountId: t.account,
       netCash: openNetCash,
-      rawPayload: { broker: t.broker, seed: 'QA-VIDEO' },
     },
     {
       tradeId: tradeRow.id,
@@ -430,7 +429,6 @@ async function insertOne(t: TradeTemplate, seq: number) {
       brokerOrderId: orderIdClose,
       brokerClientAccountId: t.account,
       netCash: closeNetCash,
-      rawPayload: { broker: t.broker, seed: 'QA-VIDEO' },
     },
   ]
 

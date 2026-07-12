@@ -86,8 +86,8 @@ async function main() {
         totalCommission: commission * 2, result: 'Win',
       },
       [
-        { userId: USER_ID, side: 'BUY', quantity: t.qty, price: t.entry, commission, executedAt: openedAt, brokerExecId: nextExecId(), brokerOrderId: nextOrderId(), rawPayload: {} },
-        { userId: USER_ID, side: 'SELL', quantity: t.qty, price: t.exit, commission, executedAt: closedAt, brokerExecId: nextExecId(), brokerOrderId: nextOrderId(), rawPayload: {} },
+        { userId: USER_ID, side: 'BUY', quantity: t.qty, price: t.entry, commission, executedAt: openedAt, brokerExecId: nextExecId(), brokerOrderId: nextOrderId() },
+        { userId: USER_ID, side: 'SELL', quantity: t.qty, price: t.exit, commission, executedAt: closedAt, brokerExecId: nextExecId(), brokerOrderId: nextOrderId() },
       ]
     )
   }
@@ -118,8 +118,8 @@ async function main() {
         result: actualR >= -0.1 ? 'Breakeven' : 'Loss',
       },
       [
-        { userId: USER_ID, side: 'BUY', quantity: t.qty, price: t.entry, commission, executedAt: openedAt, brokerExecId: nextExecId(), brokerOrderId: nextOrderId(), rawPayload: {} },
-        { userId: USER_ID, side: 'SELL', quantity: t.qty, price: t.exit, commission, executedAt: closedAt, brokerExecId: nextExecId(), brokerOrderId: nextOrderId(), rawPayload: {} },
+        { userId: USER_ID, side: 'BUY', quantity: t.qty, price: t.entry, commission, executedAt: openedAt, brokerExecId: nextExecId(), brokerOrderId: nextOrderId() },
+        { userId: USER_ID, side: 'SELL', quantity: t.qty, price: t.exit, commission, executedAt: closedAt, brokerExecId: nextExecId(), brokerOrderId: nextOrderId() },
       ]
     )
   }
@@ -147,8 +147,8 @@ async function main() {
         totalCommission: commission * 2, result: 'Win',
       },
       [
-        { userId: USER_ID, side: 'SELL', quantity: t.qty, price: t.entry, commission, executedAt: openedAt, brokerExecId: nextExecId(), brokerOrderId: nextOrderId(), rawPayload: {} },
-        { userId: USER_ID, side: 'BUY', quantity: t.qty, price: t.exit, commission, executedAt: closedAt, brokerExecId: nextExecId(), brokerOrderId: nextOrderId(), rawPayload: {} },
+        { userId: USER_ID, side: 'SELL', quantity: t.qty, price: t.entry, commission, executedAt: openedAt, brokerExecId: nextExecId(), brokerOrderId: nextOrderId() },
+        { userId: USER_ID, side: 'BUY', quantity: t.qty, price: t.exit, commission, executedAt: closedAt, brokerExecId: nextExecId(), brokerOrderId: nextOrderId() },
       ]
     )
   }
@@ -175,8 +175,8 @@ async function main() {
         totalCommission: commission * 2, result: 'Loss',
       },
       [
-        { userId: USER_ID, side: 'SELL', quantity: t.qty, price: t.entry, commission, executedAt: openedAt, brokerExecId: nextExecId(), brokerOrderId: nextOrderId(), rawPayload: {} },
-        { userId: USER_ID, side: 'BUY', quantity: t.qty, price: t.exit, commission, executedAt: closedAt, brokerExecId: nextExecId(), brokerOrderId: nextOrderId(), rawPayload: {} },
+        { userId: USER_ID, side: 'SELL', quantity: t.qty, price: t.entry, commission, executedAt: openedAt, brokerExecId: nextExecId(), brokerOrderId: nextOrderId() },
+        { userId: USER_ID, side: 'BUY', quantity: t.qty, price: t.exit, commission, executedAt: closedAt, brokerExecId: nextExecId(), brokerOrderId: nextOrderId() },
       ]
     )
   }
@@ -189,7 +189,7 @@ async function main() {
       avgEntryPrice: 920, totalQuantity: 10, totalQuantityOpened: 10,
       stopPrice: 910, totalCommission: 1.5, realizedPnl: 0,
     },
-    [{ userId: USER_ID, side: 'BUY', quantity: 10, price: 920, commission: 1.5, executedAt: daysAgo(5), brokerExecId: nextExecId(), brokerOrderId: nextOrderId(), rawPayload: {} }]
+    [{ userId: USER_ID, side: 'BUY', quantity: 10, price: 920, commission: 1.5, executedAt: daysAgo(5), brokerExecId: nextExecId(), brokerOrderId: nextOrderId() }]
   )
 
   // ─── OPEN LONG (scale-in) ──────────────────────────────────────────────
@@ -202,8 +202,8 @@ async function main() {
       stopPrice: 195, totalCommission: 3, realizedPnl: 0,
     },
     [
-      { userId: USER_ID, side: 'BUY', quantity: 100, price: 200, commission: 1.5, executedAt: daysAgo(8), brokerExecId: nextExecId(), brokerOrderId: nextOrderId(), rawPayload: {} },
-      { userId: USER_ID, side: 'BUY', quantity: 50, price: 205, commission: 1.5, executedAt: daysAgo(7), brokerExecId: nextExecId(), brokerOrderId: nextOrderId(), rawPayload: {} },
+      { userId: USER_ID, side: 'BUY', quantity: 100, price: 200, commission: 1.5, executedAt: daysAgo(8), brokerExecId: nextExecId(), brokerOrderId: nextOrderId() },
+      { userId: USER_ID, side: 'BUY', quantity: 50, price: 205, commission: 1.5, executedAt: daysAgo(7), brokerExecId: nextExecId(), brokerOrderId: nextOrderId() },
     ]
   )
 
@@ -215,7 +215,7 @@ async function main() {
       avgEntryPrice: 11, totalQuantity: 500, totalQuantityOpened: 500,
       stopPrice: 10.5, totalCommission: 1.5, realizedPnl: 0,
     },
-    [{ userId: USER_ID, side: 'BUY', quantity: 500, price: 11, commission: 1.5, executedAt: daysAgo(3), brokerExecId: nextExecId(), brokerOrderId: nextOrderId(), rawPayload: {} }]
+    [{ userId: USER_ID, side: 'BUY', quantity: 500, price: 11, commission: 1.5, executedAt: daysAgo(3), brokerExecId: nextExecId(), brokerOrderId: nextOrderId() }]
   )
 
   // ─── OPEN SHORT ────────────────────────────────────────────────────────
@@ -226,7 +226,7 @@ async function main() {
       avgEntryPrice: 15, totalQuantity: 200, totalQuantityOpened: 200,
       stopPrice: 16, totalCommission: 1.5, realizedPnl: 0,
     },
-    [{ userId: USER_ID, side: 'SELL', quantity: 200, price: 15, commission: 1.5, executedAt: daysAgo(2), brokerExecId: nextExecId(), brokerOrderId: nextOrderId(), rawPayload: {} }]
+    [{ userId: USER_ID, side: 'SELL', quantity: 200, price: 15, commission: 1.5, executedAt: daysAgo(2), brokerExecId: nextExecId(), brokerOrderId: nextOrderId() }]
   )
   await insertTradeWithOrders(
     {
@@ -235,7 +235,7 @@ async function main() {
       avgEntryPrice: 28, totalQuantity: 150, totalQuantityOpened: 150,
       stopPrice: 29.5, totalCommission: 1.5, realizedPnl: 0,
     },
-    [{ userId: USER_ID, side: 'SELL', quantity: 150, price: 28, commission: 1.5, executedAt: daysAgo(1), brokerExecId: nextExecId(), brokerOrderId: nextOrderId(), rawPayload: {} }]
+    [{ userId: USER_ID, side: 'SELL', quantity: 150, price: 28, commission: 1.5, executedAt: daysAgo(1), brokerExecId: nextExecId(), brokerOrderId: nextOrderId() }]
   )
 
   // ─── PARTIAL FILLS (closed) ────────────────────────────────────────────
@@ -253,10 +253,10 @@ async function main() {
       result: 'Win',
     },
     [
-      { userId: USER_ID, side: 'BUY', quantity: 50, price: 100, commission: 1.5, executedAt: daysAgo(15), brokerExecId: nextExecId(), brokerOrderId: pf1OrderId, rawPayload: {} },
-      { userId: USER_ID, side: 'BUY', quantity: 50, price: 101, commission: 1.5, executedAt: new Date(new Date(daysAgo(15)).getTime() + 30_000).toISOString(), brokerExecId: nextExecId(), brokerOrderId: pf1OrderId, rawPayload: {} },
-      { userId: USER_ID, side: 'BUY', quantity: 50, price: 102, commission: 1.5, executedAt: new Date(new Date(daysAgo(15)).getTime() + 60_000).toISOString(), brokerExecId: nextExecId(), brokerOrderId: pf1OrderId, rawPayload: {} },
-      { userId: USER_ID, side: 'SELL', quantity: 150, price: 108, commission: 1.5, executedAt: daysAgo(12), brokerExecId: nextExecId(), brokerOrderId: nextOrderId(), rawPayload: {} },
+      { userId: USER_ID, side: 'BUY', quantity: 50, price: 100, commission: 1.5, executedAt: daysAgo(15), brokerExecId: nextExecId(), brokerOrderId: pf1OrderId },
+      { userId: USER_ID, side: 'BUY', quantity: 50, price: 101, commission: 1.5, executedAt: new Date(new Date(daysAgo(15)).getTime() + 30_000).toISOString(), brokerExecId: nextExecId(), brokerOrderId: pf1OrderId },
+      { userId: USER_ID, side: 'BUY', quantity: 50, price: 102, commission: 1.5, executedAt: new Date(new Date(daysAgo(15)).getTime() + 60_000).toISOString(), brokerExecId: nextExecId(), brokerOrderId: pf1OrderId },
+      { userId: USER_ID, side: 'SELL', quantity: 150, price: 108, commission: 1.5, executedAt: daysAgo(12), brokerExecId: nextExecId(), brokerOrderId: nextOrderId() },
     ]
   )
 
@@ -271,9 +271,9 @@ async function main() {
       stopPrice: 490, totalCommission: 4.5, realizedPnl: 0,
     },
     [
-      { userId: USER_ID, side: 'BUY', quantity: 40, price: 500, commission: 1.5, executedAt: daysAgo(4), brokerExecId: nextExecId(), brokerOrderId: pf2OrderId, rawPayload: {} },
-      { userId: USER_ID, side: 'BUY', quantity: 40, price: 502, commission: 1.5, executedAt: new Date(new Date(daysAgo(4)).getTime() + 20_000).toISOString(), brokerExecId: nextExecId(), brokerOrderId: pf2OrderId, rawPayload: {} },
-      { userId: USER_ID, side: 'BUY', quantity: 20, price: 498, commission: 1.5, executedAt: new Date(new Date(daysAgo(4)).getTime() + 40_000).toISOString(), brokerExecId: nextExecId(), brokerOrderId: pf2OrderId, rawPayload: {} },
+      { userId: USER_ID, side: 'BUY', quantity: 40, price: 500, commission: 1.5, executedAt: daysAgo(4), brokerExecId: nextExecId(), brokerOrderId: pf2OrderId },
+      { userId: USER_ID, side: 'BUY', quantity: 40, price: 502, commission: 1.5, executedAt: new Date(new Date(daysAgo(4)).getTime() + 20_000).toISOString(), brokerExecId: nextExecId(), brokerOrderId: pf2OrderId },
+      { userId: USER_ID, side: 'BUY', quantity: 20, price: 498, commission: 1.5, executedAt: new Date(new Date(daysAgo(4)).getTime() + 40_000).toISOString(), brokerExecId: nextExecId(), brokerOrderId: pf2OrderId },
     ]
   )
 
@@ -294,8 +294,8 @@ async function main() {
       result: 'Loss',
     },
     [
-      { userId: USER_ID, side: 'BUY', quantity: 100, price: reversalEntry, commission: 1.5, executedAt: reversalOpen, brokerExecId: nextExecId(), brokerOrderId: nextOrderId(), rawPayload: {} },
-      { userId: USER_ID, side: 'SELL', quantity: 100, price: reversalExit, commission: 1.5, executedAt: reversalClose, brokerExecId: nextExecId(), brokerOrderId: nextOrderId(), rawPayload: {} },
+      { userId: USER_ID, side: 'BUY', quantity: 100, price: reversalEntry, commission: 1.5, executedAt: reversalOpen, brokerExecId: nextExecId(), brokerOrderId: nextOrderId() },
+      { userId: USER_ID, side: 'SELL', quantity: 100, price: reversalExit, commission: 1.5, executedAt: reversalClose, brokerExecId: nextExecId(), brokerOrderId: nextOrderId() },
     ]
   )
   await insertTradeWithOrders(
@@ -305,7 +305,7 @@ async function main() {
       avgEntryPrice: reversalExit, totalQuantity: 100, totalQuantityOpened: 100,
       stopPrice: 222, totalCommission: 1.5, realizedPnl: 0,
     },
-    [{ userId: USER_ID, side: 'SELL', quantity: 100, price: reversalExit, commission: 1.5, executedAt: reversalClose, brokerExecId: nextExecId(), brokerOrderId: nextOrderId(), rawPayload: {} }]
+    [{ userId: USER_ID, side: 'SELL', quantity: 100, price: reversalExit, commission: 1.5, executedAt: reversalClose, brokerExecId: nextExecId(), brokerOrderId: nextOrderId() }]
   )
 
   const { count: tradeCount } = await supabase

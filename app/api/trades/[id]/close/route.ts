@@ -79,10 +79,9 @@ export async function POST(
     executedAt,
     currency: 'USD', // fallback — Order.currency stays for the close; trade currency itself doesn't move
     orderType: undefined,
-    rawPayload: {
-      // Tag the close source so it's distinguishable in raw logs.
-      _manualClose: true,
-    },
+    netCash: null,
+    commissionCurrency: 'USD',
+    orderTimeIso: null,
   }
 
   const results = await processExecutions([exec], user.id)

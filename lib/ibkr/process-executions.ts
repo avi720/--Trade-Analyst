@@ -8,7 +8,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { matchExecution } from "@/lib/trade/fifo";
 import { validateStk } from "@/lib/ibkr/parse-flex-xml";
-import { parseIbkrDate } from "@/lib/ibkr/parse-date";
 import type { Database, TablesInsert, Json } from "@/lib/db/types";
 import type {
   NormalizedExecution,
@@ -65,7 +64,6 @@ function buildOrderInsert(
   tradeId: string,
   userId: string
 ): TablesInsert<"Order"> {
-  const raw = order.rawPayload as Record<string, unknown>;
   return {
     id: crypto.randomUUID(),
     tradeId,
@@ -80,24 +78,9 @@ function buildOrderInsert(
     brokerClientAccountId: order.brokerClientAccountId ?? null,
     currency: order.currency ?? null,
     orderType: order.orderType ?? null,
-    rawPayload: order.rawPayload as unknown as Json,
-    // camelCase (real IBKR) takes priority; PascalCase as fallback for test fixtures
-    netCash: raw.netCash != null
-      ? Number(raw.netCash)
-      : raw.NetCash != null
-        ? Number(raw.NetCash)
-        : null,
-    commissionCurrency: (raw.ibCommissionCurrency ?? raw.CommissionCurrency) as string | null ?? null,
-    // orderTime: manual entries store a pre-parsed ISO string under _manualOrderTime
-    // to bypass IBKR date parsing. IBKR entries use camelCase "orderTime" / PascalCase
-    // "OrderTime" in "dd/MM/yyyy;HH:mm:ss TZ" format and must go through parseIbkrDate.
-    orderTime: (() => {
-      if (typeof raw._manualOrderTime === "string") return raw._manualOrderTime;
-      const raw_ot = raw.orderTime ?? raw.OrderTime;
-      if (typeof raw_ot !== "string") return null;
-      const parsed = parseIbkrDate(raw_ot);
-      return parsed ? parsed.toISOString() : null;
-    })(),
+    netCash: order.netCash ?? null,
+    commissionCurrency: order.commissionCurrency ?? null,
+    orderTime: order.orderTimeIso ?? null,
   };
 }
 

@@ -9,7 +9,6 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { matchExecution } from '@/lib/trade/fifo'
 import type { NormalizedExecution } from '@/types/trade'
 import { createAdminClient } from '@/lib/supabase/admin'
-import type { Json } from '@/lib/db/types'
 
 const DB_AVAILABLE =
   !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -32,7 +31,6 @@ const baseExec: NormalizedExecution = {
   commission: 1.0,
   executedAt: new Date('2026-04-23T14:30:00Z'),
   currency: 'USD',
-  rawPayload: { source: 'integration-test' },
 }
 
 describe.skipIf(!DB_AVAILABLE)('FIFO → DB integration', () => {
@@ -111,7 +109,6 @@ describe.skipIf(!DB_AVAILABLE)('FIFO → DB integration', () => {
         executedAt: orderCreate.executedAt.toISOString(),
         brokerExecId: orderCreate.brokerExecId,
         brokerOrderId: orderCreate.brokerOrderId ?? null,
-        rawPayload: orderCreate.rawPayload as Json,
       })
       .select('*')
       .single()
@@ -155,7 +152,6 @@ describe.skipIf(!DB_AVAILABLE)('FIFO → DB integration', () => {
       commission: 0.5,
       executedAt: new Date().toISOString(),
       brokerExecId: 'INT-EXEC-001', // duplicate!
-      rawPayload: {},
     })
     expect(error).not.toBeNull()
     expect(error!.code).toBe('23505') // unique_violation

@@ -226,7 +226,6 @@ export type Database = {
           orderType: string | null
           price: number
           quantity: number
-          rawPayload: Json
           side: string
           tradeId: string
           userId: string
@@ -245,7 +244,6 @@ export type Database = {
           orderType?: string | null
           price: number
           quantity: number
-          rawPayload: Json
           side: string
           tradeId: string
           userId: string
@@ -264,7 +262,6 @@ export type Database = {
           orderType?: string | null
           price?: number
           quantity?: number
-          rawPayload?: Json
           side?: string
           tradeId?: string
           userId?: string

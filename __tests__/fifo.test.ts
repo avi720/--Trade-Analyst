@@ -12,7 +12,6 @@ function exec(overrides: Partial<NormalizedExecution> & { side: NormalizedExecut
     price: 150,
     commission: 1,
     executedAt: NOW,
-    rawPayload: {},
     ...overrides,
   }
 }

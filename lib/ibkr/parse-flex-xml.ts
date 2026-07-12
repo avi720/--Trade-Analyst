@@ -114,6 +114,18 @@ function normalizeNode(node: Record<string, unknown>): NormalizedExecution | nul
   // AssetClass: PascalCase → "AssetClass", camelCase → "assetCategory"
   const assetClass = toString(node["AssetClass"] ?? node["assetCategory"]);
 
+  // netCash: PascalCase → "NetCash", camelCase → "netCash"
+  const netCashRaw = node["netCash"] ?? node["NetCash"];
+  const netCash = netCashRaw != null ? Number(netCashRaw) : null;
+  // commissionCurrency: PascalCase → "CommissionCurrency", camelCase → "ibCommissionCurrency"
+  const commissionCurrency = toString(node["ibCommissionCurrency"] ?? node["CommissionCurrency"]) ?? null;
+  // orderTime: PascalCase → "OrderTime", camelCase → "orderTime" — IBKR "dd/MM/yyyy;HH:mm:ss TZ" format.
+  // Parse at parse-time so downstream doesn't need to re-encounter the format.
+  const rawOrderTime = node["orderTime"] ?? node["OrderTime"];
+  const orderTimeIso = typeof rawOrderTime === "string"
+    ? (parseIbkrDate(rawOrderTime)?.toISOString() ?? null)
+    : null;
+
   return {
     brokerExecId: execId,
     // OrderID: PascalCase → "OrderID", camelCase → "ibOrderID"
@@ -131,7 +143,9 @@ function normalizeNode(node: Record<string, unknown>): NormalizedExecution | nul
     currency: toString(node["CurrencyPrimary"] ?? node["currency"]),
     // OrderType: PascalCase → "OrderType", camelCase → "orderType"
     orderType: toString(node["OrderType"] ?? node["orderType"]),
-    rawPayload: node,
+    netCash,
+    commissionCurrency,
+    orderTimeIso,
   };
 }
 
