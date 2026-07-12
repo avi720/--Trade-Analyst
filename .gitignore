@@ -24,3 +24,8 @@ tsconfig.tsbuildinfo
 npm-debug.log*
 .vercel
 .env*
+
+# Marketing campaign (private — not for public repo)
+/marketing-campaign
+.gitignore.marketing-additions
+
