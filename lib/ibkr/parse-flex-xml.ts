@@ -64,7 +64,7 @@ function resolveStatement(doc: Record<string, unknown>): Record<string, unknown>
  *
  * Returns null if required fields are missing or unparseable — caller skips these.
  */
-function normalizeNode(node: Record<string, unknown>): NormalizedExecution | null {
+function normalizeNode(node: Record<string, unknown>, broker: string): NormalizedExecution | null {
   // ExecID: PascalCase → "ExecID", camelCase → "ibExecID"
   const execId = toString(node["ExecID"] ?? node["ibExecID"]);
   if (!execId) {
@@ -146,12 +146,17 @@ function normalizeNode(node: Record<string, unknown>): NormalizedExecution | nul
     netCash,
     commissionCurrency,
     orderTimeIso,
+    broker,
   };
 }
 
 // Parses an Activity Flex Query XML response.
 // Node path: [FlexQueryResponse →] FlexStatements → FlexStatement → Trades → Trade[]
-export function parseActivityXml(xml: string): NormalizedExecution[] {
+// `broker` is stamped onto every execution so the persisted Order row records
+// which broker produced it. Today only IBKR uses this parser, but the shape is
+// reused whenever a new broker returns Flex-style XML — the caller decides the
+// broker identifier and the parser guarantees it lands on every exec.
+export function parseActivityXml(xml: string, broker: string = "IBKR"): NormalizedExecution[] {
   if (!xml || xml.trim() === "") return [];
 
   let doc: Record<string, unknown>;
@@ -175,7 +180,7 @@ export function parseActivityXml(xml: string): NormalizedExecution[] {
     : [];
 
   return nodes.flatMap((node) => {
-    const exec = normalizeNode(node);
+    const exec = normalizeNode(node, broker);
     return exec ? [exec] : [];
   });
 }

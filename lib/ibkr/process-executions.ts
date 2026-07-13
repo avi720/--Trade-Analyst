@@ -81,6 +81,7 @@ function buildOrderInsert(
     netCash: order.netCash ?? null,
     commissionCurrency: order.commissionCurrency ?? null,
     orderTime: order.orderTimeIso ?? null,
+    broker: order.broker ?? null,
   };
 }
 

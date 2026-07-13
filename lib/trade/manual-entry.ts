@@ -155,6 +155,7 @@ export function buildExecution(leg: ManualLeg, index: number): NormalizedExecuti
       leg.commissionCurrency?.trim().toUpperCase() ||
       leg.currency.trim().toUpperCase(),
     orderTimeIso: manualOrderTimeISO ?? null,
+    broker: leg.broker?.trim() || null,
   }
 }
 

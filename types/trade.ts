@@ -36,6 +36,7 @@ export interface NormalizedExecution {
   netCash?: number | null
   commissionCurrency?: string | null
   orderTimeIso?: string | null  // pre-parsed ISO instant (parseIbkrDate applied at parse time)
+  broker?: string | null        // e.g. 'IBKR', 'COLMEX' — chosen by the user in manual entry, injected by the IBKR parser
 }
 
 // Minimal snapshot of an existing open Trade passed to FIFO logic.
@@ -95,6 +96,7 @@ export interface OrderCreate {
   netCash?: number | null
   commissionCurrency?: string | null
   orderTimeIso?: string | null
+  broker?: string | null
 }
 
 export type FifoAction =

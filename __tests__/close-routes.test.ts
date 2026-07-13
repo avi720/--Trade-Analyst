@@ -81,14 +81,22 @@ interface MockTrade {
   notes: string | null
 }
 
-function setAdminWithTrade(trade: MockTrade | null) {
+function setAdminWithTrade(trade: MockTrade | null, openingBroker: string | null = 'IBKR') {
   const tradeBuilder = {
     select: () => tradeBuilder,
     eq: () => tradeBuilder,
     maybeSingle: async () => ({ data: trade, error: null }),
     update: () => ({ eq: () => ({ eq: async () => ({ error: null }) }) }),
   }
+  // P11: close route reads the opening Order's broker to inherit it onto the
+  // closing Order. Mock returns that broker; test can pass null to simulate a
+  // legacy pre-P11 row.
   const orderBuilder = {
+    select: () => orderBuilder,
+    eq: () => orderBuilder,
+    order: () => orderBuilder,
+    limit: () => orderBuilder,
+    maybeSingle: async () => ({ data: openingBroker != null ? { broker: openingBroker } : null, error: null }),
     insert: async () => ({ error: null }),
   }
   vi.mocked(createAdminClient).mockReturnValue({

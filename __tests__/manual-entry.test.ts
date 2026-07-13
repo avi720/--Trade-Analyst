@@ -81,6 +81,14 @@ describe('buildExecution', () => {
     expect(exec.currency).toBe('USD')
     expect(exec.assetClass).toBe('STK')
     expect(exec.commissionCurrency).toBe('USD')
+    // broker is null when the leg doesn't provide one — the user-facing
+    // dropdown is optional in the schema.
+    expect(exec.broker).toBeNull()
+  })
+
+  it('propagates broker from the leg to the execution (P11)', () => {
+    const exec = buildExecution({ ...validLeg, broker: 'COLMEX' }, 0)
+    expect(exec.broker).toBe('COLMEX')
   })
 
   it('normalizes ticker to uppercase', () => {

@@ -68,6 +68,18 @@ export async function POST(
   const executedAt = new Date(`${body.closeDate}T${body.closeTime}:00Z`)
   const brokerExecId = `MANUAL-CLOSE-${trade.id}-${executedAt.getTime()}`
 
+  // Inherit broker from the opening Order so all Orders on this Trade share a
+  // broker identity. Falls back to null if the opening row somehow lacks one
+  // (legacy pre-P11 rows may still be null; we don't invent a value).
+  const { data: openingOrder } = await admin
+    .from('Order')
+    .select('broker')
+    .eq('tradeId', trade.id)
+    .eq('userId', user.id)
+    .order('executedAt', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
   const exec: NormalizedExecution = {
     brokerExecId,
     ticker: trade.ticker,
@@ -82,6 +94,7 @@ export async function POST(
     netCash: null,
     commissionCurrency: 'USD',
     orderTimeIso: null,
+    broker: openingOrder?.broker ?? null,
   }
 
   const results = await processExecutions([exec], user.id)

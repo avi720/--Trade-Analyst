@@ -70,6 +70,7 @@ function buildOrderCreate(exec: NormalizedExecution, side: 'BUY' | 'SELL', commi
     netCash: exec.netCash,
     commissionCurrency: exec.commissionCurrency,
     orderTimeIso: exec.orderTimeIso,
+    broker: exec.broker,
   }
 }
 

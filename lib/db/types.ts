@@ -213,6 +213,7 @@ export type Database = {
       }
       Order: {
         Row: {
+          broker: string | null
           brokerClientAccountId: string | null
           brokerExecId: string
           brokerOrderId: string | null
@@ -231,6 +232,7 @@ export type Database = {
           userId: string
         }
         Insert: {
+          broker?: string | null
           brokerClientAccountId?: string | null
           brokerExecId: string
           brokerOrderId?: string | null
@@ -249,6 +251,7 @@ export type Database = {
           userId: string
         }
         Update: {
+          broker?: string | null
           brokerClientAccountId?: string | null
           brokerExecId?: string
           brokerOrderId?: string | null
