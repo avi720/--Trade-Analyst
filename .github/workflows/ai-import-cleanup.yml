@@ -1,0 +1,17 @@
+name: AI Import Cleanup
+
+# Purges uploaded xlsx files for terminal jobs older than the retention window
+# (job rows are kept as an audit trail; only the raw binary is removed).
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger AI-import cleanup
+        run: |
+          curl -f -X POST "${{ secrets.SITE_URL }}/api/cron/ai-import-cleanup" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
