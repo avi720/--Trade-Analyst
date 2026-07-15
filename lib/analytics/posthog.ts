@@ -32,6 +32,10 @@ export type FunnelEvent =
   | 'email_confirmed'
   | 'profile_completed'
   | 'first_trade_imported'
+  | 'ai_import_uploaded'
+  | 'ai_import_mapped'
+  | 'ai_import_confirmed'
+  | 'ai_import_failed'
 
 export function trackEvent(event: FunnelEvent, properties?: Record<string, unknown>): void {
   if (typeof window === 'undefined' || !ENABLED) return

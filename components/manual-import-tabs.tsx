@@ -6,25 +6,28 @@ import { Sparkles } from 'lucide-react'
 import { TradeEntryForm } from './trade-entry-form'
 import { ClosedTradeEntryForm } from './closed-trade-entry-form'
 import { TradeExcelImport } from './trade-excel-import'
+import { TradeAiImport } from './trade-ai-import'
 import { LockedFeatureOverlay } from './billing/locked-feature-overlay'
 import { cn } from '@/lib/utils/cn'
 import type { SubscriptionTier } from '@/lib/billing/tier'
 
-type Tab = 'manual' | 'closed' | 'excel'
+type Tab = 'manual' | 'closed' | 'excel' | 'ai'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'manual', label: 'טרייד פתוח' },
   { id: 'closed', label: 'טרייד סגור' },
   { id: 'excel', label: 'ייבוא Excel' },
+  { id: 'ai', label: 'ייבוא AI' },
 ]
 
 interface ManualImportTabsProps {
   userTier: SubscriptionTier
   tradeCount: number
   tradeLimit: number
+  defaultTimezone: string
 }
 
-export function ManualImportTabs({ userTier, tradeCount, tradeLimit }: ManualImportTabsProps) {
+export function ManualImportTabs({ userTier, tradeCount, tradeLimit, defaultTimezone }: ManualImportTabsProps) {
   const [tab, setTab] = useState<Tab>('manual')
   const tablistRef = useRef<HTMLDivElement>(null)
 
@@ -64,7 +67,7 @@ export function ManualImportTabs({ userTier, tradeCount, tradeLimit }: ManualImp
       >
         {TABS.map(t => {
           const isActive = tab === t.id
-          const showProDot = isFree && t.id === 'excel'
+          const showProDot = isFree && (t.id === 'excel' || t.id === 'ai')
           return (
             <button
               key={t.id}
@@ -131,6 +134,18 @@ export function ManualImportTabs({ userTier, tradeCount, tradeLimit }: ManualImp
           </LockedFeatureOverlay>
         ) : (
           <TradeExcelImport />
+        ))}
+      </div>
+      <div role="tabpanel" id="tabpanel-ai" aria-labelledby="tab-ai" hidden={tab !== 'ai'}>
+        {tab === 'ai' && (isFree ? (
+          <LockedFeatureOverlay
+            title="ייבוא Excel חכם עם AI"
+            description="העלה את קובץ ה-Excel האישי שלך בכל פורמט — מנוע AI יזהה את המבנה ויחלץ את הטריידים אוטומטית. זמין במסלול Pro."
+          >
+            <TradeAiImport defaultTimezone={defaultTimezone} />
+          </LockedFeatureOverlay>
+        ) : (
+          <TradeAiImport defaultTimezone={defaultTimezone} />
         ))}
       </div>
     </div>
