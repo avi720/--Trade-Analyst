@@ -3,10 +3,10 @@
  * repository_dispatch. Server-only.
  *
  * OPTIONAL: if AI_IMPORT_DISPATCH_TOKEN / AI_IMPORT_DISPATCH_REPO are not set,
- * this no-ops and the scheduled cron ("*​/5 * * * *") picks up the PENDING job
- * instead. When they ARE set, the job is processed within seconds of upload and
- * the schedule can be relaxed. Never throws — a failed dispatch must not fail
- * the upload; the cron is the safety net.
+ * this no-ops and the scheduled cron picks up the PENDING job instead (every
+ * 30 min). When they ARE set, the job is processed within seconds of upload.
+ * Never throws — a failed dispatch must not fail the upload; the cron is the
+ * safety net.
  */
 export async function fireWorkerDispatch(): Promise<void> {
   const token = process.env.AI_IMPORT_DISPATCH_TOKEN
