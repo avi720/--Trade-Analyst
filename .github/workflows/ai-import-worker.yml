@@ -2,13 +2,18 @@ name: AI Import Worker
 
 # Processes queued AI-Excel-import jobs off-Vercel (Gemini cascade can exceed
 # the Hobby 60s function limit). Triggered on-demand by the upload route via
-# repository_dispatch when a PAT is configured; the schedule is the safety net.
+# repository_dispatch (AI_IMPORT_DISPATCH_TOKEN/REPO configured in Vercel) —
+# that's the primary path, so uploads are processed within seconds. The
+# schedule below is only the safety net for a silently-failed dispatch (PAT
+# revoked/expired, rate limit, network blip) — worst case a job waits up to
+# 30 min instead of being stuck forever. Kept infrequent to save Actions
+# minutes since dispatch already handles the common case.
 on:
   repository_dispatch:
     types: [ai-import-requested]
   workflow_dispatch:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '*/30 * * * *'
 
 # Never run two drains at once — the second would just find an empty queue (or
 # contend on claims). Let an in-flight run finish rather than cancelling it.
