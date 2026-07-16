@@ -117,13 +117,29 @@ export function validateLeg(leg: ManualLeg, index: number): ManualEntryError[] {
   return errors
 }
 
+/**
+ * Deterministic dedup key for a manual/AI-imported leg. Must stay in lockstep
+ * with the executedAt buildExecution computes — annotation mapping downstream
+ * (persistManualLegs) reconstructs this exact id to attach Trade-level fields.
+ * Timezone-aware: a leg with a non-UTC timezone yields a tz-converted instant,
+ * so the key here MUST apply the same localToUtcIso conversion.
+ */
+export function manualBrokerExecId(leg: ManualLeg, index: number): string {
+  const ticker = leg.ticker.trim().toUpperCase()
+  const tz = leg.timezone && leg.timezone !== 'UTC' ? leg.timezone : null
+  const executedAt = new Date(
+    tz ? localToUtcIso(leg.date, leg.time, tz) : `${leg.date}T${leg.time}:00Z`
+  )
+  return `MANUAL-${ticker}-${executedAt.getTime()}-${index}`
+}
+
 export function buildExecution(leg: ManualLeg, index: number): NormalizedExecution {
   const ticker = leg.ticker.trim().toUpperCase()
   const tz = leg.timezone && leg.timezone !== 'UTC' ? leg.timezone : null
   const executedAt = new Date(
     tz ? localToUtcIso(leg.date, leg.time, tz) : `${leg.date}T${leg.time}:00Z`
   )
-  const brokerExecId = `MANUAL-${ticker}-${executedAt.getTime()}-${index}`
+  const brokerExecId = manualBrokerExecId(leg, index)
 
   // Compute ISO timestamp for Order.orderTime if the user provided an order placement date.
   // Stored as _manualOrderTime so buildOrderInsert can bypass IBKR date parsing.

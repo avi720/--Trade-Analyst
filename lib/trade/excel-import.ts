@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs'
 import type { ManualLeg } from './manual-entry'
+import { cellToPrimitive } from './ai-import/xlsx-cell'
 
 // Expected template column headers (case-insensitive, underscores/spaces normalised)
 const COL_ALIASES: Record<string, keyof ManualLeg> = {
@@ -119,24 +120,6 @@ function normalizeSide(raw: unknown): 'BUY' | 'SELL' {
   const s = String(raw).trim().toUpperCase()
   if (s === 'SELL' || s === 'S' || s === 'SHORT') return 'SELL'
   return 'BUY'
-}
-
-// Unwrap an exceljs cell value (which can be string, number, Date, formula result wrapper, or rich text)
-function cellToPrimitive(v: ExcelJS.CellValue): unknown {
-  if (v == null) return ''
-  if (typeof v === 'object') {
-    // Formula result: { formula, result }
-    if ('result' in v && v.result !== undefined) return v.result
-    // Rich text: { richText: [{ text }, ...] }
-    if ('richText' in v && Array.isArray(v.richText)) {
-      return v.richText.map((p) => p.text).join('')
-    }
-    // Hyperlink: { text, hyperlink }
-    if ('text' in v) return v.text
-    // Date
-    if (v instanceof Date) return v
-  }
-  return v
 }
 
 export interface ParseResult {

@@ -96,7 +96,15 @@ The Flex parser also has a dual-root quirk documented in the same rule file.
 Key implementation details:
 - `buildExecution()` populates `commissionCurrency` (falls back to leg `currency`) and `orderTimeIso` (pre-parsed ISO instant, or `null` if the leg didn't provide `orderPlacedDate`) as explicit fields on `NormalizedExecution`. `netCash` is IBKR-only and stays `null` for manual entries. The `broker` and `_manualClose` fields formerly stashed in `rawPayload` are gone — no downstream consumer.
 - `extractAnnotations()` strips Order-level fields and returns only Trade-level annotation fields ready for a Supabase `.update()` call.
-- The route (`app/api/trades/manual/route.ts`) calls `processExecutions` first (FIFO), then applies annotations to the resulting `tradeId` via the admin client.
+- The route (`app/api/trades/manual/route.ts`) calls `processExecutions` first (FIFO), then applies annotations to the resulting `tradeId` via the admin client. The persistence half of that flow (FIFO → annotation merge → manual-source tag → `recomputeActualR`) is extracted into `persistManualLegs(legs, userId)` in [lib/trade/persist-manual-legs.ts](lib/trade/persist-manual-legs.ts) (server-only) and reused by the AI-import confirm route. `manualBrokerExecId(leg, i)` in `manual-entry.ts` is the single source of the dedup key — annotation mapping reconstructs it timezone-aware (a leg's non-UTC tz shifts the instant, so the key must apply `localToUtcIso`).
+
+### AI custom-Excel import (Pro)
+
+Pro users upload a **personal** xlsx (arbitrary layout — merged cells, sub-tables, non-standard headers). Gemini maps/extracts it into `ManualLeg[]`; the user reviews an editable preview, and on confirm the legs flow through `persistManualLegs` (same FIFO path as manual entry). See [`docs/`—plan] and the modules under [lib/trade/ai-import/](lib/trade/ai-import/):
+
+- **`sample-workbook.ts`** → dense 2D cell arrays + merged ranges (cap 2000 rows). **`extract.ts`** → Gemini cascade returning a discriminated `AiMapping` (`mode:'mapping'` = deterministic `columnMap`+`transformations`; `mode:'extraction'` = AI-returned legs, chunked for big sheets). `responseMimeType:'application/json'` + Zod validation (no `responseSchema` — more robust for the union). Injectable `call` for tests. **`apply-mapping.ts`** applies a mapping deterministically; **`finalize-legs.ts`** injects the user-chosen timezone and strict-validates. **`process.ts`** orchestrates all four.
+- **Timezone is never AI-inferred** — it's a required field at upload (`ExcelImportJob.sourceTimezone`), passed as a hard param to `finalizeLegs`. Excel carries no tz; a guess would break FIFO chronology.
+- **Async off-Vercel**: upload route creates a `PENDING` `ExcelImportJob` + stores the file in the private `ai-imports` bucket, returns 202. A GitHub-Actions worker (`scripts/process-ai-import-queue.ts`, run via `tsx`) claims jobs through narrow Vercel proxy endpoints (`/api/cron/ai-import-{claim,status,result}`) — the worker holds **only** `CRON_SECRET`+`GEMINI_API_KEY`+`SITE_URL`, never the service-role key. See the Backfill/cron section.
 - IBKR imports set `netCash`/`commissionCurrency`/`orderTimeIso` at parse time in `parse-flex-xml.ts` (camelCase real IBKR takes priority over PascalCase legacy fixtures). `buildOrderInsert` reads these explicit fields directly.
 
 ## Backfill / cron behavior
@@ -104,6 +112,8 @@ Key implementation details:
 - **Backfill**: async — `POST /api/ibkr/backfill` returns 202; `GET` polls status. Uses `waitUntil()` from `@vercel/functions` (replaced `setImmediate` which was killed by Vercel after response).
 - **IBKR cron**: GitHub Actions fires at 13:00 & 20:00 UTC (`.github/workflows/ibkr-sync.yml`). Step 2 polls every 10s up to **4 attempts** (~40s); IBKR typically generates the statement within 1–2 attempts. If IBKR is slow and all 4 attempts fail, `IbkrTransientError` is thrown → `lastSyncAt` is not updated → next cron run retries automatically.
 - **Massive price cron**: currently disabled (see Massive note above).
+- **AI-import worker** (`.github/workflows/ai-import-worker.yml`): drains up to 5 queued `ExcelImportJob`s per run. Primary trigger is on-demand `repository_dispatch` from the upload route (requires `AI_IMPORT_DISPATCH_TOKEN`/`AI_IMPORT_DISPATCH_REPO` set in Vercel — processes within seconds); a `*/30 * * * *` schedule is only the safety net for a silently-failed dispatch (kept infrequent to save Actions minutes since dispatch handles the common case). `concurrency` guard prevents overlapping drains. Claims are atomic (`claim_excel_import_job()` RPC, `FOR UPDATE SKIP LOCKED`). **AI-import watchdog** (`*/15`): fails jobs stuck in an in-flight state >15 min (`errorMessage='timeout_watchdog'`). **AI-import cleanup** (daily `0 3`): removes uploaded xlsx files for terminal jobs older than 7 days (job row kept as audit). Watchdog + cleanup are curl-to-Vercel like `ibkr-sync.yml`.
+- **GitHub Actions secrets for the worker**: `SITE_URL`, `CRON_SECRET`, `GEMINI_API_KEY` — least-privilege, **no** Supabase URL or service-role key on the runner.
 
 ## Env vars
 
@@ -131,6 +141,8 @@ The required names are listed in `.env.example` (do not commit values). Brief pu
 | `LEMONSQUEEZY_WEBHOOK_SECRET` | LS webhook signing secret (HMAC-SHA256) |
 | `LEMONSQUEEZY_DISCOUNT_CODE_LAUNCH_MONTHLY` | LS discount **code** (not ID) for launch promo monthly ($9.99 × 3mo). Optional — omit after promo ends. The LS checkout API attaches discounts via `checkout_data.discount_code`, not as a `relationships.discount`. |
 | `LEMONSQUEEZY_DISCOUNT_CODE_LAUNCH_ANNUAL` | LS discount **code** for launch promo annual ($99.99). Optional — omit after promo ends |
+| `AI_IMPORT_DISPATCH_TOKEN` | **Optional.** Fine-grained GitHub PAT (repo access, dispatch) so the AI-Excel-import upload route can `repository_dispatch` the worker for near-instant processing. Server-only. Omit → the `*/5` schedule in `ai-import-worker.yml` handles jobs instead. |
+| `AI_IMPORT_DISPATCH_REPO` | **Optional.** `owner/repo` target for the dispatch above. Server-only. Omit with the token to rely on the schedule. |
 
 When adding a new env var, follow [`.claude/rules/env-var-checklist.md`](.claude/rules/env-var-checklist.md).
 

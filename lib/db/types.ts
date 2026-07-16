@@ -211,6 +211,71 @@ export type Database = {
           },
         ]
       }
+      ExcelImportJob: {
+        Row: {
+          aiMapping: Json | null
+          completedAt: string | null
+          createdAt: string
+          errorMessage: string | null
+          extractedLegs: Json | null
+          fileSize: number
+          id: string
+          importSummary: Json | null
+          originalFilename: string
+          parseErrors: Json | null
+          rowCountRaw: number | null
+          sourceTimezone: string
+          status: string
+          storagePath: string
+          updatedAt: string
+          userId: string
+        }
+        Insert: {
+          aiMapping?: Json | null
+          completedAt?: string | null
+          createdAt?: string
+          errorMessage?: string | null
+          extractedLegs?: Json | null
+          fileSize: number
+          id?: string
+          importSummary?: Json | null
+          originalFilename: string
+          parseErrors?: Json | null
+          rowCountRaw?: number | null
+          sourceTimezone: string
+          status?: string
+          storagePath: string
+          updatedAt?: string
+          userId: string
+        }
+        Update: {
+          aiMapping?: Json | null
+          completedAt?: string | null
+          createdAt?: string
+          errorMessage?: string | null
+          extractedLegs?: Json | null
+          fileSize?: number
+          id?: string
+          importSummary?: Json | null
+          originalFilename?: string
+          parseErrors?: Json | null
+          rowCountRaw?: number | null
+          sourceTimezone?: string
+          status?: string
+          storagePath?: string
+          updatedAt?: string
+          userId?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ExcelImportJob_userId_fkey"
+            columns: ["userId"]
+            isOneToOne: false
+            referencedRelation: "User"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       Order: {
         Row: {
           broker: string | null
@@ -476,6 +541,33 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_excel_import_job: {
+        Args: never
+        Returns: {
+          aiMapping: Json | null
+          completedAt: string | null
+          createdAt: string
+          errorMessage: string | null
+          extractedLegs: Json | null
+          fileSize: number
+          id: string
+          importSummary: Json | null
+          originalFilename: string
+          parseErrors: Json | null
+          rowCountRaw: number | null
+          sourceTimezone: string
+          status: string
+          storagePath: string
+          updatedAt: string
+          userId: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "ExcelImportJob"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       rate_limit_check: {
         Args: { p_key: string; p_limit: number; p_window_seconds: number }
         Returns: {

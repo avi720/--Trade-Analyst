@@ -1,0 +1,17 @@
+name: AI Import Watchdog
+
+# Fails jobs wedged in an in-flight state (worker crash / lost run) so the UI
+# never shows an eternal "processing".
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger AI-import watchdog
+        run: |
+          curl -f -X POST "${{ secrets.SITE_URL }}/api/cron/ai-import-watchdog" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
