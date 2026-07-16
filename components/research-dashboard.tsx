@@ -16,8 +16,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useChatContext } from '@/lib/chat/chat-context'
-import { calcStats, equityCurve, rDistribution, setupPerformance } from '@/lib/utils/calculations'
-import { pnlByTicker, holdTimeVsR, pnlByDayOfWeek, pnlByHour } from '@/lib/utils/research-charts'
+import { computeResearchAggregates } from '@/lib/utils/research-aggregate'
 import { formatUsd } from '@/lib/utils/position-calc'
 import { InfoTooltip } from '@/components/info-tooltip'
 import { METRIC_INFO } from '@/components/research-info'
@@ -176,7 +175,12 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
   }, [closedTrades, dateFrom, dateTo, tickerFilter, setupFilter, directionFilter, resultFilter,
       execQualMin, execQualMax, holdHoursMin, holdHoursMax, holdUnit, rMin, rMax])
 
-  const stats = useMemo(() => calcStats(filteredTrades), [filteredTrades])
+  // P9: one single walk over filteredTrades produces both `stats` and the full
+  // `chartData` bundle. Previously the two useMemos below called ~9 helpers
+  // that each iterated the array independently (~18 passes total per recompute).
+  const aggregates = useMemo(() => computeResearchAggregates(filteredTrades), [filteredTrades])
+  const stats = aggregates.stats
+  const chartData: ChartData = aggregates
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -201,21 +205,6 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
     }, 300)
     return () => clearTimeout(timeout)
   }, [filteredTrades, stats, setContextData])
-
-  const chartData: ChartData = useMemo(() => {
-    const allHold = holdTimeVsR(filteredTrades)
-    return {
-      equity:    equityCurve(filteredTrades),
-      rdist:     rDistribution(filteredTrades),
-      setup:     setupPerformance(filteredTrades),
-      ticker:    pnlByTicker(filteredTrades),
-      holdWins:  allHold.filter(p => p.result === 'Win'),
-      holdLoss:  allHold.filter(p => p.result === 'Loss'),
-      holdOther: allHold.filter(p => p.result !== 'Win' && p.result !== 'Loss'),
-      dayofweek: pnlByDayOfWeek(filteredTrades),
-      hour:      pnlByHour(filteredTrades),
-    }
-  }, [filteredTrades])
 
   const chartRows = useMemo(() => groupChartsIntoRows(chartVisible), [chartVisible])
 
