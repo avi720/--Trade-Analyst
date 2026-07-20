@@ -488,6 +488,7 @@ export type Database = {
           email: string
           firstName: string | null
           id: string
+          isAdmin: boolean
           lastName: string | null
           lemonsqueezyCustomerId: string | null
           lemonsqueezySubscriptionId: string | null
@@ -506,6 +507,7 @@ export type Database = {
           email: string
           firstName?: string | null
           id?: string
+          isAdmin?: boolean
           lastName?: string | null
           lemonsqueezyCustomerId?: string | null
           lemonsqueezySubscriptionId?: string | null
@@ -524,6 +526,7 @@ export type Database = {
           email?: string
           firstName?: string | null
           id?: string
+          isAdmin?: boolean
           lastName?: string | null
           lemonsqueezyCustomerId?: string | null
           lemonsqueezySubscriptionId?: string | null

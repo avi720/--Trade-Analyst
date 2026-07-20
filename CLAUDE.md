@@ -73,6 +73,20 @@ Fonts: **IBM Plex Mono** (numbers) + **Assistant** (UI, Hebrew).
 
 - `reverse_position(...)` — atomic FIFO REVERSAL (close existing position + open opposite-side trade in one Postgres transaction). See [`.claude/rules/reverse-position-rpc.md`](.claude/rules/reverse-position-rpc.md) for the 11-param signature and the guard semantics.
 
+## Admin panel
+
+Private in-app admin surface at `/admin`, gated by the `User.isAdmin` boolean column. Not linked from any public UI — a "מנהל" tab appears in the header only when `isAdmin=true`, and both [app/(dashboard)/admin/layout.tsx](app/(dashboard)/admin/layout.tsx) and [app/(dashboard)/admin/page.tsx](app/(dashboard)/admin/page.tsx) re-check the flag and redirect to `/research` otherwise. RLS additionally lets an admin `SELECT` any `User` row via the `admins_select_all_users` policy (added in migration `add_user_is_admin_column`) so the users list works without service-role reads on the layout gate.
+
+To become an admin: `UPDATE "User" SET "isAdmin"=true WHERE email='…';` via Supabase MCP `execute_sql`. No self-service; the flag is set by the owner directly in Postgres.
+
+Phase 1 exposes a single feature — a users list with a per-row **Free ↔ Pro toggle** (`POST /api/admin/users/[userId]/toggle-tier`). The toggle:
+- Runs `requireAdmin()` from [lib/auth/require-admin.ts](lib/auth/require-admin.ts) (401/403 on failure).
+- Writes via `createAdminClient()` because billing columns are RLS-protected against authenticated-role writes (migration `harden_user_billing_write_paths`).
+- Sets `subscriptionTier` + a **fake** matching `subscriptionStatus` (`active` on upgrade, `cancelled` on downgrade) and `subscriptionRenewsAt` (`now + 30d` on upgrade, `null` on downgrade), so the profile ▸ מנוי tab reads a coherent state.
+- **Never touches `lemonsqueezyCustomerId` / `lemonsqueezySubscriptionId`** — a real Lemon Squeezy webhook can still overwrite the fake state cleanly.
+
+Its purpose is manual QA of Pro-gated flows (AI Excel import, chat Pro mode, IBKR connect, activity CSV export, unlimited manual entry) without waiting on a real Lemon Squeezy webhook.
+
 ## FIFO logic
 
 `matchExecution` in [lib/trade/fifo.ts](lib/trade/fifo.ts) is a pure function returning a `FifoAction` union (`OPEN | SCALE_IN | REDUCE | CLOSE | REVERSAL`). Persistence + concurrency handling live in [lib/ibkr/process-executions.ts](lib/ibkr/process-executions.ts).

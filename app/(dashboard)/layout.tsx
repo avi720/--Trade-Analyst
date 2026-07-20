@@ -22,11 +22,12 @@ export default async function DashboardLayout({
   // display preferences.
   const { data: existing } = await supabase
     .from('User')
-    .select('firstName')
+    .select('firstName, isAdmin')
     .eq('id', user.id)
     .maybeSingle()
 
   let firstName: string | null | undefined = existing?.firstName
+  let isAdmin = existing?.isAdmin ?? false
 
   if (!existing) {
     const userRow: TablesInsert<'User'> = {
@@ -37,12 +38,13 @@ export default async function DashboardLayout({
     const { data: inserted, error: insertError } = await supabase
       .from('User')
       .insert(userRow)
-      .select('firstName')
+      .select('firstName, isAdmin')
       .single()
     if (insertError) {
       console.error('[layout] User insert failed:', insertError)
     }
     firstName = inserted?.firstName
+    isAdmin = inserted?.isAdmin ?? false
   }
 
   // Funnel users with incomplete profiles (e.g. fresh Google sign-ins) into the signup wizard
@@ -56,7 +58,7 @@ export default async function DashboardLayout({
         דלג לתוכן הראשי
       </a>
       <div className="flex flex-col h-dvh overflow-hidden">
-        <Header userEmail={user.email} />
+        <Header userEmail={user.email} isAdmin={isAdmin} />
         <main id="main-content" className="flex-1 overflow-auto">
           {children}
         </main>

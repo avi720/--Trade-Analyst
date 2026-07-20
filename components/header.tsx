@@ -16,9 +16,10 @@ const TABS = [
 
 interface HeaderProps {
   userEmail?: string
+  isAdmin?: boolean
 }
 
-export function Header({ userEmail }: HeaderProps) {
+export function Header({ userEmail, isAdmin = false }: HeaderProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [dropdownOpen, setDropdownOpen] = useState(false)
@@ -99,6 +100,22 @@ export function Header({ userEmail }: HeaderProps) {
             {tab.label}
           </Link>
         ))}
+        {isAdmin && (
+          <Link
+            key="/admin"
+            href="/admin"
+            prefetch={false}
+            aria-current={pathname === '/admin' || pathname.startsWith('/admin/') ? 'page' : undefined}
+            className={cn(
+              'px-4 py-2 rounded-md text-base transition-colors border-b-2',
+              pathname === '/admin' || pathname.startsWith('/admin/')
+                ? 'bg-input-bg text-amber font-bold border-amber'
+                : 'text-text-dim font-medium hover:text-text-main hover:bg-panel-3 border-transparent'
+            )}
+          >
+            מנהל
+          </Link>
+        )}
       </nav>
 
       {/* Left side in RTL: chat toggle + sync indicator + user dropdown */}
