@@ -75,17 +75,28 @@ Fonts: **IBM Plex Mono** (numbers) + **Assistant** (UI, Hebrew).
 
 ## Admin panel
 
-Private in-app admin surface at `/admin`, gated by the `User.isAdmin` boolean column. Not linked from any public UI — a "מנהל" tab appears in the header only when `isAdmin=true`, and both [app/(dashboard)/admin/layout.tsx](app/(dashboard)/admin/layout.tsx) and [app/(dashboard)/admin/page.tsx](app/(dashboard)/admin/page.tsx) re-check the flag and redirect to `/research` otherwise. RLS additionally lets an admin `SELECT` any `User` row via the `admins_select_all_users` policy (added in migration `add_user_is_admin_column`) so the users list works without service-role reads on the layout gate.
+Private in-app admin surface at `/admin`, gated by the `User.isAdmin` boolean column. Not linked from any public UI — a "מנהל" tab appears in the header only when `isAdmin=true`, and both [app/(dashboard)/admin/layout.tsx](app/(dashboard)/admin/layout.tsx) and each sub-page re-check the flag and redirect to `/research` otherwise. RLS additionally lets an admin `SELECT` any `User` and `ExcelImportJob` row via the `admins_select_all_users` and `admins_select_all_excel_import_jobs` policies, both keyed off the `SECURITY DEFINER public.is_admin(uuid)` helper (needed to break the recursion the naive `EXISTS(SELECT ... FROM "User")` form causes).
+
+The rollout plan lives at [docs/in-progress/ADMIN-PANEL.md](docs/in-progress/ADMIN-PANEL.md) — Phase 1 shipped (users list + Free/Pro toggle), Phase 2 shipped (AI-import jobs viewer), Phases 3–4 pending.
 
 To become an admin: `UPDATE "User" SET "isAdmin"=true WHERE email='…';` via Supabase MCP `execute_sql`. No self-service; the flag is set by the owner directly in Postgres.
 
-Phase 1 exposes a single feature — a users list with a per-row **Free ↔ Pro toggle** (`POST /api/admin/users/[userId]/toggle-tier`). The toggle:
+`/admin` itself is a redirect to `/admin/users`. The sub-tabs sidebar ([components/admin/admin-layout.tsx](components/admin/admin-layout.tsx)) is a client-side RTL vertical tablist mirroring the profile page pattern — URL-driven active state, `ArrowUp/Down/Home/End` keyboard nav.
+
+**Phase 1 — Users list + Pro/Free toggle** (`/admin/users`, `POST /api/admin/users/[userId]/toggle-tier`):
 - Runs `requireAdmin()` from [lib/auth/require-admin.ts](lib/auth/require-admin.ts) (401/403 on failure).
 - Writes via `createAdminClient()` because billing columns are RLS-protected against authenticated-role writes (migration `harden_user_billing_write_paths`).
 - Sets `subscriptionTier` + a **fake** matching `subscriptionStatus` (`active` on upgrade, `cancelled` on downgrade) and `subscriptionRenewsAt` (`now + 30d` on upgrade, `null` on downgrade), so the profile ▸ מנוי tab reads a coherent state.
 - **Never touches `lemonsqueezyCustomerId` / `lemonsqueezySubscriptionId`** — a real Lemon Squeezy webhook can still overwrite the fake state cleanly.
 
-Its purpose is manual QA of Pro-gated flows (AI Excel import, chat Pro mode, IBKR connect, activity CSV export, unlimited manual entry) without waiting on a real Lemon Squeezy webhook.
+**Phase 2 — AI-import jobs viewer** (`/admin/jobs`, endpoints under `/api/admin/jobs/*`):
+- Lists the 200 most-recent `ExcelImportJob` rows across all users with a status filter (`PENDING`/`PARSING`/`AI_MAPPING`/`IMPORTING`/`AWAITING_CONFIRMATION`/`COMPLETED`/`FAILED`/`CANCELLED`). Owner-side view for debugging stuck imports.
+- **Reset** (`POST /api/admin/jobs/[jobId]/reset`) puts a job back to `PENDING` and clears `errorMessage` — the next worker drain (`repository_dispatch` or the `*/30` schedule) re-claims it via `claim_excel_import_job()`. Reset does NOT re-fire `repository_dispatch` (the app has no GitHub PAT).
+- **Delete** (`DELETE /api/admin/jobs/[jobId]`) removes the xlsx from the `ai-imports` bucket (best-effort log-and-continue) then hard-deletes the DB row. Returns 204.
+- **Detail modal** shows the full row — pretty-printed `aiMapping` (both `mode:'mapping'` and `mode:'extraction'` branches), first-20 `extractedLegs`, `parseErrors`, `importSummary`, `errorMessage`. Reset + delete are also reachable from the modal footer.
+- The table polls `GET /api/admin/jobs` every 5 seconds only while at least one visible row is non-terminal; polling stops when everything settles.
+
+The admin panel's purpose is manual QA of Pro-gated flows and hands-on recovery of stuck AI-import jobs — no impersonation, no session-swap.
 
 ## FIFO logic
 

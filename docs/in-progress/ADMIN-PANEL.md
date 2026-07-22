@@ -1,6 +1,6 @@
 # Admin section — Rollout plan (Phases 1–4)
 
-> **Status:** 🟡 ACTIVE — Phase 1 shipped 2026-07-20 (commit `5cde705`). Phases 2–4 pending.
+> **Status:** 🟡 ACTIVE — Phases 1–2 shipped (2026-07-20, 2026-07-22). Phases 3–4 pending.
 
 ## Overview
 
@@ -11,7 +11,7 @@ Phase map:
 | Phase | Scope | Status |
 |---|---|---|
 | **Phase 1** | Users list + Free/Pro tier toggle | ✅ Shipped 2026-07-20 (commit `5cde705`) |
-| **Phase 2** | AI-import jobs viewer + reset/delete | ⏳ Planned |
+| **Phase 2** | AI-import jobs viewer + reset/delete | ✅ Shipped 2026-07-22 |
 | **Phase 3** | IBKR sync trigger + BrokerEvent viewer + reprocess | ⏳ Planned |
 | **Phase 4** | System health dashboard (metrics + recent errors) | ⏳ Planned |
 
@@ -94,55 +94,55 @@ When a job hangs or dies with an obscure error there is nothing but Supabase SQL
 
 ### Phase 2 items
 
-- [ ] **B1. Migration — RLS policy: admins can SELECT any `ExcelImportJob`.**
+- [x] **B1. Migration — RLS policy: admins can SELECT any `ExcelImportJob`.**
   - **Where:** New Supabase MCP migration `add_admins_select_excel_import_jobs_policy` + regenerated [lib/db/types.ts](../../lib/db/types.ts).
   - **Issue:** Currently `ExcelImportJob` RLS is `userId = auth.uid()`. The admin SSR fetch bypasses this via service-role, but any code path that legitimately runs under the authenticated role (say, a future `/admin/jobs` sub-panel that pings a helper as the admin) would silently see zero rows.
   - **Acceptance:** New policy `admins_select_all_excel_import_jobs FOR SELECT TO authenticated USING (public.is_admin((SELECT auth.uid())))` exists in `pg_policies`. Types regenerated. `npm run build` clean.
 
-- [ ] **B2. Admin sub-tabs shell — `components/admin/admin-layout.tsx` (new).**
+- [x] **B2. Admin sub-tabs shell — `components/admin/admin-layout.tsx` (new).**
   - **Where:** New `components/admin/admin-layout.tsx` client component; new server helper file if a fetch of `isAdmin` metadata is needed by the shell (unlikely — the parent gate already ran).
   - **Issue:** With ≥2 admin sub-pages, a shared tablist keeps the "מנהל" header tab as the single entry point. Duplicating the header once per sub-page is bad for consistency and for adding future tabs cheaply.
   - **Acceptance:** RTL vertical sidebar mirrors [components/profile/profile-layout.tsx:40-190](../../components/profile/profile-layout.tsx). Tabs (as of Phase 2): "משתמשים", "ייבוא AI". URL-driven active state (`pathname` matches `/admin/users` or `/admin/jobs`). Keyboard navigation (`ArrowUp/Down/Home/End`, `role=tablist aria-orientation=vertical`) works. Verified by tabbing through with a screen reader and hearing each tab label.
 
-- [ ] **B3. Refactor Phase 1 users list into `/admin/users`.**
+- [x] **B3. Refactor Phase 1 users list into `/admin/users`.**
   - **Where:** Move current [app/(dashboard)/admin/page.tsx](../../app/(dashboard)/admin/page.tsx) contents into `app/(dashboard)/admin/users/page.tsx`. Replace the original with a `redirect('/admin/users')`.
   - **Issue:** The Phase 1 users list occupies `/admin` root. With sub-tabs it needs a proper URL segment so the tablist can highlight it and the header "מנהל" tab has a meaningful landing target.
   - **Acceptance:** `/admin` → 307 → `/admin/users`. `/admin/users` renders the exact same table as before (same columns, same toggle behavior, same optimistic reconciliation). Phase 1 verifications V2–V7 still pass verbatim against the new URL.
 
-- [ ] **B4. `/admin/jobs` page + `components/admin/admin-jobs-table.tsx` (new).**
+- [x] **B4. `/admin/jobs` page + `components/admin/admin-jobs-table.tsx` (new).**
   - **Where:** `app/(dashboard)/admin/jobs/page.tsx` (RSC + gate), `components/admin/admin-jobs-table.tsx` (client).
   - **Issue:** No cross-user visibility into the AI-import queue. When a user reports "my import is stuck", debugging today means opening Supabase SQL editor.
   - **Acceptance:** Table lists rows from `ExcelImportJob` newest first with columns: user email (JOIN), `originalFilename`, `status` badge (color-coded by state family — pending/in-flight blue, awaiting_confirmation amber, completed green, failed red), `errorMessage` (truncated), `createdAt`, `updatedAt`, action cell. Status filter dropdown (all / pending / in-flight / awaiting_confirmation / completed / failed). Verified by uploading a valid xlsx on the QA user, observing the row transition PENDING → PARSING → AI_MAPPING → AWAITING_CONFIRMATION → CONFIRMED without refresh (polling every 5 s).
 
-- [ ] **B5. `POST /api/admin/jobs/[jobId]/reset` (new).**
+- [x] **B5. `POST /api/admin/jobs/[jobId]/reset` (new).**
   - **Where:** `app/api/admin/jobs/[jobId]/reset/route.ts`.
   - **Issue:** Jobs that die with `errorMessage='timeout_watchdog'` or with a Gemini quota error need to be re-queued for the worker. Manual UPDATE via SQL is slow and error-prone.
   - **Acceptance:** `requireAdmin()` + UUID guard. `UPDATE ExcelImportJob SET status='PENDING', errorMessage=NULL, updatedAt=now() WHERE id=<jobId>`. Returns `{ id, status: 'PENDING' }`. Verified by resetting a real failed job (from B4's table), waiting for the next worker drain (≤30 min), and observing the job progress on the same table.
 
-- [ ] **B6. `DELETE /api/admin/jobs/[jobId]` (new).**
+- [x] **B6. `DELETE /api/admin/jobs/[jobId]` (new).**
   - **Where:** `app/api/admin/jobs/[jobId]/route.ts`.
   - **Issue:** Junk / abandoned jobs (user closed the tab, misuploaded a file) accumulate. The `ai-import-cleanup` GitHub Action clears xlsx blobs of terminal jobs older than 7 days but leaves the DB row as audit, and never touches non-terminal-but-stuck jobs.
   - **Acceptance:** `requireAdmin()` + UUID guard. Reads `storagePath`, calls `admin.storage.from('ai-imports').remove([storagePath])` (log-and-continue on failure), then `DELETE FROM ExcelImportJob WHERE id=<jobId>`. Returns `204`. Verified by uploading a xlsx, deleting via B6, and confirming both the job row is gone and the xlsx is no longer in the `ai-imports` bucket (Supabase Studio storage panel).
 
-- [ ] **B7. Job detail modal — view `aiMapping` / `extractedLegs` / `parseErrors`.**
+- [x] **B7. Job detail modal — view `aiMapping` / `extractedLegs` / `parseErrors`.**
   - **Where:** Extend `components/admin/admin-jobs-table.tsx` with an inline detail row or a side panel; new component `components/admin/admin-job-detail.tsx` if the row expands to more than ~150 lines.
   - **Issue:** The interesting fields on `ExcelImportJob` for debugging are JSON blobs. Truncated cells in the table hide them; a click-to-expand reveal lets the owner read the mapping decision Gemini made and the extracted legs preview without opening SQL.
   - **Acceptance:** Clicking a row opens a modal / expanding panel that pretty-prints `aiMapping` (with column-map or extraction-mode branch labelled), `extractedLegs` (first 20 rows), `parseErrors` (all), `importSummary` (all), `errorMessage`, and shows a "reset" and "delete" button that call B5/B6 with confirmation. All fields read-only. Verified by opening a completed job and a failed job and confirming the shape displays correctly for both discriminated union branches.
 
-- [ ] **B8. Docs — extend the CLAUDE.md admin section.**
+- [x] **B8. Docs — extend the CLAUDE.md admin section.**
   - **Where:** [CLAUDE.md](../../CLAUDE.md), the "Admin panel" section added in Phase 1.
   - **Issue:** Fresh reader (or fresh Claude session) needs to know Phase 2 exists, that `/admin` now redirects to `/admin/users`, and the semantic of reset vs delete.
   - **Acceptance:** New paragraph documents the AI-import jobs viewer, the reset (requeues) and delete (removes + storage cleanup) actions, and notes that reset does not re-fire the `repository_dispatch` — the `*/30` schedule handles it.
 
 ### Phase 2 verification
 
-- [ ] **V2.1.** `npm run build` + `npm run test:run` clean after B1's migration and types regen.
-- [ ] **V2.2.** Non-admin (`yadefam806@ameady.com`): `GET /admin/jobs` → 307 → `/research`. `POST /api/admin/jobs/<id>/reset` → 403. `DELETE /api/admin/jobs/<id>` → 403.
-- [ ] **V2.3.** Admin: `/admin/users` and `/admin/jobs` both reachable via the sub-tab sidebar. `/admin` → 307 → `/admin/users`.
-- [ ] **V2.4.** Upload a real xlsx on the QA user via `/manual-import`; the row appears in `/admin/jobs` and transitions through the status pipeline on a 5-second poll.
-- [ ] **V2.5.** Force a job into `errorMessage='timeout_watchdog'` (via `execute_sql`), click Reset, confirm DB row now `status='PENDING'` and re-picked up by the next worker drain.
-- [ ] **V2.6.** Click Delete on a completed job: DB row gone, xlsx gone from `ai-imports` bucket (verify via Supabase Storage UI).
-- [ ] **V2.7.** Detail modal renders correctly for a completed job (both `aiMapping.mode='mapping'` and `mode='extraction'` if both are reachable in the current data) and for a failed job (shows `errorMessage` prominently).
+- [x] **V2.1.** `npm run build` + `npm run test:run` clean after B1's migration and types regen.
+- [x] **V2.2.** Non-admin (`yadefam806@ameady.com`): `GET /admin/jobs` → 307 → `/research`. `POST /api/admin/jobs/<id>/reset` → 403. `DELETE /api/admin/jobs/<id>` → 403.
+- [x] **V2.3.** Admin: `/admin/users` and `/admin/jobs` both reachable via the sub-tab sidebar. `/admin` → 307 → `/admin/users`.
+- [x] **V2.4.** Upload a real xlsx on the QA user via `/manual-import`; the row appears in `/admin/jobs` and transitions through the status pipeline on a 5-second poll.
+- [x] **V2.5.** Force a job into `errorMessage='timeout_watchdog'` (via `execute_sql`), click Reset, confirm DB row now `status='PENDING'` and re-picked up by the next worker drain.
+- [x] **V2.6.** Click Delete on a completed job: DB row gone, xlsx gone from `ai-imports` bucket (verify via Supabase Storage UI).
+- [x] **V2.7.** Detail modal renders correctly for a completed job (both `aiMapping.mode='mapping'` and `mode='extraction'` if both are reachable in the current data) and for a failed job (shows `errorMessage` prominently).
 
 ### Phase 2 files touched (planned)
 

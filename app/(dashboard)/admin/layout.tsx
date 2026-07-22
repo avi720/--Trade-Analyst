@@ -1,12 +1,13 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { AdminLayout as AdminLayoutShell } from '@/components/admin/admin-layout'
 
 // Admin section gate. Mirrors the auth+redirect pattern in
 // app/(dashboard)/layout.tsx and layers on an isAdmin check. Inherits the
 // dashboard chrome (Header, ChatSidebar, main scroller) from the parent
-// (dashboard) group layout, so this file only wraps {children} in a
-// section-level container.
-export default async function AdminLayout({
+// (dashboard) group layout. Wraps {children} in the sub-tabs shell added
+// in Phase 2, which owns the vertical sidebar with sub-tab navigation.
+export default async function AdminSectionLayout({
   children,
 }: {
   children: React.ReactNode
@@ -26,5 +27,5 @@ export default async function AdminLayout({
 
   if (!data?.isAdmin) redirect('/research')
 
-  return <div className="h-full">{children}</div>
+  return <AdminLayoutShell>{children}</AdminLayoutShell>
 }
