@@ -77,7 +77,7 @@ Fonts: **IBM Plex Mono** (numbers) + **Assistant** (UI, Hebrew).
 
 Private in-app admin surface at `/admin`, gated by the `User.isAdmin` boolean column. Not linked from any public UI — a "מנהל" tab appears in the header only when `isAdmin=true`, and both [app/(dashboard)/admin/layout.tsx](app/(dashboard)/admin/layout.tsx) and each sub-page re-check the flag and redirect to `/research` otherwise. RLS additionally lets an admin `SELECT` any `User` and `ExcelImportJob` row via the `admins_select_all_users` and `admins_select_all_excel_import_jobs` policies, both keyed off the `SECURITY DEFINER public.is_admin(uuid)` helper (needed to break the recursion the naive `EXISTS(SELECT ... FROM "User")` form causes).
 
-The rollout plan lives at [docs/in-progress/ADMIN-PANEL.md](docs/in-progress/ADMIN-PANEL.md) — Phase 1 shipped (users list + Free/Pro toggle), Phase 2 shipped (AI-import jobs viewer), Phases 3–4 pending.
+The rollout plan lives at [docs/in-progress/ADMIN-PANEL.md](docs/in-progress/ADMIN-PANEL.md) — Phases 1–3 shipped (users list + Free/Pro toggle, AI-import jobs viewer, IBKR sync trigger + BrokerEvent viewer), Phase 4 pending (system health).
 
 To become an admin: `UPDATE "User" SET "isAdmin"=true WHERE email='…';` via Supabase MCP `execute_sql`. No self-service; the flag is set by the owner directly in Postgres.
 
@@ -96,7 +96,14 @@ To become an admin: `UPDATE "User" SET "isAdmin"=true WHERE email='…';` via Su
 - **Detail modal** shows the full row — pretty-printed `aiMapping` (both `mode:'mapping'` and `mode:'extraction'` branches), first-20 `extractedLegs`, `parseErrors`, `importSummary`, `errorMessage`. Reset + delete are also reachable from the modal footer.
 - The table polls `GET /api/admin/jobs` every 5 seconds only while at least one visible row is non-terminal; polling stops when everything settles.
 
-The admin panel's purpose is manual QA of Pro-gated flows and hands-on recovery of stuck AI-import jobs — no impersonation, no session-swap.
+**Phase 3 — IBKR sync trigger + BrokerEvent viewer** (`/admin/ibkr`, `/admin/broker-events`, endpoints under `/api/admin/ibkr/*` and `/api/admin/broker-events/*`):
+- **Sync pipeline extracted** from `app/api/cron/ibkr-sync/route.ts` into [lib/ibkr/sync-pipeline.ts](lib/ibkr/sync-pipeline.ts). Exports `syncOneConnection(admin, conn)` (single connection) and `syncActiveConnections(admin)` (fan out over `isActive=true`). The cron route becomes a thin caller; the admin trigger reuses the same code with no behavior drift.
+- `/admin/ibkr` lists every `BrokerConnection` with `lastSyncAt` / `lastSyncStatus` / `lastSyncError` and a **סנכרן עכשיו** button per active row.
+- **Manual sync** (`POST /api/admin/ibkr/[connectionId]/sync`) fires `syncOneConnection` through `waitUntil()` from `@vercel/functions` (same async pattern as `/api/ibkr/backfill`). Returns 202 immediately; the UI polls `GET /api/admin/ibkr` every 5 s while an in-flight sync exists.
+- `/admin/broker-events` lists every `BrokerEvent` across users, 50/page, filterable by `processingStatus`. Detail modal shows the full row + a `<pre>` of `rawPayload` (`xml` for `IBKR_FLEX` events, JSON otherwise). **Read-only** — no reprocess endpoint (dropped by owner decision 2026-07-22; the plan doc explains why).
+- RLS: three new additive `admins_select_all_*` policies (`BrokerConnection`, `BrokerEvent`, `AuditEvent`), keyed off the same `public.is_admin(uuid)` helper.
+
+The admin panel's purpose is manual QA of Pro-gated flows, hands-on recovery of stuck AI-import jobs, and on-demand IBKR syncs / audit inspection — no impersonation, no session-swap.
 
 ## FIFO logic
 

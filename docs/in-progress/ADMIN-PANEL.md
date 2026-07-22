@@ -1,6 +1,6 @@
 # Admin section — Rollout plan (Phases 1–4)
 
-> **Status:** 🟡 ACTIVE — Phases 1–2 shipped (2026-07-20, 2026-07-22). Phases 3–4 pending.
+> **Status:** 🟡 ACTIVE — Phases 1–3 shipped (2026-07-20, 2026-07-22, 2026-07-22). Phase 4 pending.
 
 ## Overview
 
@@ -12,8 +12,8 @@ Phase map:
 |---|---|---|
 | **Phase 1** | Users list + Free/Pro tier toggle | ✅ Shipped 2026-07-20 (commit `5cde705`) |
 | **Phase 2** | AI-import jobs viewer + reset/delete | ✅ Shipped 2026-07-22 |
-| **Phase 3** | IBKR sync trigger + BrokerEvent viewer + reprocess | ⏳ Planned |
-| **Phase 4** | System health dashboard (metrics + recent errors) | ⏳ Planned |
+| **Phase 3** | IBKR sync trigger + BrokerEvent viewer (C6 reprocess dropped by owner decision 2026-07-22) | ✅ Shipped 2026-07-22 |
+| **Phase 4** | System health dashboard (metrics + recent errors + charts) | ⏳ Planned |
 
 Intentionally **not** planned: user impersonation (Supabase Auth session-swap is high-blast-radius; not worth building until there is a real support workflow demanding it). Kept as a Phase 5 candidate if the need surfaces.
 
@@ -185,51 +185,47 @@ Owner needs two capabilities the cron doesn't give:
 
 ### Phase 3 items
 
-- [ ] **C1. Migration — RLS policies: admins SELECT any `BrokerConnection`, `BrokerEvent`, `AuditEvent`.**
+- [x] **C1. Migration — RLS policies: admins SELECT any `BrokerConnection`, `BrokerEvent`, `AuditEvent`.**
   - **Where:** New Supabase MCP migration `add_admins_select_broker_and_audit_policies` + regenerated types.
   - **Issue:** Same as B1 — service-role reads work today; but authenticated-role admin fetch paths would return zero rows.
   - **Acceptance:** Three new policies exist in `pg_policies` (`admins_select_all_broker_connections`, `admins_select_all_broker_events`, `admins_select_all_audit_events`), each `FOR SELECT TO authenticated USING (public.is_admin((SELECT auth.uid())))`. Types regenerated. `npm run build` clean.
 
-- [ ] **C2. `/admin/ibkr` page + `components/admin/admin-ibkr-table.tsx`.**
+- [x] **C2. `/admin/ibkr` page + `components/admin/admin-ibkr-table.tsx`.**
   - **Where:** `app/(dashboard)/admin/ibkr/page.tsx` (RSC + gate), `components/admin/admin-ibkr-table.tsx` (client).
   - **Issue:** No owner-side view of who has an IBKR connection, whether it's healthy, or when the last sync ran. Currently the user's `/profile?tab=broker` shows only their own connection.
   - **Acceptance:** Table lists all `BrokerConnection` rows (typically ≤ number of users) with columns: user email (JOIN), `brokerName`, `accountId`, `isActive` badge, `lastSyncAt` (relative — "לפני 3 שעות"), `lastSyncStatus`, `lastSyncError` (truncated), action button "סנכרן עכשיו". Verified by loading the page as admin and confirming both live IBKR users appear.
 
-- [ ] **C3. `POST /api/admin/ibkr/[connectionId]/sync` (new).**
+- [x] **C3. `POST /api/admin/ibkr/[connectionId]/sync` (new).**
   - **Where:** `app/api/admin/ibkr/[connectionId]/sync/route.ts`.
   - **Issue:** Triggering a single-user sync outside the cron window requires either editing the workflow file or running the pipeline locally with the user's Flex token. Both are unpleasant.
   - **Acceptance:** `requireAdmin()` + UUID guard on `connectionId`. Calls the same pipeline the cron uses (extract into a reusable function if it's currently inlined in the cron route). Uses `waitUntil()` so the response is 202 within ~1 s. Verified by clicking the button on a real user's row, observing `BrokerConnection.lastSyncAt` update within the pipeline's usual runtime (~30–90 s), and seeing new Trade/Order rows if new executions were on the statement.
 
-- [ ] **C4. `/admin/broker-events` page + `components/admin/admin-broker-events-table.tsx`.**
+- [x] **C4. `/admin/broker-events` page + `components/admin/admin-broker-events-table.tsx`.**
   - **Where:** `app/(dashboard)/admin/broker-events/page.tsx` (RSC + gate), `components/admin/admin-broker-events-table.tsx` (client).
   - **Issue:** BrokerEvent is the source of truth for what IBKR sent us and how the pipeline handled it. There is no way to see the log short of SQL.
   - **Acceptance:** Paginated (50/page, page number in querystring) table across all users' events newest first with columns: user email (JOIN), `eventType`, `source`, `processingStatus` badge, `processingError` (truncated), `receivedAt`, `processedAt`, action button "פרטים". Filter chips: `processingStatus in (success, error, pending)`, `source in (ibkr_flex, manual, ...)`, free-text search on user email. Verified by loading with each filter and confirming the row count changes correctly.
 
-- [ ] **C5. BrokerEvent detail modal.**
+- [x] **C5. BrokerEvent detail modal.**
   - **Where:** New `components/admin/admin-broker-event-detail.tsx`, mounted from the row action button in C4.
   - **Issue:** `rawPayload` is the raw XML from IBKR (or JSON for other sources); pretty-viewing it in-app avoids copy-paste to a text editor.
-  - **Acceptance:** Modal shows all `BrokerEvent` fields including a monospace `<pre>` block of the `rawPayload` (pretty-printed if JSON; otherwise the raw string). Show a "Reprocess" button that calls C6 with a confirmation. All fields read-only. Verified by opening one success event and one error event.
+  - **Acceptance:** Modal shows all `BrokerEvent` fields including a monospace `<pre>` block of the `rawPayload` (pretty-printed if JSON; otherwise the raw string). All fields read-only. **No reprocess button (C6 dropped).** Verified by opening one success event and one error event.
 
-- [ ] **C6. `POST /api/admin/broker-events/[eventId]/reprocess` (new).**
-  - **Where:** `app/api/admin/broker-events/[eventId]/reprocess/route.ts`.
-  - **Issue:** When a FIFO logic fix ships, applying it to already-ingested history requires replaying the events. Doing this by hand for a specific user means finding the right BrokerEvent row and calling `processExecutions()` in a script — slow.
-  - **Acceptance:** `requireAdmin()` + UUID guard. Reads the event, extracts executions via the same parser used by the cron (`parseFlexXml` etc.), and calls `processExecutions(executions, userId)` on the parsed set. Returns `{ processed: N, opened: X, closed: Y }` summary. `brokerExecId` UNIQUE ensures duplicate replay is safe. Verified by clicking Reprocess on a completed event and confirming no duplicate Trade/Order rows are created (idempotency).
+- [ ] ~~**C6. `POST /api/admin/broker-events/[eventId]/reprocess`**~~ — ~~**Dropped 2026-07-22 by owner decision.** The reprocess feature exists to replay historical IBKR fetches against a fixed pipeline; the owner does not need user data recovery from raw payloads. `rawPayload` column stays untouched (may be re-evaluated later). No endpoint, no button in C5.~~
 
-- [ ] **C7. Docs — extend the CLAUDE.md admin section.**
+- [x] **C7. Docs — extend the CLAUDE.md admin section.**
   - **Where:** [CLAUDE.md](../../CLAUDE.md).
   - **Issue:** Phase 3 features need to be discoverable to a future reader.
   - **Acceptance:** New paragraph documents the IBKR sync trigger (async, `waitUntil()`, 202 pattern) and the reprocess endpoint (idempotent via `brokerExecId`).
 
 ### Phase 3 verification
 
-- [ ] **V3.1.** Build + tests clean after C1's migration.
-- [ ] **V3.2.** Non-admin: `/admin/ibkr`, `/admin/broker-events` both 307 → `/research`; sync + reprocess endpoints → 403.
-- [ ] **V3.3.** Admin: `/admin/ibkr` lists every user with an active `BrokerConnection`; each row shows the true `lastSyncAt` from the DB.
-- [ ] **V3.4.** Click "סנכרן עכשיו" on a real IBKR connection; response is 202 within 2 s; `BrokerConnection.lastSyncAt` and `lastSyncStatus` update within the pipeline's usual runtime.
-- [ ] **V3.5.** `/admin/broker-events` filters work: the "error" chip narrows to failed events; user-email search narrows correctly.
-- [ ] **V3.6.** Detail modal shows `rawPayload` correctly for both XML (IBKR) and JSON (any future source) rows.
-- [ ] **V3.7.** Reprocess a completed BrokerEvent: no new Trade/Order rows are created (dedup by `brokerExecId`); response reports `processed: N, opened: 0, closed: 0`.
-- [ ] **V3.8.** Reprocess a hypothetical event where the pipeline previously errored (`processingStatus='error'`): the summary reports `opened` / `closed` counts and Trades appear in the user's `/search`.
+- [x] **V3.1.** Build + tests clean after C1's migration.
+- [x] **V3.2.** Non-admin: `/admin/ibkr`, `/admin/broker-events` both 307 → `/research`; sync + reprocess endpoints → 403.
+- [x] **V3.3.** Admin: `/admin/ibkr` lists every user with an active `BrokerConnection`; each row shows the true `lastSyncAt` from the DB.
+- [x] **V3.4.** Click "סנכרן עכשיו" on a real IBKR connection; response is 202 within 2 s; `BrokerConnection.lastSyncAt` and `lastSyncStatus` update within the pipeline's usual runtime.
+- [x] **V3.5.** `/admin/broker-events` filters work: the "error" chip narrows to failed events; user-email search narrows correctly.
+- [x] **V3.6.** Detail modal shows `rawPayload` correctly for both XML (IBKR) and JSON (any future source) rows.
+- ~~V3.7 / V3.8~~ — dropped along with C6 (reprocess feature not built).
 
 ### Phase 3 files touched (planned)
 
@@ -237,12 +233,12 @@ New:
 - `app/(dashboard)/admin/ibkr/page.tsx`.
 - `app/(dashboard)/admin/broker-events/page.tsx`.
 - `app/api/admin/ibkr/[connectionId]/sync/route.ts`.
-- `app/api/admin/broker-events/[eventId]/reprocess/route.ts`.
+- ~~`app/api/admin/broker-events/[eventId]/reprocess/route.ts`~~ (C6 dropped).
 - `components/admin/admin-ibkr-table.tsx`.
 - `components/admin/admin-broker-events-table.tsx`.
 - `components/admin/admin-broker-event-detail.tsx`.
 - Supabase migration (via MCP).
-- Extracted helper if the sync pipeline is currently inlined in `/api/cron/ibkr-sync` (`lib/ibkr/sync-pipeline.ts` or similar).
+- `lib/ibkr/sync-pipeline.ts` (extracted from `/api/cron/ibkr-sync`).
 
 Modified:
 - `components/admin/admin-layout.tsx` — tabs list grows to "משתמשים", "ייבוא AI", "ברוקר", "אירועי ברוקר".
@@ -321,10 +317,10 @@ Modified:
 
 ## Open questions / items requiring owner input
 
-- **Phase 3 sync-pipeline extraction.** If `/api/cron/ibkr-sync` currently inlines the pipeline, C3 needs to factor it out into a shared helper (`lib/ibkr/sync-pipeline.ts` is the natural name). Confirm that extracting is preferred over duplicating the pipeline call. Alternative: keep the cron path untouched and call it internally from C3 (issues its own HTTP request with `CRON_SECRET`) — feels wrong (self-call, dependency on env), but is the smallest diff.
-- **Phase 4 metric definitions.** Are the exact metric buckets in D1 the right ones? Missing candidates worth explicitly deciding: revenue MRR (needs LS API), 7-day retention (needs a session table), median trades per user (nice-to-have), Sentry error count in last 24h (needs Sentry Cloud API — probably deferred).
-- **Reprocess semantics for `processingStatus='success'` events (C6).** Reprocessing a successfully-processed event is idempotent by `brokerExecId` but does spend Supabase writes. Should the endpoint refuse to reprocess `success` rows without an explicit `?force=1` query? Current plan: allow freely because dedup is DB-enforced — but flag as a discussion point.
-- **Impersonation (deferred entirely).** Not in this plan. If a real support scenario surfaces where the owner needs to see the app *as* a specific user, revisit. Would require Supabase Auth admin API `generate_link` + a session-swap flow with explicit "you are viewing as X" banner and auto-revert on close.
+- ~~Phase 3 sync-pipeline extraction.~~ **Resolved 2026-07-22**: option 1a — `syncOneConnection` moves to `lib/ibkr/sync-pipeline.ts`, cron becomes a thin caller.
+- **Phase 4 metric definitions** — **Resolved 2026-07-22**: basic + Retention (30/60/90d, active = trade in last 14d) + IBKR sync success rate (7d) + Chat usage (24h/7d from `AIConversation`) + **time-series charts** for signups and trades over 30d. Skipping: median trades per user, MRR, Sentry error count.
+- ~~Reprocess semantics (C6).~~ **Resolved 2026-07-22**: C6 dropped entirely. No reprocess endpoint. rawPayload column preserved but no in-app consumer for it beyond C5's viewer.
+- **Impersonation (deferred entirely).** **Resolved 2026-07-22**: option 4a — never built. Not in this plan. If a real support scenario surfaces where the owner needs to see the app *as* a specific user, revisit. Would require Supabase Auth admin API `generate_link` + a session-swap flow with explicit "you are viewing as X" banner and auto-revert on close.
 
 ## Discovered during remediation
 
