@@ -544,6 +544,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_system_metrics: { Args: never; Returns: Json }
+      admin_table_sizes: {
+        Args: never
+        Returns: {
+          sizeBytes: number
+          tableName: string
+        }[]
+      }
+      admin_timeseries: {
+        Args: { days?: number }
+        Returns: {
+          day: string
+          signups: number
+          trades: number
+        }[]
+      }
       claim_excel_import_job: {
         Args: never
         Returns: {
@@ -571,6 +587,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      is_admin: { Args: { uid: string }; Returns: boolean }
       rate_limit_check: {
         Args: { p_key: string; p_limit: number; p_window_seconds: number }
         Returns: {

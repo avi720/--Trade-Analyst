@@ -2,7 +2,7 @@
 
 import { useRef } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { Users, FileSpreadsheet, Plug, Activity } from 'lucide-react'
+import { Users, FileSpreadsheet, Plug, Activity, HeartPulse } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 
 const TABS = [
@@ -10,6 +10,7 @@ const TABS = [
   { id: 'jobs', label: 'ייבוא AI', href: '/admin/jobs', icon: FileSpreadsheet },
   { id: 'ibkr', label: 'ברוקר', href: '/admin/ibkr', icon: Plug },
   { id: 'broker-events', label: 'אירועי ברוקר', href: '/admin/broker-events', icon: Activity },
+  { id: 'health', label: 'בריאות', href: '/admin/health', icon: HeartPulse },
 ] as const
 
 type TabId = (typeof TABS)[number]['id']

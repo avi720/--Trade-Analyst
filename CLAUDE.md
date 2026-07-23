@@ -77,7 +77,7 @@ Fonts: **IBM Plex Mono** (numbers) + **Assistant** (UI, Hebrew).
 
 Private in-app admin surface at `/admin`, gated by the `User.isAdmin` boolean column. Not linked from any public UI — a "מנהל" tab appears in the header only when `isAdmin=true`, and both [app/(dashboard)/admin/layout.tsx](app/(dashboard)/admin/layout.tsx) and each sub-page re-check the flag and redirect to `/research` otherwise. RLS additionally lets an admin `SELECT` any `User` and `ExcelImportJob` row via the `admins_select_all_users` and `admins_select_all_excel_import_jobs` policies, both keyed off the `SECURITY DEFINER public.is_admin(uuid)` helper (needed to break the recursion the naive `EXISTS(SELECT ... FROM "User")` form causes).
 
-The rollout plan lives at [docs/in-progress/ADMIN-PANEL.md](docs/in-progress/ADMIN-PANEL.md) — Phases 1–3 shipped (users list + Free/Pro toggle, AI-import jobs viewer, IBKR sync trigger + BrokerEvent viewer), Phase 4 pending (system health).
+The rollout plan lives at [docs/in-progress/ADMIN-PANEL.md](docs/in-progress/ADMIN-PANEL.md) — Phases 1–4 shipped (users list + Free/Pro toggle, AI-import jobs viewer, IBKR sync trigger + BrokerEvent viewer, system health dashboard).
 
 To become an admin: `UPDATE "User" SET "isAdmin"=true WHERE email='…';` via Supabase MCP `execute_sql`. No self-service; the flag is set by the owner directly in Postgres.
 
@@ -103,7 +103,15 @@ To become an admin: `UPDATE "User" SET "isAdmin"=true WHERE email='…';` via Su
 - `/admin/broker-events` lists every `BrokerEvent` across users, 50/page, filterable by `processingStatus`. Detail modal shows the full row + a `<pre>` of `rawPayload` (`xml` for `IBKR_FLEX` events, JSON otherwise). **Read-only** — no reprocess endpoint (dropped by owner decision 2026-07-22; the plan doc explains why).
 - RLS: three new additive `admins_select_all_*` policies (`BrokerConnection`, `BrokerEvent`, `AuditEvent`), keyed off the same `public.is_admin(uuid)` helper.
 
-The admin panel's purpose is manual QA of Pro-gated flows, hands-on recovery of stuck AI-import jobs, and on-demand IBKR syncs / audit inspection — no impersonation, no session-swap.
+**Phase 4 — System health dashboard** (`/admin/health`, read-only):
+- Three `SECURITY DEFINER STABLE` SQL functions in migration `add_admin_metrics_functions`, all self-gating on `public.is_admin(auth.uid())` (raise `admin_only` for non-admins) and granted only to `authenticated, service_role`:
+  - `admin_system_metrics()` → one JSON snapshot: users (total / Pro / Free / signups 7d), retention 30/60/90d (`active = user has an Order with executedAt ≥ now-14d`, denominator = users with `createdAt ≤ now-Nd`), activity (trades total/open/closed/7d; orders total/7d), integrations (active broker connections, pending / failed jobs), IBKR success rate 7d (`BrokerEvent` where `source='IBKR_FLEX'`, success = `processingStatus='PROCESSED'`), chat usage 24h/7d (conversations + distinct users on `AIConversation.updatedAt`), and `auditFailures24h`.
+  - `admin_table_sizes()` → 7 rows `{tableName, sizeBytes}` from `pg_total_relation_size()` for `User`, `Trade`, `Order`, `BrokerEvent`, `ExcelImportJob`, `AuditEvent`, `BillingWebhookEvent`.
+  - `admin_timeseries(days integer default 30)` → `{day, signups, trades}` per day for the last N days (guarded to `[1,365]`), using `generate_series` so zero-activity days still show as 0.
+- The page ([app/(dashboard)/admin/health/page.tsx](app/(dashboard)/admin/health/page.tsx)) is a plain RSC — reads all three RPCs + the last 20 `AuditEvent` failures (JOIN to `User.email`) in a single `Promise.all` under `createAdminClient()`, then hands the frozen snapshot to [components/admin/admin-health-dashboard.tsx](components/admin/admin-health-dashboard.tsx). **No polling** — refresh reruns the fetches.
+- The client dashboard renders card groups (Users / Retention / Activity / Integrations / IBKR / Chat / Health), two `recharts` LineCharts (daily signups + daily trades over 30d, reusing the axis/tooltip constants from [components/research/shell.tsx](components/research/shell.tsx)), the table-sizes table, and the recent-failures table. All numbers use IBM Plex Mono.
+
+The admin panel's purpose is manual QA of Pro-gated flows, hands-on recovery of stuck AI-import jobs, on-demand IBKR syncs / audit inspection, and read-only system-health monitoring — no impersonation, no session-swap.
 
 ## FIFO logic
 

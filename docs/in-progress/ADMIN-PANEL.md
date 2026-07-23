@@ -1,6 +1,6 @@
 # Admin section — Rollout plan (Phases 1–4)
 
-> **Status:** 🟡 ACTIVE — Phases 1–3 shipped (2026-07-20, 2026-07-22, 2026-07-22). Phase 4 pending.
+> **Status:** 🟢 COMPLETED 2026-07-23 — Phases 1–4 shipped (2026-07-20, 2026-07-22, 2026-07-22, 2026-07-23).
 
 ## Overview
 
@@ -13,7 +13,7 @@ Phase map:
 | **Phase 1** | Users list + Free/Pro tier toggle | ✅ Shipped 2026-07-20 (commit `5cde705`) |
 | **Phase 2** | AI-import jobs viewer + reset/delete | ✅ Shipped 2026-07-22 |
 | **Phase 3** | IBKR sync trigger + BrokerEvent viewer (C6 reprocess dropped by owner decision 2026-07-22) | ✅ Shipped 2026-07-22 |
-| **Phase 4** | System health dashboard (metrics + recent errors + charts) | ⏳ Planned |
+| **Phase 4** | System health dashboard (metrics + recent errors + charts) | ✅ Shipped 2026-07-23 |
 
 Intentionally **not** planned: user impersonation (Supabase Auth session-swap is high-blast-radius; not worth building until there is a real support workflow demanding it). Kept as a Phase 5 candidate if the need surfaces.
 
@@ -263,42 +263,48 @@ Simple owner-side view of the app's state at a glance: how many users, how many 
 
 ### Phase 4 items
 
-- [ ] **D1. Migration — `admin_system_metrics()` + `admin_table_sizes()` SQL functions.**
-  - **Where:** New Supabase MCP migration `add_admin_metrics_functions`.
+- [x] **D1. Migration — `admin_system_metrics()` + `admin_table_sizes()` + `admin_timeseries()` SQL functions.**
+  - **Where:** Supabase MCP migrations `add_admin_metrics_functions` + follow-up `admin_metrics_bypass_service_role` (see "Discovered during remediation → E1" below).
   - **Issue:** Metrics scattered across N tables shouldn't be N round-trips from the app. A single RPC returning a JSON snapshot is trivial and testable in SQL.
-  - **Acceptance:**
-    - `admin_system_metrics()` returns a JSON object with keys: `usersTotal`, `usersPro`, `usersFree`, `usersSignups7d`, `tradesTotal`, `tradesOpen`, `tradesClosed`, `trades7d`, `ordersTotal`, `orders7d`, `brokerConnectionsActive`, `jobsPending`, `jobsFailed`, `auditFailures24h`.
-    - `admin_table_sizes()` returns rows `{table, sizeBytes}` for `User`, `Trade`, `Order`, `BrokerEvent`, `ExcelImportJob`, `AuditEvent`, `BillingWebhookEvent`.
-    - Both are `SECURITY DEFINER STABLE`, both first-line-check `if not public.is_admin(auth.uid()) then raise 'admin_only'`, and grants `EXECUTE` only to `authenticated` + `service_role`.
-    - Types regenerated, `npm run build` clean.
+  - **Acceptance:** Extended per resolved Q2 —
+    - `admin_system_metrics()` returns JSON with: `usersTotal`, `usersPro`, `usersFree`, `usersSignups7d`, `retention{30,60,90}d_{active,eligible}` (active = `Order.executedAt ≥ now-14d`; cohort = `User.createdAt ≤ now-Nd`), `tradesTotal`, `tradesOpen`, `tradesClosed`, `trades7d`, `ordersTotal`, `orders7d`, `brokerConnectionsActive`, `jobsPending`, `jobsFailed`, `ibkrSyncTotal7d`, `ibkrSyncSuccess7d`, `chatConversations{24h,7d}`, `chatActiveUsers{24h,7d}`, `auditFailures24h`.
+    - `admin_table_sizes()` returns rows `{tableName, sizeBytes}` for `User`, `Trade`, `Order`, `BrokerEvent`, `ExcelImportJob`, `AuditEvent`, `BillingWebhookEvent`, ORDER BY sizeBytes DESC.
+    - `admin_timeseries(days integer default 30)` returns `{day, signups, trades}` per day via `generate_series` (zero-activity days still emit rows); guarded to `[1, 365]`.
+    - All 3 are `SECURITY DEFINER STABLE`, gate = `IF auth.role() <> 'service_role' AND NOT public.is_admin((SELECT auth.uid())) THEN raise 'admin_only'` (service-role bypass added in the follow-up migration — see E1). Grants `EXECUTE` only to `authenticated` + `service_role`.
+    - Types regenerated in [lib/db/types.ts](../../lib/db/types.ts); build + 305/305 tests clean.
 
-- [ ] **D2. `/admin/health` page + `components/admin/admin-health-dashboard.tsx`.**
-  - **Where:** `app/(dashboard)/admin/health/page.tsx` (RSC + gate) reads the metrics via `createAdminClient().rpc('admin_system_metrics')`. Client component renders cards.
+- [x] **D2. `/admin/health` page + `components/admin/admin-health-dashboard.tsx`.**
+  - **Where:** [app/(dashboard)/admin/health/page.tsx](../../app/(dashboard)/admin/health/page.tsx) (RSC + gate + `Promise.all` on the 3 RPCs + 20 recent failures) hands a frozen snapshot to [components/admin/admin-health-dashboard.tsx](../../components/admin/admin-health-dashboard.tsx) (client).
   - **Issue:** No unified place to see "is the app healthy right now".
-  - **Acceptance:** Grid of cards for each metric key from D1's JSON. Cards are grouped visually: Users (Total / Pro / Free / New this week), Activity (Trades total / Open / Closed / New this week; Orders total / new this week), Integrations (Active broker connections; Jobs pending; Jobs failed), Health (Audit failures in last 24h). Numbers are IBM Plex Mono. Verified by cross-checking each card against a direct `SELECT COUNT(*)` on the underlying table.
+  - **Acceptance:** Grid of cards grouped visually into 6 sections: Users (Total/Pro/Free/Signups7d), Retention (30/60/90d with `active מתוך eligible` hint), Activity (Trades total/open/closed/7d; Orders total/7d), Integrations (broker connections active, jobs pending/failed, IBKR success rate 7d), Chat (conversations + active users 24h/7d), Health (auditFailures24h). Numbers in IBM Plex Mono. Verified 2026-07-23: 6 sampled cards match direct `SELECT COUNT(*)` — `usersTotal=4`, `usersPro=1`, `tradesTotal=138`, `tradesOpen=3`, `ordersTotal=297`, `brokerConnectionsActive=1`.
 
-- [ ] **D3. Recent AuditEvent failures section.**
-  - **Where:** Extend `admin-health-dashboard.tsx` with a table below the cards, or a companion component `components/admin/admin-recent-failures.tsx`.
-  - **Issue:** Knowing "audit failures = 5" is useless without seeing which. This surfaces the `eventType` + `metadata` + user email of the last 20 failures.
-  - **Acceptance:** Table shows last 20 `AuditEvent` rows where `status='failure'`, newest first, with columns: `createdAt`, user email (JOIN, may be null if userId is null), `eventType`, `metadata` (JSON snippet, truncated), `ipAddress`. Verified by injecting a synthetic failure via `logAuditEvent(...)` and seeing it appear on the page after refresh.
+- [x] **D3. Recent AuditEvent failures section.**
+  - **Where:** Inlined into `admin-health-dashboard.tsx` (no separate component — kept scope small per Phase 4 plan).
+  - **Issue:** Knowing "audit failures = 5" is useless without seeing which. Surfaces `eventType` + `metadata` + user email of the last 20 failures.
+  - **Acceptance:** Last 20 `AuditEvent` where `status='failure'`, newest first, columns: `createdAt`, user email (JOIN, `—` if `userId` null), `eventType`, `metadata` (truncated 80 chars, tooltip has full JSON), `ipAddress`. **Verified 2026-07-23**: inserted synthetic `{status:'failure', eventType:'rate_limit_hit', userId:QA, metadata:{synthetic:true}}`; after refresh the row appeared at index 0 of the table and `auditFailures24h` card jumped 0→1. Row deleted after test.
 
-- [ ] **D4. DB table sizes section.**
-  - **Where:** Extend `admin-health-dashboard.tsx` with a small table.
-  - **Issue:** Table growth is the leading indicator for when to add pruning / archiving. Owner wants to see it at a glance.
-  - **Acceptance:** Table lists rows from `admin_table_sizes()` sorted by `sizeBytes` desc, with human-formatted size ("12.4 MB"). Verified by comparing one row against `SELECT pg_size_pretty(pg_total_relation_size('"Trade"'))` in SQL.
+- [x] **D4. DB table sizes section.**
+  - **Where:** Inlined into `admin-health-dashboard.tsx` (3-column table below the charts).
+  - **Issue:** Table growth is the leading indicator for when to add pruning / archiving.
+  - **Acceptance:** Rows from `admin_table_sizes()` sorted by `sizeBytes` desc, human-formatted (`formatBytes`: B / KB / MB / GB). **Verified 2026-07-23**: `Trade` row shows `152.0 KB` (155,648 bytes), matches `pg_size_pretty(pg_total_relation_size('public."Trade"'))` = `152 kB` exactly.
 
-- [ ] **D5. Docs — extend the CLAUDE.md admin section.**
+- [x] **D5. Time-series charts (signups + trades over 30d).** *(Added per resolved Q2.)*
+  - **Where:** Inlined into `admin-health-dashboard.tsx` as two `recharts` `LineChart`s side-by-side; imports the axis/tooltip constants from [components/research/shell.tsx](../../components/research/shell.tsx) so the styling matches the research dashboard.
+  - **Issue:** Point-in-time cards don't show trends; charts make "did signups spike this week" and "trading activity trend" obvious.
+  - **Acceptance:** Two 220px-tall charts fed by `admin_timeseries(30)`. X-axis is `MM-DD` (day, RTL-reversed), Y-axis integer ticks. Signups line = amber `#FFB800`, Trades line = green `#2CC84A`. Tooltips use the shared `TOOLTIP_STYLE`. Verified 2026-07-23: 2 `<svg class="recharts-surface">` elements rendered on `/admin/health`.
+
+- [x] **D6. Docs — extend the CLAUDE.md admin section.**
   - **Where:** [CLAUDE.md](../../CLAUDE.md).
-  - **Issue:** The `admin_system_metrics()` / `admin_table_sizes()` functions are new invariants; a fresh reader should be able to find them.
-  - **Acceptance:** New paragraph documents the health dashboard, the two RPCs, and the fact they self-gate on `public.is_admin(auth.uid())`.
+  - **Issue:** The 3 new RPCs + service-role bypass gate are invariants a fresh reader needs.
+  - **Acceptance:** New paragraph documents the 3 RPCs (with their return shapes + guardrails), the RSC's single `Promise.all` pattern under `createAdminClient()`, and the recharts-based time-series section. Phase 4 line added to the Phase 1-4 rollup at the top of the section.
 
 ### Phase 4 verification
 
-- [ ] **V4.1.** Build + tests clean after D1's migration.
-- [ ] **V4.2.** Non-admin: `/admin/health` → 307 → `/research`. Direct RPC call `supabase.rpc('admin_system_metrics')` as an authenticated non-admin → error `admin_only`.
-- [ ] **V4.3.** Admin: `/admin/health` renders all cards with the correct counts. Cross-verify at least 3 cards against direct `SELECT COUNT(*)`.
-- [ ] **V4.4.** Trigger a synthetic audit failure (e.g. `INSERT INTO "AuditEvent" (status, eventType) VALUES ('failure', 'test_admin_dashboard')`); it appears in the recent-failures table after refresh.
-- [ ] **V4.5.** Table sizes row for `Trade` matches `pg_size_pretty(pg_total_relation_size('"Trade"'))` within one binary unit.
+- [x] **V4.1.** Build clean (`✓ Compiled successfully in 30.9s`); `npm run test:run` = 28 test files, 305/305 pass; `npx tsc --noEmit` clean.
+- [x] **V4.2.** Non-admin (`yadefam806@ameady.com`, `isAdmin=false`): `GET /admin/health` → 307 → `/research`. In the migration's negative smoke test, calling `admin_system_metrics()` from a session without `auth.uid()` (and outside `service_role`) raises `admin_only` (`P0001`).
+- [x] **V4.3.** Admin: `/admin/health` renders 9 sections, 26 cards, 2 recharts SVGs. 6 sampled cards match direct `SELECT COUNT(*)` (see D2 acceptance for the values).
+- [x] **V4.4.** Synthetic AuditEvent failure (`eventType=rate_limit_hit`, `userId=QA`, `status=failure`) appeared at row 0 of the recent-failures table after refresh; `auditFailures24h` card = 1. Row cleaned up + QA `isAdmin` reverted to `false`.
+- [x] **V4.5.** `Trade` table size = `152.0 KB` on the dashboard, `pg_size_pretty` = `152 kB` — exact match.
 
 ### Phase 4 files touched (planned)
 
@@ -325,3 +331,8 @@ Modified:
 ## Discovered during remediation
 
 > Add new findings here as they surface while executing Phases 2–4. Use `[ ] {PREFIX}{N}. {title}` shape with Where / Issue / Acceptance. Prefixes continue: `B` (Phase 2), `C` (Phase 3), `D` (Phase 4). If a discovery doesn't map to any active phase, use `E{N}` and note the intended phase.
+
+- [x] **E1 (Phase 4). SECURITY DEFINER gate must bypass `service_role`.**
+  - **Where:** [Supabase migration `admin_metrics_bypass_service_role`](../../supabase/migrations) applied 2026-07-23; rewrites all 3 D1 functions.
+  - **Issue:** D1 originally gated on `IF NOT public.is_admin((SELECT auth.uid())) THEN RAISE 'admin_only'`. The health page RSC uses `createAdminClient()` (service-role), which has no JWT — `auth.uid()` returns `null` → `is_admin(null)` = `false` → RPC raises `admin_only`. Dashboard rendered but every metric was 0. Caught in browser walkthrough via `preview_logs` showing three lines of `metrics/table_sizes/timeseries rpc failed: admin_only`. The page-layer `isAdmin` re-check already gates access — the SQL gate exists to catch a rogue authenticated-role call, not to block the app's own service-role reads.
+  - **Acceptance:** Gate updated to `IF auth.role() <> 'service_role' AND NOT public.is_admin((SELECT auth.uid())) THEN RAISE 'admin_only'`. Re-tested: RSC now returns live values (usersTotal=4, ordersTotal=297, etc.). Negative case (no JWT, not service-role) still raises `admin_only`.
