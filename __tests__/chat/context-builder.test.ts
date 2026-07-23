@@ -154,6 +154,47 @@ describe('buildChatContext — above the budget', () => {
   })
 })
 
+describe('buildChatContext — omitRows (tool-driven turn)', () => {
+  const trades = makeMany(400)
+  const result = buildChatContext({
+    trades,
+    mode: 'full',
+    stats: calcStats(trades),
+    filterActive: false,
+    omitRows: true,
+  })
+
+  it('sends no rows at all', () => {
+    expect(result.includedCount).toBe(0)
+    expect(result.contextString).not.toContain('TCK399')
+  })
+
+  it('still reports the true scope and the KPI baseline', () => {
+    expect(result.totalCount).toBe(400)
+    expect(result.contextString).toContain('טריידים סגורים בהיקף: 400')
+    expect(result.contextString).toContain('"totalTrades":400')
+  })
+
+  it('points the model at the tools instead of at a truncated window', () => {
+    expect(result.contextString).toContain('השתמש בכלים')
+    expect(result.contextString).not.toContain('שנסגרו לאחרונה בלבד')
+  })
+
+  it('reports overThreshold from the full set, not from what it sent', () => {
+    expect(result.overThreshold).toBe(true)
+    expect(result.totalBytes).toBeGreaterThan(CONTEXT_BUDGET_BYTES)
+  })
+
+  it('omits rows even for a small set when asked', () => {
+    const small = makeMany(3)
+    const r = buildChatContext({
+      trades: small, mode: 'smart', stats: calcStats(small), filterActive: false, omitRows: true,
+    })
+    expect(r.includedCount).toBe(0)
+    expect(r.overThreshold).toBe(false)
+  })
+})
+
 describe('buildChatContext — budget boundary', () => {
   it('full mode crosses the threshold at a lower trade count than smart', () => {
     const trades = makeMany(300)

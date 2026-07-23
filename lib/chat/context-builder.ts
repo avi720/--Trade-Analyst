@@ -116,8 +116,15 @@ export function buildChatContext(params: {
   stats: TradeStats
   filterActive: boolean
   budgetBytes?: number
+  /**
+   * Drop the rows entirely and keep only the KPI baseline. Set once the tool
+   * layer is driving the turn (P1-C): the model pulls the slices it needs via
+   * `queryTrades`, so a truncated inline window would just be a second, worse
+   * source of the same data competing for the same context window.
+   */
+  omitRows?: boolean
 }): ChatContextResult {
-  const { trades, mode, stats, filterActive } = params
+  const { trades, mode, stats, filterActive, omitRows = false } = params
   const budget = params.budgetBytes ?? CONTEXT_BUDGET_BYTES
 
   // Most recent first, so a truncated window is the useful window.
@@ -131,8 +138,10 @@ export function buildChatContext(params: {
   }
   const overThreshold = totalBytes > budget
 
-  let included = serialized
-  if (overThreshold) {
+  let included: string[] = serialized
+  if (omitRows) {
+    included = []
+  } else if (overThreshold) {
     included = []
     let used = 2
     for (const row of serialized) {
@@ -147,24 +156,38 @@ export function buildChatContext(params: {
     ? 'ההיקף מסונן לפי המסננים הפעילים בלוח התחקור.'
     : 'ההיקף הוא כל היסטוריית הטריידים הסגורים.'
 
-  const truncationLine = overThreshold
-    ? `\nשים לב: מגבלת גודל — נשלחו אליך ${included.length} הטריידים שנסגרו לאחרונה בלבד, מתוך ${sorted.length}. ` +
-      'המדדים למטה מחושבים על כל ההיקף. כשאתה עונה, ציין במפורש על איזה היקף התבססת.'
-    : ''
-
   const modeLabel = mode === 'full' ? 'עומק (Pro)' : 'חכם'
+
+  const rowsBlock = omitRows
+    ? [
+        '### שורות טריידים',
+        'לא נשלחו שורות גולמיות — ההיקף גדול מכדי להיכנס להודעה. ' +
+          'השתמש בכלים שברשותך כדי למשוך בדיוק את הפרוסות שאתה צריך, ' +
+          'וציין בתשובה על איזה היקף התבססת.',
+      ]
+    : [
+        '### שורות טריידים',
+        `[${included.join(',')}]`,
+      ]
+
+  const rowsCountLine = omitRows
+    ? 'שורות מלאות שנשלחו: 0 — הנתונים זמינים דרך כלים.'
+    : overThreshold
+      ? `שורות מלאות שנשלחו: ${included.length} מתוך ${sorted.length}.\n` +
+        `שים לב: מגבלת גודל — נשלחו אליך ${included.length} הטריידים שנסגרו לאחרונה בלבד, מתוך ${sorted.length}. ` +
+        'המדדים למטה מחושבים על כל ההיקף. כשאתה עונה, ציין במפורש על איזה היקף התבססת.'
+      : `שורות מלאות שנשלחו: ${included.length} מתוך ${sorted.length}.`
 
   const contextString = [
     '### היקף',
     `מצב: ${modeLabel}`,
     `טריידים סגורים בהיקף: ${sorted.length}. ${scopeLine}`,
-    `שורות מלאות שנשלחו: ${included.length} מתוך ${sorted.length}.${truncationLine}`,
+    rowsCountLine,
     '',
     `### מדדי מפתח (מחושבים על כל ${sorted.length} הטריידים בהיקף)`,
     JSON.stringify(roundStats(stats)),
     '',
-    '### שורות טריידים',
-    `[${included.join(',')}]`,
+    ...rowsBlock,
   ].join('\n')
 
   return {

@@ -1,35 +1,25 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { callGemini, type ChatMessage } from '@/lib/chat/gemini-client'
+import { callGemini, callGeminiWithTools, type ChatMessage } from '@/lib/chat/gemini-client'
 import { checkRateLimit, rateLimitedResponse } from '@/lib/auth/rate-limit'
 import { logAuditEvent } from '@/lib/audit/log'
 import { getUserTier, isProTier, proRequiredResponse } from '@/lib/billing/tier'
 import { calcStats } from '@/lib/utils/calculations'
+import { computeResearchAggregates, type ResearchAggregates } from '@/lib/utils/research-aggregate'
 import {
   buildChatContext,
   CHAT_TRADE_COLUMNS,
   type ChatTrade,
 } from '@/lib/chat/context-builder'
+import { buildSystemPrompt } from '@/lib/chat/system-prompt'
+import { buildToolRuntime, toolNamesForMode } from '@/lib/chat/tools'
+import type { TradeFreeText } from '@/lib/chat/tools/types'
 import type { Json } from '@/lib/db/types'
 
 type StoredMessage = {
   role: 'user' | 'assistant'
   content: string
   createdAt: string
-}
-
-const SYSTEM_PROMPT = `אתה חנן — מנטור מסחר מנוסה ואנליטיקאי טכני. אתה עוזר לאנליסט מסחר לנתח את הטריידים שלו.
-אתה מומחה ב-R-multiples, FIFO accounting, ניהול סיכונים, ופסיכולוגיית מסחר.
-דבר בעברית, בצורה קצרה, ישירה ומבוססת נתונים. הימנע מעצות גנריות — התמקד בדפוסים שאתה רואה בנתונים.
-כשאין מספיק מידע, שאל שאלה ממוקדת אחת.
-
-אל תניח שראית את כל ההיסטוריה — הסתמך רק על מה שמופיע למטה. אם נשלחו אליך פחות שורות מסך הטריידים בהיקף, ציין את זה במפורש בתשובה כדי שהמשתמש יוכל לבקש השוואה רחבה יותר.
-
-הנתונים הנוכחיים:
-{CONTEXT}`
-
-function buildSystemPrompt(context: string): string {
-  return SYSTEM_PROMPT.replace('{CONTEXT}', context)
 }
 
 function toGeminiHistory(stored: StoredMessage[]): ChatMessage[] {
@@ -49,6 +39,43 @@ function extractTradeIds(contextData: unknown): Set<string> | null {
   const ids = (contextData as { tradeIds?: unknown }).tradeIds
   if (!Array.isArray(ids)) return null
   return new Set(ids.filter((v): v is string => typeof v === 'string'))
+}
+
+/**
+ * Resolves the free-text annotations for a specific page of trades.
+ *
+ * These columns are absent from `CHAT_TRADE_COLUMNS` on purpose — one trade can
+ * carry ~12,000 chars across the three, so fetching them for the whole history
+ * would reintroduce exactly the payload problem P1 exists to fix. `queryTrades`
+ * calls this only for the ≤150 rows it is about to return, which keeps the
+ * `.in()` filter well inside PostgREST's URL limits.
+ */
+async function fetchFreeText(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  ids: string[],
+): Promise<Map<string, TradeFreeText>> {
+  const out = new Map<string, TradeFreeText>()
+  if (ids.length === 0) return out
+
+  const { data, error } = await supabase
+    .from('Trade')
+    .select('id, notes, didRight, wouldChange')
+    .eq('userId', userId)
+    .in('id', ids)
+
+  if (error) {
+    console.error('[chat] free-text fetch failed:', error)
+    return out
+  }
+  for (const row of data ?? []) {
+    out.set(row.id, {
+      notes: row.notes,
+      didRight: row.didRight,
+      wouldChange: row.wouldChange,
+    })
+  }
+  return out
 }
 
 export async function POST(request: Request) {
@@ -142,30 +169,39 @@ export async function POST(request: Request) {
       closedAt: new Date(r.closedAt as string),
     })) as ChatTrade[]
 
-  const context = buildChatContext({
-    trades,
-    mode: contextMode === 'full' ? 'full' : 'smart',
-    stats: calcStats(trades),
-    filterActive: filterIds !== null,
-  })
+  const mode = contextMode === 'full' ? 'full' : 'smart'
+  const stats = calcStats(trades)
 
-  // Above the budget the answer needs tool-use round-trips (P1-C), which are a
-  // Pro capability. Free tier gets an actionable message instead of a silently
+  // Probe first: does the projected set fit inline? Only the answer to that
+  // decides whether this turn is a plain call or a tool-driven one.
+  const probe = buildChatContext({ trades, mode, stats, filterActive: filterIds !== null })
+
+  // Above the budget the answer needs tool-use round-trips, which are a Pro
+  // capability. Free tier gets an actionable message rather than a silently
   // truncated answer.
-  if (context.overThreshold && !isProTier(tier)) {
+  if (probe.overThreshold && !isProTier(tier)) {
     return NextResponse.json(
       {
         error:
-          `ההיקף הנוכחי (${context.totalCount} טריידים) גדול מכדי לנתח בבת אחת במסלול החינמי. ` +
+          `ההיקף הנוכחי (${probe.totalCount} טריידים) גדול מכדי לנתח בבת אחת במסלול החינמי. ` +
           'צמצם את הסינון בלוח התחקור, או שדרג ל-Pro לניתוח על כל ההיסטוריה.',
         errorCode: 'context_too_large',
-        totalCount: context.totalCount,
+        totalCount: probe.totalCount,
       },
       { status: 403 },
     )
   }
 
-  const systemPrompt = buildSystemPrompt(context.contextString)
+  const useTools = probe.overThreshold
+  const context = useTools
+    ? buildChatContext({ trades, mode, stats, filterActive: filterIds !== null, omitRows: true })
+    : probe
+
+  const systemPrompt = buildSystemPrompt({
+    context: context.contextString,
+    mode,
+    toolNames: useTools ? toolNamesForMode(mode) : undefined,
+  })
   const model = contextMode === 'full' ? 'gemini-2.5-pro' : 'gemini-2.5-flash'
 
   // Load or create conversation
@@ -187,12 +223,40 @@ export async function POST(request: Request) {
   // Call Gemini
   let assistantContent: string
   try {
-    assistantContent = await callGemini(
-      toGeminiHistory(storedMessages),
-      message.trim(),
-      systemPrompt,
-      model,
-    )
+    if (useTools) {
+      // One memo per turn: three aggregation calls in the same conversation
+      // walk the trade array once, not three times.
+      let cached: ResearchAggregates | null = null
+      const runtime = buildToolRuntime(mode, {
+        trades,
+        mode,
+        aggregates: () => (cached ??= computeResearchAggregates(trades)),
+        fetchFreeText: ids => fetchFreeText(supabase, user.id, ids),
+      })
+
+      const result = await callGeminiWithTools(
+        toGeminiHistory(storedMessages),
+        message.trim(),
+        systemPrompt,
+        model,
+        runtime,
+      )
+      assistantContent = result.text
+      console.log('[chat] tool turn', {
+        mode,
+        inScope: context.totalCount,
+        toolCalls: result.toolCalls.map(c => c.name),
+        exhausted: result.exhausted,
+        usage: result.usage,
+      })
+    } else {
+      assistantContent = await callGemini(
+        toGeminiHistory(storedMessages),
+        message.trim(),
+        systemPrompt,
+        model,
+      )
+    }
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'שגיאה לא ידועה'
     return NextResponse.json({ error: msg }, { status: 500 })
