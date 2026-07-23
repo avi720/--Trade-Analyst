@@ -2,12 +2,15 @@ import { describe, it, expect } from 'vitest'
 import { pnlByTicker, holdTimeVsR, pnlByDayOfWeek, pnlByHour } from '@/lib/utils/research-charts'
 import type { ClosedTrade } from '@/types/trade'
 
-// pnlByDayOfWeek / pnlByHour bucket trades in the browser's LOCAL timezone
-// (matching the trade-detail modal's display, not UTC). Test fixtures use
-// the local-component Date constructor `new Date(y, mo, d, h, ...)` so the
-// expected day-of-week and hour are TZ-independent — they hold regardless
-// of whether CI runs in UTC, Asia/Jerusalem, America/New_York, etc.
-// Tuesday 2026-01-06, local 14:00 / 10:00 (4 hours apart by construction).
+// pnlByDayOfWeek / pnlByHour bucket trades by ENTRY time (openedAt) — entry
+// timing is the strategy signal — in the browser's LOCAL timezone (matching
+// the trade-detail modal's display, not UTC). Test fixtures use the
+// local-component Date constructor `new Date(y, mo, d, h, ...)` so the expected
+// day-of-week and hour are TZ-independent — they hold regardless of whether CI
+// runs in UTC, Asia/Jerusalem, America/New_York, etc.
+// Tuesday 2026-01-06, local open 10:00 / close 14:00 (4 hours apart by
+// construction). openedAt (10:00) and closedAt (14:00) sit in different hour
+// slots so a test that asserts hour 10 proves the bucket comes from openedAt.
 const LOCAL_OPEN  = new Date(2026, 0, 6, 10, 0, 0) // local Tuesday 10:00
 const LOCAL_CLOSE = new Date(2026, 0, 6, 14, 0, 0) // local Tuesday 14:00
 
@@ -163,10 +166,12 @@ describe('pnlByDayOfWeek', () => {
     expect(result[6].day).toBe('שבת')
   })
 
-  it('trade on Tuesday (getDay()=2) updates שלישי slot', () => {
-    // 2026-01-06 is Tuesday (local)
+  it('trade opened on Tuesday (getDay()=2) updates שלישי slot', () => {
+    // openedAt drives the bucket. 2026-01-06 is Tuesday (local); closedAt is
+    // pushed to a different day (Thursday) to prove the bucket comes from open.
     const t = makeTrade({
-      closedAt: new Date(2026, 0, 6, 14, 0, 0),
+      openedAt: new Date(2026, 0, 6, 10, 0, 0),  // Tuesday
+      closedAt: new Date(2026, 0, 8, 14, 0, 0),  // Thursday
       realizedPnl: 300,
     })
     const result = pnlByDayOfWeek([t])
@@ -174,15 +179,16 @@ describe('pnlByDayOfWeek', () => {
     expect(tuesday.day).toBe('שלישי')
     expect(tuesday.totalPnl).toBeCloseTo(300)
     expect(tuesday.tradeCount).toBe(1)
-    // other days unchanged
+    // other days unchanged (Thursday close must NOT leak into a bucket)
     expect(result[0].tradeCount).toBe(0)
     expect(result[1].tradeCount).toBe(0)
+    expect(result[4].tradeCount).toBe(0)
   })
 
-  it('multiple trades same day → accumulated', () => {
+  it('multiple trades opened same day → accumulated', () => {
     const trades = [
-      makeTrade({ closedAt: new Date(2026, 0, 6, 10, 0, 0), realizedPnl: 100 }),
-      makeTrade({ closedAt: new Date(2026, 0, 6, 14, 0, 0), realizedPnl: 200 }),
+      makeTrade({ openedAt: new Date(2026, 0, 6, 10, 0, 0), realizedPnl: 100 }),
+      makeTrade({ openedAt: new Date(2026, 0, 6, 14, 0, 0), realizedPnl: 200 }),
     ]
     const result = pnlByDayOfWeek(trades)
     expect(result[2].totalPnl).toBeCloseTo(300)
@@ -203,19 +209,20 @@ describe('pnlByHour', () => {
     expect(pnlByHour([])).toEqual([])
   })
 
-  it('single trade → correct hour slot', () => {
-    // closedAt local 14:00 → hour 14 (TZ-independent)
+  it('single trade → correct hour slot (from openedAt)', () => {
+    // Default fixture opens 10:00, closes 14:00. Bucketing uses openedAt, so
+    // the slot is hour 10 — proving it is NOT keyed off closedAt (14:00).
     const result = pnlByHour([makeTrade()])
     expect(result).toHaveLength(1)
-    expect(result[0].hour).toBe(14)
+    expect(result[0].hour).toBe(10)
     expect(result[0].totalPnl).toBeCloseTo(300)
     expect(result[0].tradeCount).toBe(1)
   })
 
-  it('two trades same hour → accumulated', () => {
+  it('two trades opened same hour → accumulated', () => {
     const trades = [
-      makeTrade({ closedAt: new Date(2026, 0, 6, 14, 0, 0),  realizedPnl: 100 }),
-      makeTrade({ closedAt: new Date(2026, 0, 6, 14, 30, 0), realizedPnl: 200 }),
+      makeTrade({ openedAt: new Date(2026, 0, 6, 14, 0, 0),  realizedPnl: 100 }),
+      makeTrade({ openedAt: new Date(2026, 0, 6, 14, 30, 0), realizedPnl: 200 }),
     ]
     const result = pnlByHour(trades)
     expect(result).toHaveLength(1)
@@ -224,11 +231,11 @@ describe('pnlByHour', () => {
     expect(result[0].tradeCount).toBe(2)
   })
 
-  it('trades at different hours → sorted ascending by hour', () => {
+  it('trades opened at different hours → sorted ascending by hour', () => {
     const trades = [
-      makeTrade({ closedAt: new Date(2026, 0, 6, 15, 0, 0), realizedPnl: 50 }),
-      makeTrade({ closedAt: new Date(2026, 0, 6, 9, 0, 0),  realizedPnl: 100 }),
-      makeTrade({ closedAt: new Date(2026, 0, 6, 12, 0, 0), realizedPnl: -20 }),
+      makeTrade({ openedAt: new Date(2026, 0, 6, 15, 0, 0), realizedPnl: 50 }),
+      makeTrade({ openedAt: new Date(2026, 0, 6, 9, 0, 0),  realizedPnl: 100 }),
+      makeTrade({ openedAt: new Date(2026, 0, 6, 12, 0, 0), realizedPnl: -20 }),
     ]
     const result = pnlByHour(trades)
     expect(result.map(r => r.hour)).toEqual([9, 12, 15])
@@ -236,8 +243,8 @@ describe('pnlByHour', () => {
 
   it('null realizedPnl → skipped', () => {
     const trades = [
-      makeTrade({ realizedPnl: null as unknown as number, closedAt: new Date(2026, 0, 6, 14, 0, 0) }),
-      makeTrade({ realizedPnl: 100, closedAt: new Date(2026, 0, 6, 15, 0, 0) }),
+      makeTrade({ realizedPnl: null as unknown as number, openedAt: new Date(2026, 0, 6, 14, 0, 0) }),
+      makeTrade({ realizedPnl: 100, openedAt: new Date(2026, 0, 6, 15, 0, 0) }),
     ]
     const result = pnlByHour(trades)
     expect(result).toHaveLength(1)
@@ -246,8 +253,8 @@ describe('pnlByHour', () => {
 
   it('pre/post-market hours are not filtered out', () => {
     const trades = [
-      makeTrade({ closedAt: new Date(2026, 0, 6, 4, 0, 0),  realizedPnl: 50 }),   // 4am local
-      makeTrade({ closedAt: new Date(2026, 0, 6, 21, 0, 0), realizedPnl: -30 }), // 9pm local
+      makeTrade({ openedAt: new Date(2026, 0, 6, 4, 0, 0),  realizedPnl: 50 }),   // 4am local
+      makeTrade({ openedAt: new Date(2026, 0, 6, 21, 0, 0), realizedPnl: -30 }), // 9pm local
     ]
     const result = pnlByHour(trades)
     const hours = result.map(r => r.hour)

@@ -182,13 +182,14 @@ export function computeResearchAggregates(trades: ClosedTrade[]): ResearchAggreg
       if (t.result === 'Win') tickerBucket.winCount++
 
       // pnlByDayOfWeek + pnlByHour both guard on realizedPnl != null.
-      // Both use browser-local getDay()/getHours() — carried through unchanged.
-      const dayIdx = t.closedAt.getDay()
+      // Both bucket by ENTRY time (openedAt) — entry timing is the strategy
+      // signal. Both use browser-local getDay()/getHours() — carried through unchanged.
+      const dayIdx = t.openedAt.getDay()
       const dayStat = dayStats[dayIdx]
       dayStat.totalPnl += pnl
       dayStat.tradeCount++
 
-      const hourNum = t.closedAt.getHours()
+      const hourNum = t.openedAt.getHours()
       const existingHour = hourMap.get(hourNum)
       if (existingHour) {
         existingHour.totalPnl += pnl

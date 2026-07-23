@@ -62,30 +62,32 @@ export function holdTimeVsR(trades: ClosedTrade[]): HoldTimePoint[] {
   return points
 }
 
-// Realized P&L by day of week (Sunday=0 … Saturday=6), always returns all 7 days.
-// Uses the BROWSER's local timezone (the user's session TZ) — matches what the
-// trade-detail modal displays via fmtLocalDateTime. Trades stored in UTC are
-// translated to the user's wall-clock day so the chart matches what they
-// actually experienced sitting at the desk.
+// Realized P&L by open day of week (Sunday=0 … Saturday=6), always returns all 7 days.
+// Buckets by ENTRY time (openedAt) — entry timing is the strategy signal. Uses the
+// BROWSER's local timezone (the user's session TZ) — matches what the trade-detail
+// modal displays via fmtLocalDateTime. Trades stored in UTC are translated to the
+// user's wall-clock day so the chart matches what they actually experienced sitting
+// at the desk.
 export function pnlByDayOfWeek(trades: ClosedTrade[]): DayStat[] {
   const stats = HEBREW_DAYS.map(day => ({ day, totalPnl: 0, tradeCount: 0 }))
   for (const t of trades) {
     if (t.realizedPnl == null) continue
-    const idx = t.closedAt.getDay()
+    const idx = t.openedAt.getDay()
     stats[idx].totalPnl += t.realizedPnl
     stats[idx].tradeCount++
   }
   return stats
 }
 
-// Realized P&L grouped by close hour (0-23), only hours that appear in data.
-// Uses the BROWSER's local timezone for the same reason as pnlByDayOfWeek —
-// the chart should reflect the user's wall-clock hours, not UTC.
+// Realized P&L grouped by open hour (0-23), only hours that appear in data.
+// Buckets by ENTRY time (openedAt) — entry timing is the strategy signal. Uses the
+// BROWSER's local timezone for the same reason as pnlByDayOfWeek — the chart should
+// reflect the user's wall-clock hours, not UTC.
 export function pnlByHour(trades: ClosedTrade[]): HourStat[] {
   const hourMap = new Map<number, HourStat>()
   for (const t of trades) {
     if (t.realizedPnl == null) continue
-    const hour = t.closedAt.getHours()
+    const hour = t.openedAt.getHours()
     const existing = hourMap.get(hour)
     if (existing) {
       existing.totalPnl += t.realizedPnl

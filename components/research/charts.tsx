@@ -338,7 +338,7 @@ export const DayHourChart = React.memo(function DayHourChart({
   defaultHeight: number
 }) {
   return (
-    <ChartCard chartId="dayhour" defaultHeight={dh} title="P&L לפי יום/שעה" ariaLabel="גרפי עמודות: רווח והפסד לפי יום בשבוע ולפי שעת סגירה" info={CHART_INFO.dayhour}>
+    <ChartCard chartId="dayhour" defaultHeight={dh} title="P&L לפי יום/שעה" ariaLabel="גרפי עמודות: רווח והפסד לפי יום בשבוע ולפי שעת פתיחה" info={CHART_INFO.dayhour}>
       <DayHourInner dayofweek={dayofweek} hour={hour} />
     </ChartCard>
   )
