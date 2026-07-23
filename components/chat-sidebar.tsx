@@ -107,7 +107,11 @@ export function ChatSidebar() {
           message: text,
           conversationId: conversationId ?? undefined,
           contextMode,
-          contextData: contextMode === 'smart' ? contextData : undefined,
+          // P1: filter scoping is mode-independent — `contextData` now carries
+          // only the in-scope trade IDs, so Pro mode gets it too. P1-E turns
+          // `respectFilter` into a user-facing toggle.
+          respectFilter: true,
+          contextData,
         }),
       })
 

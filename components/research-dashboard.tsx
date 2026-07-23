@@ -182,29 +182,23 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
   const stats = aggregates.stats
   const chartData: ChartData = aggregates
 
+  // P1: the chat route owns the trade data now — it re-reads the rows server-side
+  // under RLS. All the dashboard contributes is *which* trades are in scope, and
+  // only when the filter actually narrows the set: when the counts match, the
+  // filtered set is by definition the full closed set, so the server's unfiltered
+  // query returns exactly the same rows and the ID list is dead weight (~74 KB
+  // of UUIDs on every message for a 2k-trade user).
   useEffect(() => {
     const timeout = setTimeout(() => {
+      const filterActive = filteredTrades.length !== closedTrades.length
       setContextData({
         source: 'research',
-        tradeCount: stats.totalTrades,
-        winRate: stats.winRate,
-        avgR: stats.avgR,
-        expectancy: stats.expectancy,
-        totalPnl: stats.totalPnl,
-        maxDrawdown: stats.maxDrawdown,
-        profitFactor: stats.profitFactor,
-        trades: filteredTrades.map(t => ({
-          ticker: t.ticker,
-          direction: t.direction,
-          actualR: t.actualR,
-          result: t.result,
-          setup: t.setupType,
-          closedAt: t.closedAt?.toISOString() ?? null,
-        })),
+        filterActive,
+        ...(filterActive ? { tradeIds: filteredTrades.map(t => t.id) } : {}),
       })
     }, 300)
     return () => clearTimeout(timeout)
-  }, [filteredTrades, stats, setContextData])
+  }, [filteredTrades, closedTrades, setContextData])
 
   const chartRows = useMemo(() => groupChartsIntoRows(chartVisible), [chartVisible])
 
