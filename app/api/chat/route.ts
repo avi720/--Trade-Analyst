@@ -197,10 +197,17 @@ export async function POST(request: Request) {
     ? buildChatContext({ trades, mode, stats, filterActive: filterIds !== null, omitRows: true })
     : probe
 
+  // P1-D: Gemini 2.5 rejects a request carrying both `googleSearch` and custom
+  // `functionDeclarations`, so grounding is offered only on turns that register
+  // no tools. That is *tool-call* XOR web, not data XOR web — a grounded turn
+  // still has the inline rows and KPIs as plain prompt text.
+  const webSearch = isProTier(tier) && !useTools
+
   const systemPrompt = buildSystemPrompt({
     context: context.contextString,
     mode,
     toolNames: useTools ? toolNamesForMode(mode) : undefined,
+    webSearch,
   })
   const model = contextMode === 'full' ? 'gemini-2.5-pro' : 'gemini-2.5-flash'
 
@@ -255,6 +262,9 @@ export async function POST(request: Request) {
         message.trim(),
         systemPrompt,
         model,
+        undefined,
+        undefined,
+        webSearch,
       )
     }
   } catch (error) {

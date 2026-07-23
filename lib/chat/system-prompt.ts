@@ -43,12 +43,29 @@ function toolRules(toolNames: string[]): string {
 - אם שאלה נופלת מחוץ למה שהכלים יכולים להביא — כלומר הנתון פשוט לא נשמר במערכת — אמור את זה במקום לנחש.`
 }
 
+/**
+ * P1-D. Gemini 2.5 cannot serve native Search grounding and custom function
+ * tools in the same request, so a turn is either web-capable or tool-capable,
+ * never both. The user does not know that, and a question can easily need
+ * both ("how did my NVDA trades do around the earnings report?"). Silently
+ * answering half of it is the failure mode worth prompting against.
+ */
+const WEB_ENABLED = `חיפוש באינטרנט:
+בתור הזה יש לך גישה לחיפוש בגוגל. השתמש בו כשהשאלה דורשת מידע חיצוני (חדשות, דוחות, אירועי שוק), ותמיד ציין שהמידע הגיע מהאינטרנט.
+מגבלה טכנית: בתור אחד אי אפשר גם לחפש באינטרנט וגם להריץ שאילתות מתקדמות על מסד הטריידים. אם השאלה דורשת את שניהם — ענה על החלק שאתה יכול עכשיו, ואמור למשתמש במפורש איזה חלק נשאר ושאפשר לשאול אותו בהודעה נפרדת. אל תתעלם מחצי מהשאלה בשקט.`
+
+const WEB_DISABLED_WITH_TOOLS = `חיפוש באינטרנט:
+בתור הזה אין לך גישה לחיפוש בגוגל — מגבלה טכנית: אי אפשר לשלב חיפוש עם הכלים לשאילתות על מסד הטריידים באותה בקשה.
+אם השאלה דורשת מידע חיצוני, אמור זאת במפורש, ענה על מה שאפשר מהנתונים, והצע למשתמש לשאול את החלק החיצוני בהודעה נפרדת.`
+
 export function buildSystemPrompt(params: {
   context: string
   mode: ChatContextMode
   toolNames?: string[]
+  webSearch?: boolean
 }): string {
-  const { context, mode, toolNames } = params
+  const { context, mode, toolNames, webSearch = false } = params
+  const hasTools = Boolean(toolNames && toolNames.length > 0)
 
   const sections = [
     PERSONA,
@@ -58,8 +75,16 @@ export function buildSystemPrompt(params: {
     HONESTY,
   ]
 
-  if (toolNames && toolNames.length > 0) {
-    sections.push('', toolRules(toolNames))
+  if (hasTools) {
+    sections.push('', toolRules(toolNames!))
+  }
+
+  // Only say something about the web when there is something to say: a Free
+  // user has neither capability, so a paragraph about the trade-off is noise.
+  if (webSearch) {
+    sections.push('', WEB_ENABLED)
+  } else if (hasTools) {
+    sections.push('', WEB_DISABLED_WITH_TOOLS)
   }
 
   sections.push('', 'הנתונים הנוכחיים:', context)

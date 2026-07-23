@@ -79,4 +79,33 @@ describe('callGemini', () => {
     )
     expect(mockSendMessage).toHaveBeenCalledWith({ message: 'שאלה חדשה' })
   })
+
+  // P1-D — grounding is opt-in per turn because Gemini 2.5 rejects a request
+  // carrying both googleSearch and custom functionDeclarations.
+  it('registers no tools when webSearch is off', async () => {
+    mockSendMessage.mockResolvedValueOnce({ text: 'ok' })
+    await callGemini([], 'שאלה', systemPrompt, model, 5, noDelay, false)
+    // An exact config match — any `tools` key would fail this.
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ config: { systemInstruction: systemPrompt } }),
+    )
+  })
+
+  it('defaults webSearch to off when the argument is omitted', async () => {
+    mockSendMessage.mockResolvedValueOnce({ text: 'ok' })
+    await callGemini([], 'שאלה', systemPrompt, model, 5, noDelay)
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ config: { systemInstruction: systemPrompt } }),
+    )
+  })
+
+  it('registers googleSearch grounding when webSearch is on', async () => {
+    mockSendMessage.mockResolvedValueOnce({ text: 'ok' })
+    await callGemini([], 'שאלה', systemPrompt, model, 5, noDelay, true)
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: expect.objectContaining({ tools: [{ googleSearch: {} }] }),
+      }),
+    )
+  })
 })

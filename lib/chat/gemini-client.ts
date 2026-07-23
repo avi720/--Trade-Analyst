@@ -56,9 +56,19 @@ export async function callGemini(
   history: ChatMessage[],
   newMessage: string,
   systemPrompt: string,
-  model: 'gemini-2.5-flash' | 'gemini-2.5-pro',
+  model: GeminiModel,
   retries = 5,
   delayFn: (ms: number) => Promise<void> = ms => new Promise(r => setTimeout(r, ms)),
+  /**
+   * P1-D — enable Gemini's native Google Search grounding for this turn.
+   *
+   * Only ever passed for Pro users on a turn with **no custom function tools
+   * registered**: Gemini 2.5 cannot serve `googleSearch` and
+   * `functionDeclarations` in the same request. Note the constraint is
+   * tool-call XOR web, not data XOR web — the inline trade rows and KPIs are
+   * plain prompt text, so a grounded turn still answers from the user's data.
+   */
+  webSearch = false,
 ): Promise<string> {
   const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
@@ -67,7 +77,10 @@ export async function callGemini(
       const chat = genAI.chats.create({
         model,
         history,
-        config: { systemInstruction: systemPrompt },
+        config: {
+          systemInstruction: systemPrompt,
+          ...(webSearch ? { tools: [{ googleSearch: {} }] } : {}),
+        },
       })
       const result = await chat.sendMessage({ message: newMessage })
       return result.text ?? ''
