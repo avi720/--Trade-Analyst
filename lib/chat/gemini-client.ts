@@ -52,24 +52,34 @@ function isRetryable(error: unknown): boolean {
   return false
 }
 
-export async function callGemini(
-  history: ChatMessage[],
-  newMessage: string,
-  systemPrompt: string,
-  model: GeminiModel,
-  retries = 5,
-  delayFn: (ms: number) => Promise<void> = ms => new Promise(r => setTimeout(r, ms)),
+export interface CallGeminiOptions {
+  retries?: number
+  delayFn?: (ms: number) => Promise<void>
   /**
    * P1-D — enable Gemini's native Google Search grounding for this turn.
    *
-   * Only ever passed for Pro users on a turn with **no custom function tools
+   * Only ever set for Pro users on a turn with **no custom function tools
    * registered**: Gemini 2.5 cannot serve `googleSearch` and
    * `functionDeclarations` in the same request. Note the constraint is
    * tool-call XOR web, not data XOR web — the inline trade rows and KPIs are
    * plain prompt text, so a grounded turn still answers from the user's data.
    */
-  webSearch = false,
+  webSearch?: boolean
+  /** P1-F — receives the turn's token accounting for observability logging. */
+  onUsage?: (usage: GeminiUsage) => void
+}
+
+export async function callGemini(
+  history: ChatMessage[],
+  newMessage: string,
+  systemPrompt: string,
+  model: GeminiModel,
+  opts: CallGeminiOptions = {},
 ): Promise<string> {
+  const retries = opts.retries ?? 5
+  const delayFn = opts.delayFn ?? (ms => new Promise(r => setTimeout(r, ms)))
+  const webSearch = opts.webSearch ?? false
+
   const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -83,6 +93,7 @@ export async function callGemini(
         },
       })
       const result = await chat.sendMessage({ message: newMessage })
+      opts.onUsage?.(addUsage(ZERO_USAGE, result))
       return result.text ?? ''
     } catch (error) {
       console.error(`[gemini] attempt ${attempt + 1} failed:`, error)

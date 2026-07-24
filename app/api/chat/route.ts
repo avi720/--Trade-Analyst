@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { callGemini, callGeminiWithTools, type ChatMessage } from '@/lib/chat/gemini-client'
+import {
+  callGemini,
+  callGeminiWithTools,
+  type ChatMessage,
+  type GeminiUsage,
+} from '@/lib/chat/gemini-client'
 import { checkRateLimit, rateLimitedResponse } from '@/lib/auth/rate-limit'
 import { logAuditEvent } from '@/lib/audit/log'
 import { getUserTier, isProTier, proRequiredResponse } from '@/lib/billing/tier'
@@ -39,6 +44,40 @@ function extractTradeIds(contextData: unknown): Set<string> | null {
   const ids = (contextData as { tradeIds?: unknown }).tradeIds
   if (!Array.isArray(ids)) return null
   return new Set(ids.filter((v): v is string => typeof v === 'string'))
+}
+
+/**
+ * P1-F — one structured line per chat turn.
+ *
+ * `cachedTokens` is the reason this exists. The P1 spec chose to rely on
+ * Gemini's automatic implicit caching (~90% off a repeated prompt prefix)
+ * instead of building a caching layer, and explicitly said to *verify* that
+ * rather than assume it. `cacheHitRatio` is the number to watch: if it stays
+ * near zero across multi-turn conversations in production, the assumption is
+ * wrong and the decision needs revisiting.
+ *
+ * `thoughtsTokens` is here for a second reason — thinking is on by default for
+ * 2.5 and bills as output. Turns that spend more on thinking than on the answer
+ * are worth knowing about before deciding whether to cap the thinking budget.
+ */
+function logTurn(fields: {
+  mode: string
+  path: 'inline' | 'tools'
+  inScope: number
+  rowsInline?: number
+  toolCalls?: string[]
+  exhausted?: boolean
+  webSearch: boolean
+  usage: GeminiUsage
+}) {
+  const { usage, ...rest } = fields
+  console.log('[chat] turn', {
+    ...rest,
+    ...usage,
+    cacheHitRatio: usage.promptTokens > 0
+      ? Number((usage.cachedTokens / usage.promptTokens).toFixed(3))
+      : 0,
+  })
 }
 
 /**
@@ -250,11 +289,13 @@ export async function POST(request: Request) {
         runtime,
       )
       assistantContent = result.text
-      console.log('[chat] tool turn', {
+      logTurn({
         mode,
+        path: 'tools',
         inScope: context.totalCount,
         toolCalls: result.toolCalls.map(c => c.name),
         exhausted: result.exhausted,
+        webSearch,
         usage: result.usage,
       })
     } else {
@@ -263,9 +304,17 @@ export async function POST(request: Request) {
         message.trim(),
         systemPrompt,
         model,
-        undefined,
-        undefined,
-        webSearch,
+        {
+          webSearch,
+          onUsage: usage => logTurn({
+            mode,
+            path: 'inline',
+            inScope: context.totalCount,
+            rowsInline: context.includedCount,
+            webSearch,
+            usage,
+          }),
+        },
       )
     }
   } catch (error) {
