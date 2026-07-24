@@ -20,6 +20,7 @@ type StoredMessage = {
 
 const LS_CONV_ID = 'chat_conversation_id'
 const LS_CTX_MODE = 'chat_context_mode'
+const LS_RESPECT_FILTER = 'chat_respect_filter'
 
 function ls(key: string): string | null {
   try { return localStorage.getItem(key) } catch { return null }
@@ -31,7 +32,7 @@ function lsRemove(key: string) {
   try { localStorage.removeItem(key) } catch {}
 }
 
-export function ChatSidebar() {
+export function ChatSidebar({ isPro = false }: { isPro?: boolean }) {
   const { isOpen, toggleChat } = useChatOpen()
   const { contextData } = useChatContextData()
 
@@ -47,6 +48,9 @@ export function ChatSidebar() {
   const [messages, setMessages] = useState<UIMessage[]>([])
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [contextMode, setContextMode] = useState<ContextMode>('smart')
+  // P1-E. Free tier is locked to "on" — the toggle stays visible so the
+  // capability is discoverable rather than hidden behind an upgrade.
+  const [respectFilter, setRespectFilter] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -55,6 +59,10 @@ export function ChatSidebar() {
   useEffect(() => {
     const savedMode = ls(LS_CTX_MODE)
     if (savedMode === 'smart' || savedMode === 'full') setContextMode(savedMode)
+
+    // Only a Pro user can have turned this off, so a stale 'false' left behind
+    // by an expired subscription must not survive.
+    if (isPro && ls(LS_RESPECT_FILTER) === 'false') setRespectFilter(false)
 
     const savedId = ls(LS_CONV_ID)
     if (!savedId) return
@@ -73,7 +81,7 @@ export function ChatSidebar() {
           setMessages(stored.map(m => ({ role: m.role, content: m.content })))
         }
       })
-  }, [])
+  }, [isPro])
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -83,6 +91,12 @@ export function ChatSidebar() {
   function handleContextMode(mode: ContextMode) {
     setContextMode(mode)
     lsSet(LS_CTX_MODE, mode)
+  }
+
+  function handleRespectFilter(next: boolean) {
+    if (!isPro) return
+    setRespectFilter(next)
+    lsSet(LS_RESPECT_FILTER, String(next))
   }
 
   function handleNewConversation() {
@@ -108,9 +122,8 @@ export function ChatSidebar() {
           conversationId: conversationId ?? undefined,
           contextMode,
           // P1: filter scoping is mode-independent — `contextData` now carries
-          // only the in-scope trade IDs, so Pro mode gets it too. P1-E turns
-          // `respectFilter` into a user-facing toggle.
-          respectFilter: true,
+          // only the in-scope trade IDs, so Pro mode gets it too.
+          respectFilter,
           contextData,
         }),
       })
@@ -206,6 +219,34 @@ export function ChatSidebar() {
           >
             עומק <span aria-hidden="true">🔬</span>
           </button>
+        </div>
+
+        {/* Filter-respect toggle (P1-E) — mode-independent, Pro-only.
+            Shown to everyone: a Free user sees the capability exists and why
+            it is locked, instead of it being invisible. */}
+        <div className="px-4 py-2 border-b border-border flex-shrink-0">
+          <label
+            className={`flex items-center gap-2 text-xs font-sans ${
+              isPro ? 'text-text-dim hover:text-text-main cursor-pointer' : 'text-text-mute cursor-not-allowed'
+            }`}
+            title={isPro
+              ? 'כשמסומן, חנן מתייחס רק לטריידים שעוברים את הסינון הפעיל בלוח התחקור'
+              : 'במסלול החינמי חנן תמיד מתייחס לסינון הפעיל. שדרג ל-Pro כדי לשאול על כל ההיסטוריה'}
+          >
+            <input
+              type="checkbox"
+              checked={respectFilter}
+              disabled={!isPro}
+              onChange={e => handleRespectFilter(e.target.checked)}
+              className="w-4 h-4 accent-amber disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2"
+            />
+            <span className="flex-1">התחשב בסינון הפעיל</span>
+            {!isPro && (
+              <span className="font-mono text-[10px] text-amber border border-amber/40 rounded px-1 py-px">
+                Pro
+              </span>
+            )}
+          </label>
         </div>
 
         {/* Messages area */}

@@ -22,12 +22,16 @@ export default async function DashboardLayout({
   // display preferences.
   const { data: existing } = await supabase
     .from('User')
-    .select('firstName, isAdmin')
+    .select('firstName, isAdmin, subscriptionTier')
     .eq('id', user.id)
     .maybeSingle()
 
   let firstName: string | null | undefined = existing?.firstName
   let isAdmin = existing?.isAdmin ?? false
+  // P1-E: the chat sidebar's filter-respect toggle is Pro-only. Reading the
+  // tier here rides along on a query the layout already runs — no extra trip.
+  // This drives presentation only; the chat route re-checks server-side.
+  let isPro = existing?.subscriptionTier === 'Pro'
 
   if (!existing) {
     const userRow: TablesInsert<'User'> = {
@@ -38,13 +42,14 @@ export default async function DashboardLayout({
     const { data: inserted, error: insertError } = await supabase
       .from('User')
       .insert(userRow)
-      .select('firstName, isAdmin')
+      .select('firstName, isAdmin, subscriptionTier')
       .single()
     if (insertError) {
       console.error('[layout] User insert failed:', insertError)
     }
     firstName = inserted?.firstName
     isAdmin = inserted?.isAdmin ?? false
+    isPro = inserted?.subscriptionTier === 'Pro'
   }
 
   // Funnel users with incomplete profiles (e.g. fresh Google sign-ins) into the signup wizard
@@ -63,7 +68,7 @@ export default async function DashboardLayout({
           {children}
         </main>
       </div>
-      <ChatSidebar />
+      <ChatSidebar isPro={isPro} />
     </ChatContextProvider>
   )
 }

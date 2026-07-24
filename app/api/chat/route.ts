@@ -133,9 +133,10 @@ export async function POST(request: Request) {
   }
 
   const { message, conversationId, contextMode, contextData } = body
-  // P1-E replaces this default with the sidebar toggle. Until then every
-  // conversation respects the dashboard filter, which is today's behavior.
-  const respectFilter = body.respectFilter ?? true
+  // P1-E: opting out of the dashboard filter is Pro-only. The sidebar disables
+  // the toggle for Free, but the UI is not the enforcement point — a crafted
+  // POST would otherwise widen the scope to the full history.
+  const respectFilter = isProTier(tier) ? (body.respectFilter ?? true) : true
 
   if (!message || typeof message !== 'string' || !message.trim()) {
     return NextResponse.json({ error: 'Message is required' }, { status: 400 })
