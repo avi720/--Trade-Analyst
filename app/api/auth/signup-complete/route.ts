@@ -48,31 +48,61 @@ export async function POST(req: NextRequest) {
   const existingSettings = (existing?.settings as Record<string, unknown>) ?? {}
   const mergedSettings = { ...existingSettings, display }
 
-  const { error } = await supabase.from('User').upsert(
-    {
-      id:             user.id,
-      email:          user.email!,
-      firstName,
-      lastName,
-      name:           `${firstName} ${lastName}`.trim(),
-      phone,
-      addressCountry,
-      addressCity:    addressCity ?? null,
-      addressStreet:  addressStreet ?? null,
-      settings:       mergedSettings,
-    },
-    { onConflict: 'id' }
-  )
+  // Mutable profile columns only. NEVER include `id` or `email` here: the
+  // `authenticated` role has column-level UPDATE grants on the profile columns
+  // but NOT on `id`/`email` (migration `harden_user_billing_write_paths`). A
+  // `.upsert()` that carries `email` would emit `ON CONFLICT DO UPDATE SET
+  // email=...` and fail with 42501 whenever the row already exists — which it
+  // usually does, because the dashboard layout lazily inserts it first.
+  const profile = {
+    firstName,
+    lastName,
+    name:           `${firstName} ${lastName}`.trim(),
+    phone,
+    addressCountry,
+    addressCity:    addressCity ?? null,
+    addressStreet:  addressStreet ?? null,
+    settings:       mergedSettings,
+  }
 
-  if (error) {
-    console.error('[signup-complete] User upsert failed:', {
-      code: error.code,
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
+  // Update-first: the row almost always exists (layout created it). `email`/`id`
+  // are already correct from that insert / from auth, so they are not touched.
+  const { data: updated, error: updateError } = await supabase
+    .from('User')
+    .update(profile)
+    .eq('id', user.id)
+    .select('id')
+    .maybeSingle()
+
+  if (updateError) {
+    console.error('[signup-complete] User update failed:', {
+      code: updateError.code,
+      message: updateError.message,
+      details: updateError.details,
+      hint: updateError.hint,
       userId: user.id,
     })
     return NextResponse.json({ error: 'שגיאה בשמירת הפרטים' }, { status: 500 })
+  }
+
+  // No row yet (e.g. auto-confirm path that never hit the dashboard layout) —
+  // insert it. `email`/`id` are allowed on the INSERT path.
+  if (!updated) {
+    const { error: insertError } = await supabase.from('User').insert({
+      id:    user.id,
+      email: user.email!,
+      ...profile,
+    })
+    if (insertError) {
+      console.error('[signup-complete] User insert failed:', {
+        code: insertError.code,
+        message: insertError.message,
+        details: insertError.details,
+        hint: insertError.hint,
+        userId: user.id,
+      })
+      return NextResponse.json({ error: 'שגיאה בשמירת הפרטים' }, { status: 500 })
+    }
   }
 
   return NextResponse.json({ ok: true })
