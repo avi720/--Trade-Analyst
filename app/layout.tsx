@@ -71,7 +71,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="he" dir="rtl" className={`${assistant.variable} ${ibmPlexMono.variable}`}>
-      <body className="bg-bg-dark text-text-main min-h-dvh font-sans">
+      {/* suppressHydrationWarning: browser extensions (e.g. Bitdefender's
+          anti-tracker, which injects bis_register / __processed_<uuid>__)
+          mutate <body> attributes before React hydrates, producing a benign
+          dev-only mismatch. Scoped one level deep — real mismatches inside the
+          tree still surface. */}
+      <body
+        className="bg-bg-dark text-text-main min-h-dvh font-sans"
+        suppressHydrationWarning
+      >
         <PostHogProvider>{children}</PostHogProvider>
       </body>
     </html>

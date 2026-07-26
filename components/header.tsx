@@ -84,11 +84,16 @@ export function Header({ userEmail, isAdmin = false }: HeaderProps) {
       {/* Tabs — centered on wide screens, inline flow at ≤lg so they reflow
           instead of overlapping the logo/controls. */}
       <nav className="flex items-center gap-1 lg:absolute lg:left-1/2 lg:-translate-x-1/2 flex-shrink-0">
+        {/* Default (auto) prefetch is intentional — do NOT re-add prefetch={false}.
+            F32 disabled it to stop _rsc prefetch storms back when every render
+            crossed the Pacific (iad1→Seoul) with 3× getUser round-trips. Now
+            functions are co-located with the DB (icn1) and auth reads are
+            request-deduped via lib/supabase/auth, so the partial prefetch (up to
+            each route's loading.tsx) is cheap and makes tab switches instant. */}
         {TABS.map(tab => (
           <Link
             key={tab.href}
             href={tab.href}
-            prefetch={false}
             aria-current={pathname === tab.href || pathname.startsWith(tab.href + '/') ? 'page' : undefined}
             className={cn(
               'px-4 py-2 rounded-md text-base transition-colors border-b-2',
@@ -104,7 +109,6 @@ export function Header({ userEmail, isAdmin = false }: HeaderProps) {
           <Link
             key="/admin"
             href="/admin"
-            prefetch={false}
             aria-current={pathname === '/admin' || pathname.startsWith('/admin/') ? 'page' : undefined}
             className={cn(
               'px-4 py-2 rounded-md text-base transition-colors border-b-2',
