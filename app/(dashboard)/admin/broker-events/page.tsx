@@ -1,6 +1,5 @@
-import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireAdminPage } from '@/lib/auth/require-admin'
 import {
   AdminBrokerEventsTable,
   type AdminBrokerEventRow,
@@ -18,20 +17,7 @@ export default async function AdminBrokerEventsPage({
 }: {
   searchParams: Promise<SearchParams>
 }) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) redirect('/login')
-
-  const { data: me } = await supabase
-    .from('User')
-    .select('isAdmin')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (!me?.isAdmin) redirect('/research')
+  await requireAdminPage()
 
   const sp = await searchParams
   const page = Math.max(0, parseInt(sp.page ?? '0', 10) || 0)

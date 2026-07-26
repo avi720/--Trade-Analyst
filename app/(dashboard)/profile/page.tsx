@@ -1,14 +1,13 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/supabase/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ProfileLayout } from "@/components/profile/profile-layout";
 import type { SubscriptionTier } from "@/lib/billing/tier";
 import { isLaunchPromoActive } from "@/lib/billing/prices";
 
 export default async function ProfilePage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const admin = createAdminClient();

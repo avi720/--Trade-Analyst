@@ -1,6 +1,5 @@
-import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireAdminPage } from '@/lib/auth/require-admin'
 import { AdminUsersTable, type AdminUserRow } from '@/components/admin/admin-users-table'
 
 // Belt-and-braces admin gate (mirrors layout.tsx). Also reads the users
@@ -9,20 +8,7 @@ import { AdminUsersTable, type AdminUserRow } from '@/components/admin/admin-use
 // authenticated-role RLS blocks them from the regular server client via
 // the harden_user_billing_write_paths grants.
 export default async function AdminPage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) redirect('/login')
-
-  const { data: me } = await supabase
-    .from('User')
-    .select('isAdmin')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (!me?.isAdmin) redirect('/research')
+  await requireAdminPage()
 
   const admin = createAdminClient()
   const { data: rows, error } = await admin

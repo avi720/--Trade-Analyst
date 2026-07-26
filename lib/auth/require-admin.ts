@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentUser, getCurrentUserRow } from '@/lib/supabase/auth'
 import type { User } from '@supabase/supabase-js'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/db/types'
@@ -40,6 +42,20 @@ export async function requireAdmin(): Promise<{
   }
 
   return { user, supabase }
+}
+
+// Server-only page-level admin gate for RSC admin pages. Redirects to /login
+// when unauthenticated and to /research when signed in but not an admin.
+// Unlike requireAdmin() (route handlers → 401/403), this throws Next.js'
+// redirect signal. Reads the request-cached user + row, so the belt-and-braces
+// re-check on every admin sub-page costs no extra round-trip after the admin
+// layout's gate already populated the cache.
+export async function requireAdminPage(): Promise<User> {
+  const user = await getCurrentUser()
+  if (!user) redirect('/login')
+  const row = await getCurrentUserRow()
+  if (!row?.isAdmin) redirect('/research')
+  return user
 }
 
 export function adminAuthErrorResponse(err: unknown): NextResponse | null {

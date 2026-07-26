@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/supabase/auth'
 import {
   getUserTier,
   getUserTradeCount,
@@ -9,14 +10,14 @@ import { ManualImportTabs } from '@/components/manual-import-tabs'
 import { DEFAULT_TIMEZONE } from '@/lib/trade/tz'
 
 export default async function ManualImportPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect('/login')
 
   const { tier } = await getUserTier(user.id)
   const tradeCount = tier === 'Pro' ? 0 : await getUserTradeCount(user.id)
 
   // Default the AI-import timezone selector to the user's display preference.
+  const supabase = await createClient()
   const { data: profile } = await supabase
     .from('User')
     .select('settings')

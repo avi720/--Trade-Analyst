@@ -1,23 +1,9 @@
-import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireAdminPage } from '@/lib/auth/require-admin'
 import { AdminJobsTable, type AdminJobRow } from '@/components/admin/admin-jobs-table'
 
 export default async function AdminJobsPage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) redirect('/login')
-
-  const { data: me } = await supabase
-    .from('User')
-    .select('isAdmin')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (!me?.isAdmin) redirect('/research')
+  await requireAdminPage()
 
   const admin = createAdminClient()
 

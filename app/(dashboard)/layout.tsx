@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentUser, getCurrentUserRow } from '@/lib/supabase/auth'
 import { Header } from '@/components/header'
 import { ChatContextProvider } from '@/lib/chat/chat-context'
 import { ChatSidebar } from '@/components/chat-sidebar'
@@ -10,8 +11,7 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
 
   if (!user) redirect('/login')
 
@@ -19,12 +19,9 @@ export default async function DashboardLayout({
   // guard below and avoid the upsert entirely. On a miss the row genuinely
   // does not exist yet (first dashboard visit after auth) — insert it. Do not
   // upsert on every request: `settings: {}` would clobber the user's saved
-  // display preferences.
-  const { data: existing } = await supabase
-    .from('User')
-    .select('firstName, isAdmin, subscriptionTier')
-    .eq('id', user.id)
-    .maybeSingle()
+  // display preferences. getCurrentUserRow() is request-cached, so the nested
+  // admin layout + admin pages reuse this exact row with no extra round-trip.
+  const existing = await getCurrentUserRow()
 
   let firstName: string | null | undefined = existing?.firstName
   let isAdmin = existing?.isAdmin ?? false
@@ -34,6 +31,7 @@ export default async function DashboardLayout({
   let isPro = existing?.subscriptionTier === 'Pro'
 
   if (!existing) {
+    const supabase = await createClient()
     const userRow: TablesInsert<'User'> = {
       id: user.id,
       email: user.email!,
