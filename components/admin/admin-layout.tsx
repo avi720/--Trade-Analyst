@@ -1,9 +1,11 @@
 'use client'
 
-import { useRef } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { useRef, useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
+import Link from 'next/link'
 import { Users, FileSpreadsheet, Plug, Activity, HeartPulse } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
+import { AdminContentSkeleton } from './admin-content-skeleton'
 
 const TABS = [
   { id: 'users', label: 'משתמשים', href: '/admin/users', icon: Users },
@@ -17,20 +19,32 @@ type TabId = (typeof TABS)[number]['id']
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const router = useRouter()
   const tablistRef = useRef<HTMLDivElement>(null)
+  // The tab the user just clicked, before the route commits. Drives an instant
+  // content skeleton on sibling nav (see AdminContentSkeleton for why loading.tsx
+  // can't) and an optimistic sidebar highlight.
+  const [pendingId, setPendingId] = useState<TabId | null>(null)
 
   const activeTab: TabId =
     TABS.find(t => pathname === t.href || pathname.startsWith(t.href + '/'))?.id
     ?? 'users'
 
-  function goToTab(id: TabId) {
-    const tab = TABS.find(t => t.id === id)
-    if (tab) router.push(tab.href)
+  // The route committed — drop the pending state so the real page shows.
+  useEffect(() => {
+    setPendingId(null)
+  }, [pathname])
+
+  const highlightId = pendingId ?? activeTab
+  // Show the skeleton while navigating to a *different* tab than the one the
+  // committed route is on.
+  const showSkeleton = pendingId !== null && pendingId !== activeTab
+
+  function navigateToTab(id: TabId) {
+    if (id !== activeTab) setPendingId(id)
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    const idx = TABS.findIndex(t => t.id === activeTab)
+    const idx = TABS.findIndex(t => t.id === highlightId)
     if (idx < 0) return
     let nextIdx = idx
     if (e.key === 'ArrowDown') nextIdx = (idx + 1) % TABS.length
@@ -39,13 +53,14 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     else if (e.key === 'End') nextIdx = TABS.length - 1
     else return
     e.preventDefault()
-    goToTab(TABS[nextIdx].id)
-    requestAnimationFrame(() => {
-      const btn = tablistRef.current?.querySelector<HTMLButtonElement>(
-        `[data-tab-id="${TABS[nextIdx].id}"]`,
-      )
-      btn?.focus()
-    })
+    // Focus + activate the next tab. Triggering the <a>'s click runs Next's
+    // client navigation and our onClick (which sets the pending state), keeping
+    // a single nav path for mouse and keyboard.
+    const nextLink = tablistRef.current?.querySelector<HTMLAnchorElement>(
+      `[data-tab-id="${TABS[nextIdx].id}"]`,
+    )
+    nextLink?.focus()
+    nextLink?.click()
   }
 
   return (
@@ -77,17 +92,18 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           >
             {TABS.map(tab => {
               const Icon = tab.icon
-              const isActive = activeTab === tab.id
+              const isActive = highlightId === tab.id
               return (
-                <button
+                <Link
                   key={tab.id}
+                  href={tab.href}
                   data-tab-id={tab.id}
                   role="tab"
                   aria-selected={isActive}
                   aria-controls={`admin-tabpanel-${tab.id}`}
                   id={`admin-tab-${tab.id}`}
                   tabIndex={isActive ? 0 : -1}
-                  onClick={() => goToTab(tab.id)}
+                  onClick={() => navigateToTab(tab.id)}
                   className={cn(
                     'w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all mb-0.5',
                     isActive
@@ -97,7 +113,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 >
                   <Icon size={16} className="shrink-0" aria-hidden="true" />
                   <span>{tab.label}</span>
-                </button>
+                </Link>
               )
             })}
           </div>
@@ -106,12 +122,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
       <section
         role="tabpanel"
-        id={`admin-tabpanel-${activeTab}`}
-        aria-labelledby={`admin-tab-${activeTab}`}
+        id={`admin-tabpanel-${highlightId}`}
+        aria-labelledby={`admin-tab-${highlightId}`}
         tabIndex={0}
         className="flex-1 overflow-y-auto outline-none"
       >
-        {children}
+        {showSkeleton ? <AdminContentSkeleton /> : children}
       </section>
     </div>
   )

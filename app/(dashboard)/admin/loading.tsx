@@ -1,23 +1,9 @@
-// Instant fallback shown while an admin sub-page renders on the server. It
-// lives inside AdminLayout's content <section>, so the admin sidebar stays
-// mounted and only the content column shimmers when switching admin tabs —
-// the exact navigation that motivated the latency work. Mirrors the shared
-// admin page frame (max-w-6xl header + table rows).
+import { AdminContentSkeleton } from '@/components/admin/admin-content-skeleton'
+
+// Shown on the first entry into the admin section (e.g. /research → /admin/*),
+// where this Suspense boundary newly mounts. Sibling sub-tab switches don't
+// re-trigger it (React keeps a resolved boundary's children) — AdminLayout
+// drives a client-side pending skeleton for those. Both reuse the same markup.
 export default function AdminLoading() {
-  return (
-    <div className="max-w-6xl mx-auto px-6 py-8 space-y-6">
-      <span role="status" className="sr-only">
-        טוען…
-      </span>
-      <div className="space-y-2 animate-pulse" aria-hidden="true">
-        <div className="h-6 w-48 rounded bg-shade" />
-        <div className="h-4 w-full max-w-2xl rounded bg-panel-3" />
-      </div>
-      <div className="space-y-2 animate-pulse" aria-hidden="true">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="h-11 w-full rounded bg-panel-3" />
-        ))}
-      </div>
-    </div>
-  )
+  return <AdminContentSkeleton />
 }
