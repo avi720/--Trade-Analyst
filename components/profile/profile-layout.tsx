@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { User, Shield, Monitor, Plug, CreditCard } from "lucide-react";
 import { TabAccount } from "./tab-account";
 import { TabSecurity } from "./tab-security";
@@ -58,7 +58,6 @@ export function ProfileLayout({
   isLaunchPromo,
 }: ProfileLayoutProps) {
   const searchParams = useSearchParams();
-  const router = useRouter();
 
   const rawTab = searchParams.get("tab");
   const activeTab: TabId = TABS.some((t) => t.id === rawTab)
@@ -67,7 +66,14 @@ export function ProfileLayout({
   const tablistRef = useRef<HTMLDivElement>(null);
 
   function goToTab(id: TabId) {
-    router.push(`/profile?tab=${id}`);
+    // Pure client-side tab switch. Every tab renders from data the server page
+    // already passed as props, so there is nothing to fetch — router.push()
+    // here forced a needless RSC round-trip (getCurrentUser + the User-row
+    // query) on every sub-tab click, which is the latency the user felt. Native
+    // history.pushState updates the URL for deep-linking / back-forward and
+    // integrates with useSearchParams in the App Router WITHOUT a server
+    // round-trip, so activeTab (derived from searchParams) flips instantly.
+    window.history.pushState(null, "", `/profile?tab=${id}`);
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
