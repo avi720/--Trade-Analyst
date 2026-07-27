@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { TradeLogoIcon } from '@/components/trade-logo'
+import { CookiePreferencesLink } from '@/components/consent/cookie-preferences-link'
 
 /**
  * Grouped site footer used on every public page. Four columns on desktop
@@ -49,11 +50,14 @@ export function PublicFooter() {
 
           {/* Legal */}
           <FooterColumn title="משפטי">
-            {legalLinks.map((l) => (
-              <FooterLink key={l.href} href={l.href}>
-                {l.label}
-              </FooterLink>
-            ))}
+            {[
+              ...legalLinks.map((l) => (
+                <FooterLink key={l.href} href={l.href}>
+                  {l.label}
+                </FooterLink>
+              )),
+              <CookiePreferencesLink key="cookie-prefs" />,
+            ]}
           </FooterColumn>
 
           {/* Support */}

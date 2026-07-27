@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 import { Assistant, IBM_Plex_Mono } from 'next/font/google'
 import { getBaseUrl } from '@/lib/utils'
-import { PostHogProvider } from '@/components/posthog-provider'
+import { ConsentProvider } from '@/components/consent/consent-provider'
+import { CookieBanner } from '@/components/consent/cookie-banner'
 import './globals.css'
 
 // Self-hosted via next/font — no runtime DNS lookup to fonts.googleapis.com
@@ -80,7 +81,10 @@ export default function RootLayout({
         className="bg-bg-dark text-text-main min-h-dvh font-sans"
         suppressHydrationWarning
       >
-        <PostHogProvider>{children}</PostHogProvider>
+        <ConsentProvider>
+          {children}
+          <CookieBanner />
+        </ConsentProvider>
       </body>
     </html>
   )

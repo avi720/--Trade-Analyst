@@ -2,12 +2,13 @@
 
 import { useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { User, Shield, Monitor, Plug, CreditCard } from "lucide-react";
+import { User, Shield, Monitor, Plug, CreditCard, Cookie } from "lucide-react";
 import { TabAccount } from "./tab-account";
 import { TabSecurity } from "./tab-security";
 import { TabDisplay } from "./tab-display";
 import { TabBroker } from "./tab-broker";
 import { TabBilling } from "./tab-billing";
+import { TabCookies } from "./tab-cookies";
 import { cn } from "@/lib/utils/cn";
 import type { SubscriptionTier } from "@/lib/billing/tier";
 
@@ -43,6 +44,7 @@ const TABS = [
   { id: "display", label: "תצוגה", icon: Monitor },
   { id: "broker", label: "ברוקר", icon: Plug },
   { id: "billing", label: "מנוי", icon: CreditCard },
+  { id: "cookies", label: "עוגיות", icon: Cookie },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -189,6 +191,7 @@ export function ProfileLayout({
               isLaunchPromo={isLaunchPromo}
             />
           )}
+          {activeTab === "cookies" && <TabCookies />}
         </div>
       </section>
     </div>
