@@ -32,6 +32,15 @@ export function initPostHog(): void {
     person_profiles: 'identified_only',
     autocapture: { css_selector_allowlist: ['[data-analytics]'] },
     disable_session_recording: true,
+    // Pin the two useful, non-PII product signals ON explicitly so they don't
+    // depend on the remote project config staying enabled:
+    //   - web_vitals: Core Web Vitals ($web_vitals events) for perf monitoring.
+    //   - dead clicks: clicks that produce no page change (frustration signal).
+    // Surveys are turned OFF — we don't run in-app surveys, so there's no reason
+    // to ship surveys.js to every consenting visitor.
+    capture_performance: { web_vitals: true },
+    capture_dead_clicks: true,
+    disable_surveys: true,
   })
 }
 

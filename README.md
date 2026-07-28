@@ -40,7 +40,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 1. חבר את ה-GitHub repo ל-[Vercel](https://vercel.com)
 2. Build/Output Settings — ברירות המחדל של Next.js, אין לשנות
-3. הוסף את כל ה-env vars מ-`.env.example` + `SITE_URL=https://<your-domain>.vercel.app`
+3. הוסף את כל ה-env vars מ-`.env.example` + `SITE_URL=https://<your-domain>`
 4. בסיום הדיפלוי — עדכן ב-Supabase: Authentication → URL Configuration → Site URL + Redirect URLs
 
 ### Cron Jobs

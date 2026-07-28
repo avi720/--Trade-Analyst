@@ -170,7 +170,7 @@ The required names are listed in `.env.example` (do not commit values). Brief pu
 | `MASSIVE_API_KEY` | Massive API key (price data; sync currently disabled) |
 | `GEMINI_API_KEY` | Google Gemini API key for the chat assistant |
 | `CRON_SECRET` | Bearer token expected by cron endpoints (`/api/cron/*`) |
-| `SITE_URL` | Canonical external URL of the app; used by `getBaseUrl()` (`lib/utils.ts`) to build server-side redirects and callbacks. Set in Vercel dashboard (e.g. `https://trade-analyst-lyart.vercel.app`). Server-only (no `NEXT_PUBLIC_` prefix). Not needed locally. |
+| `SITE_URL` | Canonical external URL of the app; used by `getBaseUrl()` (`lib/utils.ts`) to build server-side redirects and callbacks. Set in Vercel dashboard (e.g. `https://tradeanalyst.app`). Server-only (no `NEXT_PUBLIC_` prefix). Not needed locally. |
 | `NEXT_PUBLIC_SENTRY_DSN` | Sentry DSN — browser-safe (public). Enables error reporting from both client and server. |
 | `SENTRY_AUTH_TOKEN` | Sentry auth token — required only at build time for source-map upload. Server-only. |
 | `NEXT_PUBLIC_POSTHOG_KEY` | PostHog project API key — browser-safe. Powers analytics + signup funnel. |
