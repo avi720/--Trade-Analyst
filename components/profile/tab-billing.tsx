@@ -192,7 +192,7 @@ export function TabBilling({ userTier, subscriptionStatus, subscriptionRenewsAt,
               priceUsd={isLaunchPromo ? LAUNCH_PRICES.annual.usd : PRICES.annual.usd}
               originalPriceUsd={isLaunchPromo ? PRICES.annual.usd : undefined}
               title="שנתי"
-              subtitle={isLaunchPromo ? "מחיר השקה בלעדי!" : "חיסכון של ~17% לעומת חודשי"}
+              subtitle={isLaunchPromo ? "מחיר השקה בלעדי!" : "חיסכון של ~25% לעומת חודשי"}
               loading={loadingPlan === "annual"}
               onSelect={() => startCheckout("annual")}
               recommended
