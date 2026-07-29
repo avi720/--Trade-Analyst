@@ -11,7 +11,10 @@ jobs:
   watchdog:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4   # required to resolve the local composite action
       - name: Trigger AI-import watchdog
-        run: |
-          curl -f -X POST "${{ secrets.SITE_URL }}/api/cron/ai-import-watchdog" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+        uses: ./.github/actions/call-cron
+        with:
+          site-url: ${{ secrets.SITE_URL }}
+          path: /api/cron/ai-import-watchdog
+          cron-secret: ${{ secrets.CRON_SECRET }}

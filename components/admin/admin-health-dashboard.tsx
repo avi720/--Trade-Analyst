@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   LineChart,
   Line,
@@ -37,6 +37,9 @@ export interface MetricsSnapshot {
   ordersTotal: number
   orders7d: number
   brokerConnectionsActive: number
+  staleSyncConnections: number
+  brokerSyncErrors: number
+  lastBrokerSyncAt: string | null
   jobsPending: number
   jobsFailed: number
   ibkrSyncTotal7d: number
@@ -105,19 +108,63 @@ function truncateJson(value: unknown, max: number): string {
   }
 }
 
+// Absolute timestamp + relative age, e.g. "28/07 20:07 · לפני 3 שעות".
+// Deliberately not `toLocaleString('he-IL')` with a timezone — every other
+// number on this page is UTC, and mixing zones on a health dashboard is how
+// you misread an outage.
+//
+// `now` is null during SSR and the first client render, and only filled in by an
+// effect afterwards — the relative age would otherwise differ between the two
+// renders at an hour boundary and trip a hydration mismatch. The absolute
+// stamp is derived purely from the ISO string, so it is stable either way.
+function formatSyncAge(iso: string | null, now: number | null): { value: string; hint: string } {
+  if (!iso) return { value: '—', hint: 'לא בוצע סנכרון מעולם' }
+  const then = new Date(iso)
+  if (Number.isNaN(then.getTime())) return { value: '—', hint: 'תאריך לא תקין' }
+
+  let age = ''
+  if (now !== null) {
+    const hours = Math.floor((now - then.getTime()) / 3_600_000)
+    age =
+      hours < 1 ? 'לפני פחות משעה'
+      : hours < 24 ? `לפני ${hours} שעות`
+      : `לפני ${Math.floor(hours / 24)} ימים`
+  }
+
+  const p = (n: number) => String(n).padStart(2, '0')
+  const stamp = `${p(then.getUTCDate())}/${p(then.getUTCMonth() + 1)} ${p(then.getUTCHours())}:${p(then.getUTCMinutes())} UTC`
+  return { value: stamp, hint: age }
+}
+
 function StatCard({
   label,
   value,
   hint,
+  alert = false,
 }: {
   label: string
   value: string | number
   hint?: string
+  alert?: boolean
 }) {
   return (
-    <div className="panel px-4 py-3 flex flex-col gap-1">
+    <div
+      className={
+        alert
+          ? 'panel px-4 py-3 flex flex-col gap-1 border-red/60 bg-red/5'
+          : 'panel px-4 py-3 flex flex-col gap-1'
+      }
+    >
       <p className="text-xs text-text-dim">{label}</p>
-      <p className="text-lg font-semibold text-text-main font-mono">{value}</p>
+      <p
+        className={
+          alert
+            ? 'text-lg font-semibold text-red font-mono'
+            : 'text-lg font-semibold text-text-main font-mono'
+        }
+      >
+        {value}
+      </p>
       {hint && <p className="text-[10px] text-text-faint">{hint}</p>}
     </div>
   )
@@ -138,6 +185,14 @@ export function AdminHealthDashboard({
   recentFailures,
 }: Props) {
   const m = metrics
+
+  // See formatSyncAge — deferred to an effect to keep SSR and hydration identical.
+  const [now, setNow] = useState<number | null>(null)
+  useEffect(() => setNow(Date.now()), [])
+  const syncAge = useMemo(
+    () => formatSyncAge(m.lastBrokerSyncAt, now),
+    [m.lastBrokerSyncAt, now],
+  )
 
   const seriesData = useMemo(
     () =>
@@ -203,10 +258,37 @@ export function AdminHealthDashboard({
       {/* ── Integrations + IBKR ── */}
       <section>
         <GroupHeading>אינטגרציות</GroupHeading>
+
+        {m.staleSyncConnections > 0 && (
+          <p className="panel border-red/60 bg-red/5 px-4 py-3 mb-3 text-sm text-red">
+            {m.staleSyncConnections} חיבורי ברוקר פעילים לא סונכרנו מעל 48 שעות.
+            הקרון אמור לרוץ פעמיים ביום — בדוק את ריצות{' '}
+            <span className="font-mono">IBKR Sync</span> ב-GitHub Actions ואת
+            הסיקרט <span className="font-mono">SITE_URL</span> (דומיין מפנה
+            מחזיר 307 והראוט לא רץ כלל).
+          </p>
+        )}
+
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatCard label="חיבורי ברוקר פעילים" value={m.brokerConnectionsActive} />
+          <StatCard
+            label="סנכרון אחרון"
+            value={syncAge.value}
+            hint={syncAge.hint}
+            alert={m.staleSyncConnections > 0}
+          />
+          <StatCard
+            label="חיבורים לא מסונכרנים (48ש׳)"
+            value={m.staleSyncConnections}
+            alert={m.staleSyncConnections > 0}
+          />
+          <StatCard
+            label="חיבורים בשגיאה"
+            value={m.brokerSyncErrors}
+            alert={m.brokerSyncErrors > 0}
+          />
           <StatCard label="Jobs ממתינים" value={m.jobsPending} />
-          <StatCard label="Jobs נכשלו" value={m.jobsFailed} />
+          <StatCard label="Jobs נכשלו" value={m.jobsFailed} alert={m.jobsFailed > 0} />
           <StatCard
             label="IBKR הצלחה (7 ימים)"
             value={formatPct(m.ibkrSyncSuccess7d, m.ibkrSyncTotal7d)}

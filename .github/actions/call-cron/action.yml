@@ -1,0 +1,90 @@
+name: Call cron endpoint
+description: >
+  POST a /api/cron/* endpoint with the CRON_SECRET bearer token, then assert the
+  response is a 200 whose JSON body satisfies `expect`. Replaces bare `curl -f`,
+  which only fails on >=400 and therefore treated a silent 3xx as success.
+
+inputs:
+  site-url:
+    description: >
+      Canonical origin, no trailing slash. MUST be the non-redirecting host —
+      an apex/www mismatch produces a 307 that this action fails on, because
+      following it would strip the Authorization header (cross-origin).
+    required: true
+  path:
+    description: Endpoint path, e.g. /api/cron/ibkr-sync
+    required: true
+  cron-secret:
+    description: Bearer token matching the CRON_SECRET env var on the server.
+    required: true
+  expect:
+    description: >
+      jq filter that must evaluate truthy for the step to pass. The default
+      also fails the 200-but-did-nothing responses (e.g. ibkr-sync returning
+      `{"skipped":true}` when no connection is active) — that is intentional:
+      a cron that silently stops doing work should go red.
+    required: false
+    default: '.ok == true'
+  max-time:
+    description: curl --max-time in seconds.
+    required: false
+    default: '120'
+
+runs:
+  using: composite
+  steps:
+    - name: POST ${{ inputs.path }}
+      shell: bash
+      env:
+        # Passed through env rather than interpolated into the script body so a
+        # value containing shell metacharacters can't break out.
+        SITE_URL: ${{ inputs.site-url }}
+        ENDPOINT_PATH: ${{ inputs.path }}
+        CRON_SECRET: ${{ inputs.cron-secret }}
+        EXPECT: ${{ inputs.expect }}
+        MAX_TIME: ${{ inputs.max-time }}
+      run: |
+        set -euo pipefail
+
+        body="$RUNNER_TEMP/cron-body.json"
+
+        # No -f and no -L on purpose: we want to inspect 3xx/4xx ourselves, and
+        # following a cross-origin redirect would drop the Authorization header.
+        if ! out=$(curl -sS --max-time "$MAX_TIME" \
+              -o "$body" -w '%{http_code} %{redirect_url}' \
+              -X POST "${SITE_URL}${ENDPOINT_PATH}" \
+              -H "Authorization: Bearer ${CRON_SECRET}"); then
+          echo "::error::curl transport failure calling ${ENDPOINT_PATH}"
+          exit 1
+        fi
+
+        code="${out%% *}"
+        redirect="${out#* }"
+
+        echo "HTTP $code"
+        echo "--- response body ---"
+        cat "$body" 2>/dev/null || true
+        echo
+        echo "---------------------"
+
+        case "$code" in
+          200) ;;
+          3??)
+            echo "::error::${ENDPOINT_PATH} returned HTTP $code (redirect to '${redirect}')."
+            echo "::error::The route never ran. Point the SITE_URL secret at the canonical origin."
+            exit 1
+            ;;
+          *)
+            echo "::error::${ENDPOINT_PATH} returned HTTP $code"
+            exit 1
+            ;;
+        esac
+
+        if [ -n "$EXPECT" ]; then
+          if ! jq -e "$EXPECT" "$body" >/dev/null 2>&1; then
+            echo "::error::${ENDPOINT_PATH} returned 200 but the body failed '${EXPECT}'"
+            exit 1
+          fi
+        fi
+
+        echo "OK — ${ENDPOINT_PATH} succeeded"

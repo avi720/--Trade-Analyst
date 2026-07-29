@@ -9,7 +9,14 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4   # required to resolve the local composite action
       - name: Trigger IBKR sync
-        run: |
-          curl -f -X POST "${{ secrets.SITE_URL }}/api/cron/ibkr-sync" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+        uses: ./.github/actions/call-cron
+        with:
+          site-url: ${{ secrets.SITE_URL }}
+          path: /api/cron/ibkr-sync
+          cron-secret: ${{ secrets.CRON_SECRET }}
+          # `.ok` is absent on the `{"skipped":true}` no-active-connections
+          # response, so that case fails the run too — by design.
+          expect: '.ok == true'
+          max-time: '180'   # route polls IBKR up to ~40s, plus cold start
