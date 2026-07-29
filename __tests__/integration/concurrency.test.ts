@@ -57,7 +57,7 @@ describe.skipIf(!DB_AVAILABLE)('process-executions concurrency', () => {
   beforeAll(async () => {
     await cleanup()
     const { error: authErr } = await supabase.auth.admin.createUser({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- admin API accepts id, types lag
+      // admin API accepts id, types lag
       id: TEST_USER_ID,
       email: TEST_EMAIL,
       password: TEST_PASSWORD,

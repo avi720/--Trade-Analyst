@@ -32,6 +32,10 @@ export default function GlobalError({
               >
                 נסה שוב
               </button>
+              {/* Deliberately a plain <a>, not next/link: global-error replaces the
+                  root layout, so the router this boundary would need may itself be
+                  the thing that broke. A full document load is the reliable escape. */}
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
               <a href="/" className="text-sm text-text-dim hover:text-text-main transition-colors">
                 חזרה לדף הבית
               </a>

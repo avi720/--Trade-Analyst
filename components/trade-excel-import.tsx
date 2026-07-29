@@ -28,7 +28,6 @@ export function TradeExcelImport() {
     setPreview(null)
     setResult(null)
 
-    const buf = await file.arrayBuffer()
     // Parse client-side for preview using the import endpoint's preview mode
     const form = new FormData()
     form.append('file', file)

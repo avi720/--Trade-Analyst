@@ -53,7 +53,7 @@ describe.skipIf(!DB_AVAILABLE)('FIFO → DB integration', () => {
     await cleanup()
     // 1. Create the auth identity with a fixed UUID so the FK target exists.
     const { error: authErr } = await supabase.auth.admin.createUser({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- admin API accepts id, types lag
+      // admin API accepts id, types lag
       id: TEST_USER_ID,
       email: TEST_EMAIL,
       password: TEST_PASSWORD,

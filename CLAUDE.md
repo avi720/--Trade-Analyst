@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev                                  # Dev server (http://localhost:3000)
 npm run build                                # Production build (TypeScript gate)
 npm run start                                # Start production server
-npm run lint                                 # ESLint (next lint)
+npm run lint                                 # ESLint 9 flat config (eslint.config.mjs)
 npm run test                                 # Vitest watch
 npm run test:run                             # Vitest once
 npm run test:run -- __tests__/fifo.test.ts   # Single file
