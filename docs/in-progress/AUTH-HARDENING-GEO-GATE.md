@@ -253,14 +253,25 @@ per [migrations.md](../../.claude/rules/migrations.md).
 
 ## Rollout
 
-1. Merge with `GEO_GATE_ENABLED` **unset** — geo gate inert, items 1 + 2 live immediately.
-2. Confirm PostHog shows `google_signin_clicked` and identified persons on real traffic.
-3. Set `GEO_ALLOWED_COUNTRIES=IL` + `GEO_BYPASS_SECRET=<random>` in Vercel.
-4. Set `GEO_GATE_ENABLED=true`. Verify from Israel (app loads), then via VPN (451 on
+**Steps 3–6 were deliberately NOT executed — the geo gate ships disabled and stays that way.**
+Decision made 2026-07-30, after the plan was written but before rollout, once the signup data
+was actually examined: 4 auth users over two months, all real, all with completed profiles,
+zero junk. The gate addressed a threat that had not materialised, while blocking Israelis
+travelling abroad from their own journal and contradicting the planned English version.
+See the "Geo gate — BUILT, DELIBERATELY OFF" section of [CLAUDE.md](../../CLAUDE.md).
+
+1. ✅ Merge with `GEO_GATE_ENABLED` **unset** — geo gate inert, items 1 + 2 live immediately.
+2. ✅ Confirm PostHog shows `google_signin_clicked` and identified persons on real traffic.
+3. ⛔ ~~Set `GEO_ALLOWED_COUNTRIES=IL` + `GEO_BYPASS_SECRET=<random>` in Vercel.~~ Harmless to
+   leave set if already added — neither is read while the gate is off.
+4. ⛔ ~~Set `GEO_GATE_ENABLED=true`.~~ Verify from Israel (app loads), then via VPN (451 on
    `/login`, 200 on `/` and `/pricing`).
-5. Verify `?geo_bypass=<secret>` restores access while still on the VPN.
-6. Re-check Google Search Console coverage after ~1 week — `/` and the landing pages must
-   stay indexed.
+5. ⛔ ~~Verify `?geo_bypass=<secret>` restores access while still on the VPN.~~
+6. ⛔ ~~Re-check Google Search Console coverage after ~1 week.~~
+
+**Trigger to revisit:** >10 signups in a week from one country that never complete a profile.
+The `metadata.country` stamp added in item 3 of this plan is what surfaces that, with the gate
+still off. If the trigger fires, steps 3–6 above become live again as written.
 
 ## Verification
 

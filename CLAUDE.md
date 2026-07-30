@@ -161,12 +161,31 @@ Pro users upload a **personal** xlsx (arbitrary layout — merged cells, sub-tab
 - **`SITE_URL` must be the non-redirecting origin** (`https://tradeanalyst.app`, no `www`). This is not cosmetic: `curl -f` does not fail on 3xx and `-L` would strip the `Authorization` header across origins, so a redirecting value makes every cron silently no-op while Actions stays green. That exact bug ran from 2026-05-26 to 2026-07-28 — the `call-cron` HTTP assertion and the `staleSyncConnections` metric on `/admin/health` are the two guards against a repeat.
 - **BrokerEvent retention** (`pg_cron` job `purge-broker-events`, migration `schedule_broker_event_retention_90d`): daily `0 4 * * *` UTC `DELETE FROM "BrokerEvent" WHERE "receivedAt" < now() - interval '90 days'`. Chosen window is outside the IBKR sync slots (13:00 & 20:00 UTC). 90 days is a compromise between debuggability (the audit surface at `/admin/broker-events` stays useful for recent-week investigations) and unbounded storage growth (~10 KB/row × 2 syncs/day/user). Change the retention by re-running the migration with the new interval.
 
-## Geo gate
+## Geo gate — BUILT, DELIBERATELY OFF
 
-[lib/geo/gate.ts](lib/geo/gate.ts), enforced at the top of [proxy.ts](proxy.ts) before the
-Supabase client is built (a rejected request shouldn't cost a `getUser()` round-trip).
-Restricts the app + API to `GEO_ALLOWED_COUNTRIES` (default `IL`); blocked requests get **451**
-— JSON for `/api/*`, an inline Hebrew HTML page otherwise.
+**Status: shipped but disabled, and that is the intended steady state. Do not turn it on
+without the evidence described below.** `GEO_GATE_ENABLED` is unset/`false` in Vercel;
+`evaluateGeoAccess` short-circuits to `allowed: true` on its first branch, so the whole
+feature is inert. `GEO_ALLOWED_COUNTRIES` and `GEO_BYPASS_SECRET` may be present in the
+dashboard — they are never read while the gate is off. Only the exact string `true` arms it.
+
+**Why it is off.** It was built 2026-07-30 to blunt bot signups, then shelved the same day
+once the data was actually checked: at that point the project had **4 auth users, all real,
+all with completed profiles, zero junk signups** across two months. The gate was solving a
+problem that had never occurred, while imposing two real costs:
+
+1. **Israelis abroad get locked out of their own trading journal** — travellers and expats
+   are core market, and the bypass secret is not something you hand to customers.
+2. **It contradicts the roadmap.** An English version is planned; an English site only
+   Israelis can log into is not a product.
+
+**The trigger to enable it**, should abuse ever materialise: *more than ~10 signups in a week
+from a single country that never complete a profile.* The auth telemetry below is what
+detects this — `logAuditEvent` stamps `metadata.country` on every event, so the evidence
+accumulates without the gate being on. Flip one env var, redeploy, done.
+
+When enabled: restricts the app + API to `GEO_ALLOWED_COUNTRIES` (default `IL`); blocked
+requests get **451** — JSON for `/api/*`, an inline Hebrew HTML page otherwise.
 
 **The path split is load-bearing, not cosmetic.** These stay open worldwide:
 
@@ -224,7 +243,7 @@ The required names are listed in `.env.example` (do not commit values). Brief pu
 | `LEMONSQUEEZY_DISCOUNT_CODE_LAUNCH_ANNUAL` | LS discount **code** for launch promo annual ($79.99). Optional — omit after promo ends |
 | `AI_IMPORT_DISPATCH_TOKEN` | **Optional.** Fine-grained GitHub PAT (repo access, dispatch) so the AI-Excel-import upload route can `repository_dispatch` the worker for near-instant processing. Server-only. Omit → the `*/5` schedule in `ai-import-worker.yml` handles jobs instead. |
 | `AI_IMPORT_DISPATCH_REPO` | **Optional.** `owner/repo` target for the dispatch above. Server-only. Omit with the token to rely on the schedule. |
-| `GEO_GATE_ENABLED` | **Optional.** `'true'` enforces the geo gate (app + API restricted to `GEO_ALLOWED_COUNTRIES`). Anything else = allow all. Server-only. |
+| `GEO_GATE_ENABLED` | **Optional. Intended state: `false`/unset — see the Geo gate section for why.** `'true'` enforces the geo gate (app + API restricted to `GEO_ALLOWED_COUNTRIES`). Anything else = allow all. Server-only. |
 | `GEO_ALLOWED_COUNTRIES` | **Optional.** Comma-separated ISO-3166-1 alpha-2 allow-list for the geo gate. Defaults to `IL`. Server-only. |
 | `GEO_BYPASS_SECRET` | **Optional.** Secret for the `?geo_bypass=<secret>` escape hatch (sets a 90-day cookie exempting that browser). Unset = escape hatch disabled. Server-only. |
 
