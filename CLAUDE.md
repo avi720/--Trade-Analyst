@@ -25,10 +25,13 @@ npm run db:seed                              # Seed DB (uses .env.local + servic
 ### Data flow
 
 ```
-Supabase Auth → middleware.ts → protected routes → DashboardLayout
-                                                   (server, checks session, upserts User row)
-                                                   → Header + tab content
+Supabase Auth → proxy.ts → protected routes → DashboardLayout
+                                              (server, checks session, upserts User row)
+                                              → Header + tab content
 ```
+
+The edge gate is [proxy.ts](proxy.ts) — Next 16 renamed `middleware.ts` → `proxy.ts` and the
+export from `middleware` → `proxy`. There is no `middleware.ts` in this repo; don't add one.
 
 The dashboard layout (`app/(dashboard)/layout.tsx`) wraps everything in `ChatContextProvider`, and `<ChatSidebar />` is placed **outside** the `overflow-hidden` flex div as a sibling — required so `position: fixed` anchors to the viewport instead of rendering inline.
 
@@ -158,6 +161,41 @@ Pro users upload a **personal** xlsx (arbitrary layout — merged cells, sub-tab
 - **`SITE_URL` must be the non-redirecting origin** (`https://tradeanalyst.app`, no `www`). This is not cosmetic: `curl -f` does not fail on 3xx and `-L` would strip the `Authorization` header across origins, so a redirecting value makes every cron silently no-op while Actions stays green. That exact bug ran from 2026-05-26 to 2026-07-28 — the `call-cron` HTTP assertion and the `staleSyncConnections` metric on `/admin/health` are the two guards against a repeat.
 - **BrokerEvent retention** (`pg_cron` job `purge-broker-events`, migration `schedule_broker_event_retention_90d`): daily `0 4 * * *` UTC `DELETE FROM "BrokerEvent" WHERE "receivedAt" < now() - interval '90 days'`. Chosen window is outside the IBKR sync slots (13:00 & 20:00 UTC). 90 days is a compromise between debuggability (the audit surface at `/admin/broker-events` stays useful for recent-week investigations) and unbounded storage growth (~10 KB/row × 2 syncs/day/user). Change the retention by re-running the migration with the new interval.
 
+## Geo gate
+
+[lib/geo/gate.ts](lib/geo/gate.ts), enforced at the top of [proxy.ts](proxy.ts) before the
+Supabase client is built (a rejected request shouldn't cost a `getUser()` round-trip).
+Restricts the app + API to `GEO_ALLOWED_COUNTRIES` (default `IL`); blocked requests get **451**
+— JSON for `/api/*`, an inline Hebrew HTML page otherwise.
+
+**The path split is load-bearing, not cosmetic.** These stay open worldwide:
+
+- `/`, `/pricing`, `/terms`, `/privacy`, `/ibkr-sync`, `/fifo-analytics`, `/ai-trading-assistant` — indexed pages (`robots index:true` + JSON-LD on `/`). Googlebot crawls from US IPs; blocking it deindexes the site.
+- `/og` — fetched by WhatsApp / Facebook / LinkedIn crawlers to render link previews.
+- `/api/billing/webhook` — Lemon Squeezy posts from US infra.
+- `/api/cron/*` is already excluded by the **proxy matcher**, which is what keeps the US-based GitHub Actions crons working. Do not remove that exclusion from the matcher.
+
+**Fails open** in three cases, all deliberate: gate disabled (the default), no
+`x-vercel-ip-country` header (localhost / `next dev` — failing closed would break local dev),
+or country `XX` (Vercel couldn't geolocate). Escape hatch: `?geo_bypass=<GEO_BYPASS_SECRET>`
+sets a 90-day HttpOnly cookie and redirects to strip the secret from the URL (keeps it out of
+history, `Referer` and access logs). Tests: [__tests__/geo-gate.test.ts](__tests__/geo-gate.test.ts).
+
+## Auth telemetry
+
+Two layers, both added after a Google-OAuth signup failed silently on 2026-07-15 and left
+**no trace in PostHog or `AuditEvent`** — see [docs/in-progress/AUTH-HARDENING-GEO-GATE.md](docs/in-progress/AUTH-HARDENING-GEO-GATE.md).
+
+- **PostHog identity**: [components/analytics/analytics-identity.tsx](components/analytics/analytics-identity.tsx) is mounted once in the **root** layout (not the dashboard layout — the blind spot is users who never reach the dashboard). It calls `identifyUser()` on session load and on `onAuthStateChange`, so Google OAuth sign-ins get identified; previously only the email+password wizard did. Idempotent via a distinct-id comparison; no-ops without analytics consent.
+- **Funnel events**: `google_signin_clicked`, `oauth_callback_failed`, `login_failed` alongside the existing ones. `/auth/callback` appends `reason=exchange_failed` on PKCE failure so `/signup/verified` can tell a genuine email verification from a failed exchange — the page renders the same copy either way, so without the param the metric would be meaningless.
+- **`AuditEvent`**: `signup_completed`, `oauth_callback_failed`, `auth_callback_no_code` (migration `extend_audit_event_types_for_auth`). `logAuditEvent` now also stamps `metadata.country` from `x-vercel-ip-country` on **every** event type. `AuditContext.userId` is `string | null` — the auth-callback events must pass `null` because `AuditEvent.userId` has an FK to `User(id)` and those events fire before the `User` row exists.
+- **Deliberately not logged server-side**: `signup_started`. It happens in the browser, so capturing it would need a new unauthenticated POST endpoint — new attack surface for a metric PostHog already provides.
+
+CAPTCHA (hCaptcha / Turnstile) was considered and **dropped** — enabling Supabase's
+project-level toggle also covers `signInWithPassword`, which would break the server-side
+`verifyCurrentPassword` in [lib/auth/reauth.ts](lib/auth/reauth.ts) that backs
+change-password / change-email / delete-account. The plan doc records the revisit path.
+
 ## Env vars
 
 The required names are listed in `.env.example` (do not commit values). Brief purpose:
@@ -186,6 +224,9 @@ The required names are listed in `.env.example` (do not commit values). Brief pu
 | `LEMONSQUEEZY_DISCOUNT_CODE_LAUNCH_ANNUAL` | LS discount **code** for launch promo annual ($79.99). Optional — omit after promo ends |
 | `AI_IMPORT_DISPATCH_TOKEN` | **Optional.** Fine-grained GitHub PAT (repo access, dispatch) so the AI-Excel-import upload route can `repository_dispatch` the worker for near-instant processing. Server-only. Omit → the `*/5` schedule in `ai-import-worker.yml` handles jobs instead. |
 | `AI_IMPORT_DISPATCH_REPO` | **Optional.** `owner/repo` target for the dispatch above. Server-only. Omit with the token to rely on the schedule. |
+| `GEO_GATE_ENABLED` | **Optional.** `'true'` enforces the geo gate (app + API restricted to `GEO_ALLOWED_COUNTRIES`). Anything else = allow all. Server-only. |
+| `GEO_ALLOWED_COUNTRIES` | **Optional.** Comma-separated ISO-3166-1 alpha-2 allow-list for the geo gate. Defaults to `IL`. Server-only. |
+| `GEO_BYPASS_SECRET` | **Optional.** Secret for the `?geo_bypass=<secret>` escape hatch (sets a 90-day cookie exempting that browser). Unset = escape hatch disabled. Server-only. |
 
 When adding a new env var, follow [`.claude/rules/env-var-checklist.md`](.claude/rules/env-var-checklist.md).
 

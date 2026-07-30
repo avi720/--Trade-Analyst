@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { TradeLogoIcon } from '@/components/trade-logo'
 import { GoogleSignInButton } from '@/components/google-signin-button'
+import { trackEvent } from '@/lib/analytics/posthog'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -12,6 +13,20 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const reportedRedirectError = useRef(false)
+
+  // Report arrivals at /login?error=… — this is where /auth/callback dumps users when it
+  // gets no `code`, and until now that landing was completely untracked.
+  //
+  // Read from window.location rather than useSearchParams(): the latter would force this
+  // page behind a Suspense boundary at build time for a value only needed after mount.
+  useEffect(() => {
+    if (reportedRedirectError.current) return
+    const reason = new URLSearchParams(window.location.search).get('error')
+    if (!reason) return
+    reportedRedirectError.current = true
+    trackEvent('login_failed', { reason })
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -27,6 +42,9 @@ export default function LoginPage() {
     if (error) {
       setError('אימייל או סיסמה שגויים')
       setLoading(false)
+      // No email / password in the payload — a failure count is the signal, the credentials
+      // are not, and PostHog is not the place for either.
+      trackEvent('login_failed', { reason: 'invalid_credentials' })
       return
     }
 

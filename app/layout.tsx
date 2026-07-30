@@ -3,6 +3,7 @@ import { Assistant, IBM_Plex_Mono } from 'next/font/google'
 import { getBaseUrl } from '@/lib/utils'
 import { ConsentProvider } from '@/components/consent/consent-provider'
 import { CookieBanner } from '@/components/consent/cookie-banner'
+import { AnalyticsIdentity } from '@/components/analytics/analytics-identity'
 import './globals.css'
 
 // Self-hosted via next/font — no runtime DNS lookup to fonts.googleapis.com
@@ -82,6 +83,7 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <ConsentProvider>
+          <AnalyticsIdentity />
           {children}
           <CookieBanner />
         </ConsentProvider>
