@@ -220,7 +220,14 @@ function TickerCombobox({
     return () => document.removeEventListener('mousedown', onDoc)
   }, [open])
 
-  useEffect(() => { setHighlightIdx(0) }, [value])
+  // A new query means a new suggestion list, so the highlight goes back to the
+  // top. Adjusted during render against the previous prop rather than in an
+  // effect — otherwise the old index briefly highlights a row of the new list.
+  const [prevValue, setPrevValue] = useState(value)
+  if (value !== prevValue) {
+    setPrevValue(value)
+    setHighlightIdx(0)
+  }
 
   function commit(ticker: string) {
     onChange(ticker)

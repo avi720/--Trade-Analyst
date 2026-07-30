@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { TradeDetailModal, type TradeModalMode } from './trade-detail-modal'
 import { ManualCloseModal } from './manual-close-modal'
@@ -133,7 +133,17 @@ export function TradeSearch({ trades, initialParams }: Props) {
   // the patch survives until the incoming server row genuinely reflects it.
   const [pendingPatches, setPendingPatches] = useState<Record<string, Partial<RawTrade>>>({})
 
-  useEffect(() => {
+  // Retire optimistic state as soon as a new server list arrives. Done as a
+  // render-phase adjustment keyed on the previous `trades` identity rather than
+  // in a `[trades]` effect: the effect committed one render in which the server
+  // row and the already-reflected patch were both applied, and only then
+  // dropped the patch — a wasted pass on every router.refresh(). Both updaters
+  // return `prev` unchanged when there is nothing to prune, so React bails out
+  // rather than looping.
+  const [prevTrades, setPrevTrades] = useState(trades)
+  if (trades !== prevTrades) {
+    setPrevTrades(trades)
+
     setPendingPatches(prev => {
       const ids = Object.keys(prev)
       if (ids.length === 0) return prev
@@ -151,15 +161,8 @@ export function TradeSearch({ trades, initialParams }: Props) {
       }
       return changed ? next : prev
     })
-  }, [trades])
 
-  function patchTrade(id: string, patch: Partial<RawTrade>) {
-    setPendingPatches(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }))
-    router.refresh()
-  }
-
-  // Drop optimistic-delete entries once the server list no longer contains them.
-  useEffect(() => {
+    // Drop optimistic-delete entries once the server list no longer contains them.
     setDeletedIds(prev => {
       if (prev.size === 0) return prev
       const next = new Set<string>()
@@ -168,7 +171,12 @@ export function TradeSearch({ trades, initialParams }: Props) {
       }
       return next.size === prev.size ? prev : next
     })
-  }, [trades])
+  }
+
+  function patchTrade(id: string, patch: Partial<RawTrade>) {
+    setPendingPatches(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }))
+    router.refresh()
+  }
 
   const effectiveTrades = useMemo(() => {
     const base = deletedIds.size === 0 ? trades : trades.filter(t => !deletedIds.has(t.id))

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useChatOpen, useChatContextData } from '@/lib/chat/chat-context'
 import { createClient } from '@/lib/supabase/client'
+import { useHydrated } from '@/lib/hooks/use-hydrated'
 
 type ContextMode = 'smart' | 'full'
 
@@ -55,8 +56,15 @@ export function ChatSidebar({ isPro = false }: { isPro?: boolean }) {
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Load conversation from localStorage + DB on mount
-  useEffect(() => {
+  // Restore the persisted conversation from localStorage. Read after hydration
+  // rather than in a mount effect (see useHydrated) — localStorage is
+  // browser-only, so the server and the hydration render must both see the
+  // defaults declared above.
+  const hydrated = useHydrated()
+  const [restored, setRestored] = useState(false)
+  if (hydrated && !restored) {
+    setRestored(true)
+
     const savedMode = ls(LS_CTX_MODE)
     if (savedMode === 'smart' || savedMode === 'full') setContextMode(savedMode)
 
@@ -64,10 +72,19 @@ export function ChatSidebar({ isPro = false }: { isPro?: boolean }) {
     // by an expired subscription must not survive.
     if (isPro && ls(LS_RESPECT_FILTER) === 'false') setRespectFilter(false)
 
+    setConversationId(ls(LS_CONV_ID))
+  }
+
+  // Pull the restored conversation's messages from the DB. Keyed on `restored`,
+  // not on `conversationId`: the id also changes when the user starts a new
+  // conversation, and re-fetching then would overwrite the live message list
+  // with whatever the server had last persisted.
+  useEffect(() => {
+    if (!restored) return
     const savedId = ls(LS_CONV_ID)
     if (!savedId) return
-    setConversationId(savedId)
 
+    let cancelled = false
     const supabase = createClient()
     supabase
       .from('AIConversation')
@@ -75,13 +92,15 @@ export function ChatSidebar({ isPro = false }: { isPro?: boolean }) {
       .eq('id', savedId)
       .single()
       .then(({ data }) => {
+        if (cancelled) return
         const row = data as { messages: unknown } | null
         if (row?.messages) {
           const stored = row.messages as StoredMessage[]
           setMessages(stored.map(m => ({ role: m.role, content: m.content })))
         }
       })
-  }, [isPro])
+    return () => { cancelled = true }
+  }, [restored])
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {

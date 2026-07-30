@@ -53,10 +53,11 @@ export function AdminJobDetail({
   const [error, setError] = useState<string | null>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
 
+  // No `setLoading(true) / setError(null)` reset here: the mount site keys this
+  // component on `jobId`, so a different job gets a fresh instance whose
+  // initial state is already `loading: true, error: null, detail: null`.
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
-    setError(null)
     fetch(`/api/admin/jobs/${jobId}`, { cache: 'no-store' })
       .then(async r => {
         if (!r.ok) {

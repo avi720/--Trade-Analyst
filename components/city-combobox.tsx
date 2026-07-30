@@ -27,10 +27,15 @@ export function CityCombobox({
     ? cities.slice(0, 80)
     : cities.filter(c => c.includes(query)).slice(0, 80)
 
-  // Keep query in sync when parent resets value
-  useEffect(() => {
+  // Keep the draft query in sync when the parent changes `value` (e.g. a form
+  // reset). React's documented "adjust state when a prop changes" pattern —
+  // comparing against the previous prop during render rather than in an effect,
+  // so the stale query never gets committed and painted first.
+  const [prevValue, setPrevValue] = useState(value)
+  if (value !== prevValue) {
+    setPrevValue(value)
     setQuery(value)
-  }, [value])
+  }
 
   // Close on outside click
   useEffect(() => {

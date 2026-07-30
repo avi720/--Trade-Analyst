@@ -254,6 +254,7 @@ export function AdminBrokerEventsTable({
 
       {selectedId && (
         <AdminBrokerEventDetail
+          key={selectedId}
           eventId={selectedId}
           onClose={() => setSelectedId(null)}
         />

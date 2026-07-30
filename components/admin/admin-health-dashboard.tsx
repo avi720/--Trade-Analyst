@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import {
   LineChart,
   Line,
@@ -18,6 +18,7 @@ import {
   GRID_STROKE,
   AXIS_STROKE,
 } from '@/components/research/shell'
+import { useClientNow } from '@/lib/hooks/use-client-now'
 
 export interface MetricsSnapshot {
   usersTotal: number
@@ -186,9 +187,11 @@ export function AdminHealthDashboard({
 }: Props) {
   const m = metrics
 
-  // See formatSyncAge — deferred to an effect to keep SSR and hydration identical.
-  const [now, setNow] = useState<number | null>(null)
-  useEffect(() => setNow(Date.now()), [])
+  // `formatSyncAge` renders a relative "לפני N שעות" hint that the server
+  // cannot produce without its markup differing from the client's, so `now` is
+  // null through SSR and the hydration render and real from the next one on.
+  const now = useClientNow()
+
   const syncAge = useMemo(
     () => formatSyncAge(m.lastBrokerSyncAt, now),
     [m.lastBrokerSyncAt, now],
