@@ -72,9 +72,10 @@ export function TabDisplay({ initialDisplay }: TabDisplayProps) {
   const [saveOk, setSaveOk] = useState(false);
   const [toastSecondsLeft, setToastSecondsLeft] = useState(0);
 
+  // The countdown is seeded alongside setSaveOk(true) in handleSave; this
+  // effect only owns the ticking.
   useEffect(() => {
     if (!saveOk) return;
-    setToastSecondsLeft(TOAST_DURATION);
     const interval = setInterval(() => {
       setToastSecondsLeft((prev) => {
         if (prev <= 1) { clearInterval(interval); setSaveOk(false); return 0; }
@@ -100,6 +101,7 @@ export function TabDisplay({ initialDisplay }: TabDisplayProps) {
         setSaveError(json.error ?? "שגיאה בשמירה");
       } else {
         setSaveOk(true);
+        setToastSecondsLeft(TOAST_DURATION);
       }
     } catch {
       setSaveError("שגיאת רשת");

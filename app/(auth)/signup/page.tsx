@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import Link from 'next/link'
@@ -139,7 +139,12 @@ export default function SignupPage() {
 
   // Cities
   const [cities, setCities] = useState<string[]>([])
-  const [citiesLoading, setCitiesLoading] = useState(false)
+  const [citiesLoaded, setCitiesLoaded] = useState(false)
+  // Derived rather than its own state: the combobox is "loading" exactly while
+  // step 2 is showing and the fetch below hasn't settled. Also fixes the old
+  // `cities.length > 0` guard, which re-fetched forever if the API legitimately
+  // returned an empty list.
+  const citiesLoading = step === 2 && !citiesLoaded
 
   // Global submit error (step 3)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -160,13 +165,14 @@ export default function SignupPage() {
 
   // Fetch cities when step 2 mounts
   useEffect(() => {
-    if (step !== 2 || cities.length > 0) return
-    setCitiesLoading(true)
+    if (step !== 2 || citiesLoaded) return
+    let cancelled = false
     fetch('/api/cities')
       .then(r => r.json())
-      .then(d => setCities(d.cities ?? []))
-      .finally(() => setCitiesLoading(false))
-  }, [step, cities.length])
+      .then(d => { if (!cancelled) setCities(d.cities ?? []) })
+      .finally(() => { if (!cancelled) setCitiesLoaded(true) })
+    return () => { cancelled = true }
+  }, [step, citiesLoaded])
 
   // ── Step 1 form ───────────────────────────────────────────────────────────
 
@@ -228,7 +234,12 @@ export default function SignupPage() {
   // ── Step 2 form ───────────────────────────────────────────────────────────
 
   const form2 = useForm<Step2Fields>({ resolver: zodResolver(step2Schema) })
-  const cityValue = form2.watch('addressCity') ?? ''
+  // `useWatch` rather than `form2.watch(...)`: `watch()` is a function returned
+  // from useForm(), which React Compiler cannot memoize safely, so its presence
+  // made it bail out of compiling this whole component
+  // (react-hooks/incompatible-library). `useWatch` subscribes as a hook and
+  // returns a plain value, which compiles fine.
+  const cityValue = useWatch({ control: form2.control, name: 'addressCity' }) ?? ''
 
   // When arriving at step 2 (e.g. via Google sign-in), prefill name from auth metadata
   useEffect(() => {
@@ -272,9 +283,10 @@ export default function SignupPage() {
     },
   })
 
-  const currency     = form3.watch('currency')
-  const dateFormat   = form3.watch('dateFormat')
-  const numberFormat = form3.watch('numberFormat')
+  // useWatch, not form3.watch(...) — see the note on cityValue above.
+  const currency     = useWatch({ control: form3.control, name: 'currency' })
+  const dateFormat   = useWatch({ control: form3.control, name: 'dateFormat' })
+  const numberFormat = useWatch({ control: form3.control, name: 'numberFormat' })
 
   async function onStep3Submit(display: Step3Fields) {
     if (!step2Data) return

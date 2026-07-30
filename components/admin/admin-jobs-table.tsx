@@ -374,6 +374,7 @@ export function AdminJobsTable({ initialRows }: Props) {
 
       {selected && (
         <AdminJobDetail
+          key={selected.id}
           jobId={selected.id}
           summary={selected}
           onClose={() => setSelectedId(null)}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { Users, FileSpreadsheet, Plug, Activity, HeartPulse } from 'lucide-react'
@@ -29,10 +29,18 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     TABS.find(t => pathname === t.href || pathname.startsWith(t.href + '/'))?.id
     ?? 'users'
 
-  // The route committed — drop the pending state so the real page shows.
-  useEffect(() => {
+  // The route committed (or the user navigated away, e.g. browser back) — drop
+  // the pending state so the real page shows. Comparing against the previous
+  // pathname during render rather than clearing it in a `[pathname]` effect
+  // also drops the one frame where the skeleton lingered over the committed
+  // route. Note this deliberately tracks *changes* to the pathname rather than
+  // remembering which pathname the click happened on: the latter resurrects a
+  // stale pending tab when the user navigates back to that same pathname.
+  const [prevPathname, setPrevPathname] = useState(pathname)
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname)
     setPendingId(null)
-  }, [pathname])
+  }
 
   const highlightId = pendingId ?? activeTab
   // Show the skeleton while navigating to a *different* tab than the one the

@@ -11,7 +11,7 @@
 
 'use client'
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts'
@@ -82,19 +82,37 @@ export interface ChartCardProps {
   defaultHeight?: number
   /** Span the full row by default (used for the setup chart). */
   fullWidth?: boolean
-  /** Position within a pair row — determines width-drag direction. null = solo/full. */
-  pairPosition?: 'first' | 'second' | null
-  /** Called during width drag with pixel delta from drag start. */
-  onWidthDrag?: (deltaX: number) => void
-  /** Called when width drag ends. */
-  onWidthDragEnd?: () => void
   children: React.ReactNode
 }
 
+/**
+ * Set by `PairRow` around each of its two children so a `ChartCard` knows which
+ * half of the row it occupies and where to report width drags.
+ *
+ * This is context rather than props because `PairRow` receives its children as
+ * already-constructed elements. Injecting the values with `React.cloneElement`
+ * would mean building ref-reading drag handlers and handing them to a plain
+ * function call during render — which is exactly what `react-hooks/refs` flags,
+ * and it needed an unchecked `as Partial<ChartCardProps>` cast to type-check.
+ * `null` means the card is standalone (full-width row), not part of a pair.
+ */
+interface PairSlot {
+  /** Position within a pair row — determines width-drag direction. */
+  pairPosition: 'first' | 'second'
+  /** Called during width drag with pixel delta from drag start. */
+  onWidthDrag: (deltaX: number) => void
+  /** Called when width drag ends. */
+  onWidthDragEnd: () => void
+}
+
+const PairSlotContext = React.createContext<PairSlot | null>(null)
+
 export function ChartCard({
   chartId, title, ariaLabel, info, headerExtra, footerExtra,
-  defaultHeight = 220, pairPosition, onWidthDrag, onWidthDragEnd, children,
+  defaultHeight = 220, children,
 }: ChartCardProps) {
+  const slot = useContext(PairSlotContext)
+  const { pairPosition = null, onWidthDrag, onWidthDragEnd } = slot ?? {}
   const panelRef = useRef<HTMLDivElement>(null)
   const innerRef = useRef<HTMLDivElement>(null)
 
@@ -247,7 +265,7 @@ export function PairRow({
 
   useEffect(() => { ratioRef.current = initialRatio }, [initialRatio])
 
-  const applyRatio = (r: number) => {
+  const applyRatio = useCallback((r: number) => {
     const row = rowRef.current
     if (!row) return
     const gap = 16
@@ -256,9 +274,9 @@ export function PairRow({
     const second = row.children[1] as HTMLElement | undefined
     if (first) first.style.width = (r * totalW) + 'px'
     if (second) second.style.width = ((1 - r) * totalW) + 'px'
-  }
+  }, [])
 
-  useEffect(() => { applyRatio(initialRatio) }, [initialRatio])
+  useEffect(() => { applyRatio(initialRatio) }, [initialRatio, applyRatio])
 
   useEffect(() => {
     const row = rowRef.current
@@ -266,11 +284,11 @@ export function PairRow({
     const obs = new ResizeObserver(() => applyRatio(ratioRef.current))
     obs.observe(row)
     return () => obs.disconnect()
-  }, [])
+  }, [applyRatio])
 
   const draggingRef = useRef(false)
 
-  const makeWidthDrag = (_pos: 'first' | 'second') => (deltaX: number) => {
+  const handleWidthDrag = useCallback((deltaX: number) => {
     if (!draggingRef.current) {
       startRatioRef.current = ratioRef.current
       draggingRef.current = true
@@ -291,28 +309,31 @@ export function PairRow({
     newRatio = Math.max(minR, Math.min(1 - minR, newRatio))
     ratioRef.current = newRatio
     applyRatio(newRatio)
-  }
+  }, [applyRatio])
 
-  const makeWidthDragEnd = () => () => {
+  const handleWidthDragEnd = useCallback(() => {
     draggingRef.current = false
     const r = ratioRef.current
     startRatioRef.current = r
     onRatioCommit(pairKey, r)
-  }
+  }, [pairKey, onRatioCommit])
+
+  const firstSlot = useMemo<PairSlot>(
+    () => ({ pairPosition: 'first', onWidthDrag: handleWidthDrag, onWidthDragEnd: handleWidthDragEnd }),
+    [handleWidthDrag, handleWidthDragEnd],
+  )
+  const secondSlot = useMemo<PairSlot>(
+    () => ({ pairPosition: 'second', onWidthDrag: handleWidthDrag, onWidthDragEnd: handleWidthDragEnd }),
+    [handleWidthDrag, handleWidthDragEnd],
+  )
 
   const [first, second] = children
+  // The two providers render no DOM of their own, so `row.children[0]` /
+  // `[1]` in `applyRatio` still resolve to the two ChartCard panels.
   return (
     <div ref={rowRef} className="flex gap-4 flex-col lg:flex-row lg:items-start" dir="rtl">
-      {React.cloneElement(first, {
-        pairPosition: 'first' as const,
-        onWidthDrag: makeWidthDrag('first'),
-        onWidthDragEnd: makeWidthDragEnd(),
-      } as Partial<ChartCardProps>)}
-      {React.cloneElement(second, {
-        pairPosition: 'second' as const,
-        onWidthDrag: makeWidthDrag('second'),
-        onWidthDragEnd: makeWidthDragEnd(),
-      } as Partial<ChartCardProps>)}
+      <PairSlotContext.Provider value={firstSlot}>{first}</PairSlotContext.Provider>
+      <PairSlotContext.Provider value={secondSlot}>{second}</PairSlotContext.Provider>
     </div>
   )
 }

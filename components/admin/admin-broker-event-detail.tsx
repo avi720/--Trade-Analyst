@@ -45,10 +45,11 @@ export function AdminBrokerEventDetail({ eventId, onClose }: Props) {
   const [error, setError] = useState<string | null>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
 
+  // No `setLoading(true) / setError(null)` reset here: the mount site keys this
+  // component on `eventId`, so a different event gets a fresh instance whose
+  // initial state is already `loading: true, error: null, detail: null`.
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
-    setError(null)
     fetch(`/api/admin/broker-events/${eventId}`, { cache: 'no-store' })
       .then(async r => {
         if (!r.ok) {

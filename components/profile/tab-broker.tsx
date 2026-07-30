@@ -132,23 +132,37 @@ export function TabBroker({ userTier }: TabBrokerProps) {
   const [flexToken, setFlexToken] = useState("");
   const [queryIdActivity, setQueryIdActivity] = useState("");
 
-  const loadConnection = useCallback(async () => {
+  const fetchConnection = useCallback(async (): Promise<ConnectionStatus | null> => {
     const res = await fetch("/api/ibkr/connection");
-    if (res.ok) {
-      const json = await res.json();
-      if (json.connection) {
-        const c: ConnectionStatus = json.connection;
-        setConn(c);
-        setQueryIdActivity(c.flexQueryIdActivity ?? "");
-      }
-    }
+    if (!res.ok) return null;
+    const json = await res.json();
+    return (json.connection as ConnectionStatus | undefined) ?? null;
   }, []);
 
-  useEffect(() => { loadConnection(); }, [loadConnection]);
+  const applyConnection = useCallback((c: ConnectionStatus | null) => {
+    if (!c) return;
+    setConn(c);
+    setQueryIdActivity(c.flexQueryIdActivity ?? "");
+  }, []);
 
+  const loadConnection = useCallback(async () => {
+    applyConnection(await fetchConnection());
+  }, [fetchConnection, applyConnection]);
+
+  // Split from loadConnection so the state update is visibly in a `.then` and
+  // can be dropped if the tab unmounts before the request lands.
+  useEffect(() => {
+    let cancelled = false;
+    void fetchConnection().then((c) => {
+      if (!cancelled) applyConnection(c);
+    });
+    return () => { cancelled = true; };
+  }, [fetchConnection, applyConnection]);
+
+  // The countdown is seeded alongside setSaveOk(true) in handleSave; this
+  // effect only owns the ticking.
   useEffect(() => {
     if (!saveOk) return;
-    setToastSecondsLeft(TOAST_DURATION);
     const interval = setInterval(() => {
       setToastSecondsLeft((prev) => {
         if (prev <= 1) { clearInterval(interval); setSaveOk(false); return 0; }
@@ -199,6 +213,7 @@ export function TabBroker({ userTier }: TabBrokerProps) {
         setSaveError(typeof json.error === "string" ? json.error : JSON.stringify(json.error));
       } else {
         setSaveOk(true);
+        setToastSecondsLeft(TOAST_DURATION);
         setFlexToken("");
         setInitialSyncRunning(true);
         loadConnection();

@@ -16,6 +16,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useChatContext } from '@/lib/chat/chat-context'
+import { useHydrated } from '@/lib/hooks/use-hydrated'
 import { computeResearchAggregates } from '@/lib/utils/research-aggregate'
 import { formatUsd } from '@/lib/utils/position-calc'
 import { InfoTooltip } from '@/components/info-tooltip'
@@ -89,35 +90,56 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
   }, [dateFrom, dateTo, tickerFilter, setupFilter, directionFilter, resultFilter,
       execQualMin, execQualMax, holdHoursMin, holdHoursMax, holdUnit, rMin, rMax])
 
-  // Hydrate persisted preferences after mount (localStorage is browser-only).
-  useEffect(() => {
+  // Adopt persisted preferences once hydration is done (localStorage is
+  // browser-only, so the server and the hydration render must both use the
+  // defaults above or the markup won't match).
+  //
+  // This is a render-phase adjustment rather than a mount effect on purpose:
+  // React discards this render and immediately re-renders with the new state,
+  // so the defaults never reach the DOM. The effect version committed and
+  // painted them first, then cascaded a second render — a visible flash of
+  // "all charts on" for anyone who had hidden some.
+  const hydrated = useHydrated()
+  const [prefsAdopted, setPrefsAdopted] = useState(false)
+  if (hydrated && !prefsAdopted) {
+    setPrefsAdopted(true)
     setChartVisible(loadChartVisibility())
     setHoldUnit(loadHoldUnit())
     setSetupSeries(loadSetupSeries())
     setRowRatios(loadRowRatios())
     setFilterCollapsed(loadBoolPref(LS_KEYS.filterCollapsed))
     setMetricsCollapsed(loadBoolPref(LS_KEYS.metricsCollapsed))
-  }, [])
+  }
 
+  // Every write-back below is gated on `prefsAdopted`. The hydration render
+  // still holds the defaults, and its effects run before the adoption re-render
+  // — without the gate they would overwrite the user's stored preferences with
+  // those defaults, and the adoption read above would then find nothing but the
+  // values it just clobbered.
   useEffect(() => {
+    if (!prefsAdopted) return
     try { localStorage.setItem(LS_KEYS.filterCollapsed, String(filterCollapsed)) } catch {}
-  }, [filterCollapsed])
+  }, [filterCollapsed, prefsAdopted])
 
   useEffect(() => {
+    if (!prefsAdopted) return
     try { localStorage.setItem(LS_KEYS.metricsCollapsed, String(metricsCollapsed)) } catch {}
-  }, [metricsCollapsed])
+  }, [metricsCollapsed, prefsAdopted])
 
   useEffect(() => {
+    if (!prefsAdopted) return
     try { localStorage.setItem(LS_KEYS.visibility, JSON.stringify(chartVisible)) } catch {}
-  }, [chartVisible])
+  }, [chartVisible, prefsAdopted])
 
   useEffect(() => {
+    if (!prefsAdopted) return
     try { localStorage.setItem(LS_KEYS.holdUnit, holdUnit) } catch {}
-  }, [holdUnit])
+  }, [holdUnit, prefsAdopted])
 
   useEffect(() => {
+    if (!prefsAdopted) return
     try { localStorage.setItem(LS_KEYS.setupSeries, JSON.stringify(setupSeries)) } catch {}
-  }, [setupSeries])
+  }, [setupSeries, prefsAdopted])
 
   const closedTrades = useMemo(
     () => rawTrades.flatMap(t => { const ct = toClosedTrade(t); return ct ? [ct] : [] }),

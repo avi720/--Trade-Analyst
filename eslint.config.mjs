@@ -47,23 +47,27 @@ const config = [
         },
       ],
 
-      // WARN — real signal, deliberately not failing the build *yet*.
+      // ERROR. These two ship with eslint-plugin-react-hooks v6 (the React
+      // Compiler rules) and landed with ~30 pre-existing violations, which were
+      // parked at 'warn' for one commit so the tooling migration wouldn't drag
+      // a risky refactor along with it. All of them are now fixed, so the rules
+      // are enforced — do not downgrade one to silence a new hit.
       //
-      // These two ship with eslint-plugin-react-hooks v6 (React Compiler rules)
-      // and were never enforced here, so they surface ~30 pre-existing hits
-      // across ~20 components. Fixing them means genuine hook refactors with
-      // real regression risk, which does not belong bundled into a tooling
-      // migration. Kept visible in `npm run lint` output rather than switched
-      // off, so the debt stays honest instead of disappearing.
-      //
-      // Two notes for whoever picks this up:
-      //  - All 12 `refs` hits are in one file, components/research/shell.tsx.
-      //  - Some `set-state-in-effect` hits are the *intended* fix for something
-      //    else: e.g. admin-health-dashboard.tsx defers Date.now() to an effect
-      //    specifically to avoid a hydration mismatch. Those need a different
-      //    pattern (useSyncExternalStore), not a naive inlining.
-      'react-hooks/set-state-in-effect': 'warn',
-      'react-hooks/refs': 'warn',
+      // The recurring fixes, if you trip these:
+      //  - refs: don't hand a ref-reading closure to a plain function call
+      //    during render. React.cloneElement was the offender; context is the
+      //    replacement (see components/research/shell.tsx PairSlotContext).
+      //  - set-state-in-effect, browser-only value (localStorage, cookies,
+      //    Notification.permission): useHydrated() from lib/hooks, then adopt
+      //    the real value in a render-phase adjustment. Date.now() specifically
+      //    cannot be read in render at all (react-hooks/purity) — use
+      //    useClientNow() from lib/hooks instead.
+      //  - set-state-in-effect, state mirroring a prop: compare against the
+      //    previous prop during render, don't sync it in an effect.
+      //  - set-state-in-effect, "reset everything when the id changes": give
+      //    the component a key at the mount site.
+      'react-hooks/set-state-in-effect': 'error',
+      'react-hooks/refs': 'error',
     },
   },
 ]

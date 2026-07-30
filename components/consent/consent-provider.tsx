@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import posthog from 'posthog-js'
 import { initPostHog } from '@/lib/analytics/posthog'
+import { useHydrated } from '@/lib/hooks/use-hydrated'
 import {
   DEFAULT_CONSENT,
   readConsent,
@@ -28,14 +29,21 @@ export function useConsent(): ConsentContextValue {
 }
 
 export function ConsentProvider({ children }: { children: React.ReactNode }) {
-  // Start from DEFAULT (undecided) so SSR and first client render agree; the
-  // real cookie is read in the mount effect below to avoid hydration mismatch.
+  // Start from DEFAULT (undecided) so SSR and the hydration render agree; the
+  // real cookie is picked up on the render right after hydration, which is
+  // what avoids the mismatch. Adjusting state during render rather than in a
+  // mount effect keeps React from committing the undecided state first — the
+  // effect version could flash the consent banner at users who had already
+  // dismissed it.
   const [consent, setConsentState] = useState<ConsentState>(DEFAULT_CONSENT)
   const [managing, setManaging] = useState(false)
 
-  useEffect(() => {
+  const hydrated = useHydrated()
+  const [cookieRead, setCookieRead] = useState(false)
+  if (hydrated && !cookieRead) {
+    setCookieRead(true)
     setConsentState(readConsent())
-  }, [])
+  }
 
   // Apply analytics consent to PostHog. Runs on mount (after the cookie read
   // lands) and whenever the flag flips. Granting initialises + opts in;

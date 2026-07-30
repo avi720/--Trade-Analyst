@@ -46,15 +46,15 @@ export function InfoTooltip({ label, children, align: alignProp = 'start' }: Pro
   // cards overflow. We measure synchronously in useLayoutEffect (runs before
   // paint) and reveal the popover only after the correct align is applied.
   useLayoutEffect(() => {
-    if (!open) {
-      setMeasured(false)
-      setAlign(alignProp)
-      return
-    }
+    // `measured`/`align` are reset by handleToggle on the way *in*, not here on
+    // the way out — the popover unmounts when closed, so there is nothing to
+    // reset until the next open, and doing it in the effect meant a state
+    // update on every close.
+    //
     // Only measure on the first commit after open (measured === false).
     // After we flip align, this effect re-runs; if we measured again the new
     // position would no longer overflow, we'd flip back, and bounce forever.
-    if (measured) return
+    if (!open || measured) return
     const pop = popRef.current
     if (!pop) return
     const rect = pop.getBoundingClientRect()
@@ -66,6 +66,18 @@ export function InfoTooltip({ label, children, align: alignProp = 'start' }: Pro
     setMeasured(true)
   }, [open, alignProp, align, measured])
 
+  function handleToggle() {
+    if (open) {
+      setOpen(false)
+      return
+    }
+    // Re-arm the measure pass: start from the caller's preferred alignment and
+    // stay hidden until the layout effect has confirmed or flipped it.
+    setMeasured(false)
+    setAlign(alignProp)
+    setOpen(true)
+  }
+
   return (
     <div ref={ref} className="relative inline-flex shrink-0">
       <button
@@ -73,7 +85,7 @@ export function InfoTooltip({ label, children, align: alignProp = 'start' }: Pro
         aria-label={label}
         aria-expanded={open}
         title="לחץ למידע"
-        onClick={() => setOpen(o => !o)}
+        onClick={handleToggle}
         className="min-w-11 min-h-11 -m-3 text-text-mute hover:text-amber transition-colors flex items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2"
       >
         <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">

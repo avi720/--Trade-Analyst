@@ -30,11 +30,10 @@ export function Header({ userEmail, isAdmin = false }: HeaderProps) {
   // Reposition when opening or on resize while open. The dropdown is
   // position:fixed because the header has overflow-x-auto (which CSS forces
   // to overflow-y:auto too), so absolute positioning would clip it.
+  // Closing clears the position via closeDropdown() rather than from this
+  // effect, so that a reopen can't paint one frame at the stale coordinates.
   useEffect(() => {
-    if (!dropdownOpen) {
-      setDropdownPos(null)
-      return
-    }
+    if (!dropdownOpen) return
     function reposition() {
       const rect = buttonRef.current?.getBoundingClientRect()
       if (!rect) return
@@ -57,6 +56,11 @@ export function Header({ userEmail, isAdmin = false }: HeaderProps) {
       window.removeEventListener('scroll', reposition, true)
     }
   }, [dropdownOpen])
+
+  function closeDropdown() {
+    setDropdownOpen(false)
+    setDropdownPos(null)
+  }
 
   async function handleSignOut() {
     const { createClient } = await import('@/lib/supabase/client')
@@ -136,7 +140,7 @@ export function Header({ userEmail, isAdmin = false }: HeaderProps) {
         {/* User dropdown */}
         <button
           ref={buttonRef}
-          onClick={() => setDropdownOpen(p => !p)}
+          onClick={() => (dropdownOpen ? closeDropdown() : setDropdownOpen(true))}
           aria-haspopup="menu"
           aria-expanded={dropdownOpen}
           aria-label={userEmail ? `תפריט משתמש: ${userEmail}` : 'תפריט משתמש'}
@@ -154,7 +158,7 @@ export function Header({ userEmail, isAdmin = false }: HeaderProps) {
           <>
             <div
               className="fixed inset-0 z-40"
-              onClick={() => setDropdownOpen(false)}
+              onClick={closeDropdown}
             />
             <div
               role="menu"
@@ -167,7 +171,7 @@ export function Header({ userEmail, isAdmin = false }: HeaderProps) {
               <Link
                 href="/profile"
                 className="block px-3 py-2 text-sm text-text-main hover:bg-input-bg"
-                onClick={() => setDropdownOpen(false)}
+                onClick={closeDropdown}
               >
                 פרופיל והגדרות
               </Link>

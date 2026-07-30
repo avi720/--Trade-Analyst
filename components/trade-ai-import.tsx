@@ -5,6 +5,7 @@ import { manualLegSchema, type ManualLeg } from '@/lib/trade/manual-entry'
 import { TRADE_TIMEZONES } from '@/lib/trade/tz'
 import { CURRENCIES } from '@/lib/constants/trade-options'
 import { trackEvent } from '@/lib/analytics/posthog'
+import { useHydrated } from '@/lib/hooks/use-hydrated'
 
 // ─── Shapes mirroring the API ─────────────────────────────────────────────
 
@@ -92,40 +93,64 @@ export function TradeAiImport({ defaultTimezone }: { defaultTimezone: string }) 
   const prevStatuses = useRef<Map<string, string>>(new Map())
 
   // ── Jobs fetching + polling ──────────────────────────────────────────────
-  const loadJobs = useCallback(async () => {
+  const fetchJobs = useCallback(async (): Promise<JobItem[] | null> => {
     try {
       const res = await fetch('/api/trades/ai-import')
-      if (!res.ok) return
+      if (!res.ok) return null
       const json = await res.json()
-      const next: JobItem[] = json.jobs ?? []
-
-      // Fire a browser notification when a job newly reaches AWAITING_CONFIRMATION.
-      for (const j of next) {
-        const prev = prevStatuses.current.get(j.id)
-        if (
-          prev &&
-          prev !== 'AWAITING_CONFIRMATION' &&
-          j.status === 'AWAITING_CONFIRMATION' &&
-          typeof Notification !== 'undefined' &&
-          Notification.permission === 'granted'
-        ) {
-          new Notification('הקובץ שלך מוכן לאישור', {
-            body: j.originalFilename,
-            tag: j.id,
-          })
-        }
-      }
-      prevStatuses.current = new Map(next.map((j) => [j.id, j.status]))
-      setJobs(next)
+      return (json.jobs ?? []) as JobItem[]
     } catch {
-      /* transient — next poll retries */
+      return null /* transient — next poll retries */
     }
   }, [])
 
-  useEffect(() => {
+  const applyJobs = useCallback((next: JobItem[]) => {
+    // Fire a browser notification when a job newly reaches AWAITING_CONFIRMATION.
+    for (const j of next) {
+      const prev = prevStatuses.current.get(j.id)
+      if (
+        prev &&
+        prev !== 'AWAITING_CONFIRMATION' &&
+        j.status === 'AWAITING_CONFIRMATION' &&
+        typeof Notification !== 'undefined' &&
+        Notification.permission === 'granted'
+      ) {
+        new Notification('הקובץ שלך מוכן לאישור', {
+          body: j.originalFilename,
+          tag: j.id,
+        })
+      }
+    }
+    prevStatuses.current = new Map(next.map((j) => [j.id, j.status]))
+    setJobs(next)
+  }, [])
+
+  const loadJobs = useCallback(async () => {
+    const next = await fetchJobs()
+    if (next) applyJobs(next)
+  }, [fetchJobs, applyJobs])
+
+  // `Notification` is browser-only, so 'default' is what SSR and the hydration
+  // render must both show; the real permission lands on the render right after
+  // (see useHydrated). Getting it wrong only mis-renders the "enable
+  // notifications" prompt at line ~269, but that is exactly the visible flash
+  // a mount effect would have produced.
+  const hydrated = useHydrated()
+  const [permRead, setPermRead] = useState(false)
+  if (hydrated && !permRead) {
+    setPermRead(true)
     if (typeof Notification !== 'undefined') setNotifPerm(Notification.permission)
-    loadJobs()
-  }, [loadJobs])
+  }
+
+  // Split from loadJobs so the state update is visibly in a `.then` and can be
+  // dropped if the component unmounts before the initial request lands.
+  useEffect(() => {
+    let cancelled = false
+    void fetchJobs().then((next) => {
+      if (!cancelled && next) applyJobs(next)
+    })
+    return () => { cancelled = true }
+  }, [fetchJobs, applyJobs])
 
   const hasActive = jobs.some((j) => ACTIVE_STATUSES.has(j.status))
   useEffect(() => {
