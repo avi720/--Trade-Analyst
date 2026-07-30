@@ -1,5 +1,12 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import {
+  evaluateGeoAccess,
+  geoBlockedHtml,
+  isBypassGrant,
+  GEO_BYPASS_COOKIE,
+  GEO_BYPASS_MAX_AGE,
+} from '@/lib/geo/gate'
 
 // Public marketing/legal pages reachable without a session. Feature landing
 // pages (/ibkr-sync etc.) live here too — omitting a new public route sends
@@ -32,7 +39,57 @@ function setSecurityHeaders(response: NextResponse): NextResponse {
   return response
 }
 
+// 451 Unavailable For Legal Reasons — semantically right for a jurisdiction block, and
+// distinguishable in logs from a 403 auth failure. JSON for /api/*, an HTML page otherwise.
+function geoBlockedResponse(pathname: string): NextResponse {
+  if (pathname.startsWith('/api/')) {
+    return setSecurityHeaders(
+      NextResponse.json({ error: 'השירות אינו זמין באזורך' }, { status: 451 })
+    )
+  }
+  return setSecurityHeaders(
+    new NextResponse(geoBlockedHtml(), {
+      status: 451,
+      headers: { 'content-type': 'text/html; charset=utf-8' },
+    })
+  )
+}
+
 export async function proxy(request: NextRequest) {
+  // ── Geo gate ──────────────────────────────────────────────────────────────
+  // Runs before the Supabase client is built: a rejected request should not cost a
+  // getUser() round-trip. Inert until GEO_GATE_ENABLED=true.
+
+  // `?geo_bypass=<secret>` mints the bypass cookie, then redirects to the same URL without
+  // the param — keeping the secret out of browser history, the Referer header and access
+  // logs. Handled before evaluateGeoAccess so the grant works on a blocked path.
+  if (isBypassGrant(request.nextUrl.searchParams, process.env)) {
+    const clean = request.nextUrl.clone()
+    clean.searchParams.delete('geo_bypass')
+    const response = setSecurityHeaders(NextResponse.redirect(clean))
+    response.cookies.set(GEO_BYPASS_COOKIE, process.env.GEO_BYPASS_SECRET!, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: GEO_BYPASS_MAX_AGE,
+    })
+    return response
+  }
+
+  const geo = evaluateGeoAccess(
+    {
+      pathname: request.nextUrl.pathname,
+      headers: request.headers,
+      bypassCookie: request.cookies.get(GEO_BYPASS_COOKIE)?.value,
+    },
+    process.env
+  )
+
+  if (!geo.allowed) {
+    return geoBlockedResponse(request.nextUrl.pathname)
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(

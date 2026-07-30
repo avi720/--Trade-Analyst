@@ -49,6 +49,11 @@ export type FunnelEvent =
   | 'email_confirmed'
   | 'profile_completed'
   | 'first_trade_imported'
+  // Google OAuth + auth-failure telemetry. Before these existed, a Google signup that lost
+  // its PKCE exchange left no trace anywhere — see docs/in-progress/AUTH-HARDENING-GEO-GATE.md.
+  | 'google_signin_clicked'
+  | 'oauth_callback_failed'
+  | 'login_failed'
   | 'ai_import_uploaded'
   | 'ai_import_mapped'
   | 'ai_import_confirmed'

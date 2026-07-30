@@ -1,6 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/db/types";
 
+// Mirrors the audit_event_type_check CHECK constraint on public."AuditEvent" — adding a
+// value here without the matching migration makes the insert fail.
 export type AuditEventType =
   | "password_changed"
   | "email_changed"
@@ -10,12 +12,20 @@ export type AuditEventType =
   | "tier_upgraded"
   | "tier_downgraded"
   | "subscription_updated"
-  | "subscription_orphaned"; // X14 — webhook fired for a user_id with no matching User row
+  | "subscription_orphaned" // X14 — webhook fired for a user_id with no matching User row
+  | "signup_completed"
+  | "oauth_callback_failed"
+  | "auth_callback_no_code";
 
 export type AuditStatus = "success" | "failure";
 
 interface AuditContext {
-  userId: string;
+  /**
+   * NULL for events that happen before the public."User" row exists — the column has an FK
+   * to User(id), so an auth uid with no app row would violate it. Auth-path callers pass
+   * null and carry the uid in `metadata` instead.
+   */
+  userId: string | null;
   eventType: AuditEventType;
   status: AuditStatus;
   metadata?: Record<string, unknown>;
@@ -54,11 +64,20 @@ export async function logAuditEvent(ctx: AuditContext): Promise<void> {
     const ip = ctx.request ? truncateIp(extractClientIp(ctx.request.headers)) : null;
     const userAgent = ctx.request?.headers.get("user-agent") ?? null;
 
+    // Country rides in metadata for every event type, not just the auth ones — Vercel
+    // already attaches the header, so this is a free geo dimension on the whole audit
+    // trail. Null off-Vercel (localhost) and 'XX' when Vercel cannot resolve it.
+    const country = ctx.request?.headers.get("x-vercel-ip-country") ?? null;
+    const metadata =
+      country !== null
+        ? { ...(ctx.metadata ?? {}), country }
+        : (ctx.metadata ?? null);
+
     const { error } = await admin.from("AuditEvent").insert({
       userId: ctx.userId,
       eventType: ctx.eventType,
       status: ctx.status,
-      metadata: (ctx.metadata ?? null) as Json | null,
+      metadata: metadata as Json | null,
       ipAddress: ip,
       userAgent: userAgent?.slice(0, 500) ?? null,
     });

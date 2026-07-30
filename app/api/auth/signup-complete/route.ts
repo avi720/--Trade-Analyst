@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit, rateLimitedResponse } from '@/lib/auth/rate-limit'
+import { logAuditEvent } from '@/lib/audit/log'
 import { z } from 'zod'
 
 const schema = z.object({
@@ -104,6 +105,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'שגיאה בשמירת הפרטים' }, { status: 500 })
     }
   }
+
+  // The completion end of the signup funnel. Pairs with oauth_callback_failed /
+  // auth_callback_no_code so /admin/health can show started-vs-finished with IP, UA and
+  // country attached — the signal that was missing when a Google signup died silently.
+  await logAuditEvent({
+    userId: user.id,
+    eventType: 'signup_completed',
+    status: 'success',
+    metadata: { addressCountry, createdRow: !updated },
+    request: req,
+  })
 
   return NextResponse.json({ ok: true })
 }

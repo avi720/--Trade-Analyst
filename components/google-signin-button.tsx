@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { trackEvent } from '@/lib/analytics/posthog'
 
 type Props = {
   next?: string
@@ -14,6 +15,9 @@ export function GoogleSignInButton({ next = '/research', label = 'המשך עם 
   async function handleClick() {
     setError(null)
     setLoading(true)
+    // Fired before the redirect so the OAuth hop has a denominator: without it there is no
+    // way to tell "nobody tried Google" from "everybody who tried Google fell over".
+    trackEvent('google_signin_clicked', { next })
     try {
       const { createClient } = await import('@/lib/supabase/client')
       const supabase = createClient()
