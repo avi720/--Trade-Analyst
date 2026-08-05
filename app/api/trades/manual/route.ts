@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { buildExecutions, manualLegsSchema } from '@/lib/trade/manual-entry'
 import { persistManualLegs } from '@/lib/trade/persist-manual-legs'
+import {
+  findForbiddenLegs,
+  forbiddenLegMessage,
+  loadOpenSnapshots,
+} from '@/lib/trade/guard-position-mutations'
 import type { ManualLeg } from '@/lib/trade/manual-entry'
 import {
   getUserTier,
@@ -45,10 +50,34 @@ export async function POST(req: NextRequest) {
   // Pre-validate so a malformed batch returns 422 before any DB write. This
   // preserves the manual route's strict all-or-nothing contract (the shared
   // persistManualLegs helper drops invalid legs silently for partial imports).
-  const { errors } = buildExecutions(legs)
+  const { executions, errors } = buildExecutions(legs)
   if (errors.length > 0) {
     return NextResponse.json(
       { error: 'Validation failed', details: errors },
+      { status: 422 }
+    )
+  }
+
+  // This route opens positions — nothing else. Touching a position that already
+  // exists (scale-in, trim, close, reverse) belongs to the dedicated modals in
+  // the search tab, which capture the context those actions need. Rejected
+  // all-or-nothing, before any write, matching the route's existing contract.
+  // Read through the RLS-bound client so the guard can only ever see this
+  // user's own positions.
+  const openByTicker = await loadOpenSnapshots(
+    supabase,
+    user.id,
+    executions.map((e) => e.ticker)
+  )
+  const forbidden = findForbiddenLegs(executions, openByTicker)
+  if (forbidden.length > 0) {
+    const legErrors = forbidden.map(forbiddenLegMessage)
+    return NextResponse.json(
+      {
+        error: legErrors[0],
+        legErrors,
+        forbiddenLegs: forbidden,
+      },
       { status: 422 }
     )
   }
