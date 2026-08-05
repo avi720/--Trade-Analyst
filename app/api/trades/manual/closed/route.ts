@@ -6,6 +6,7 @@ import { processExecutions } from '@/lib/ibkr/process-executions'
 import { recomputeActualR } from '@/lib/trade/recompute-actual-r'
 import type { ManualLeg } from '@/lib/trade/manual-entry'
 import { validateCloseShape, validateCloseAgainstTrade, modifiedStopNote, type ClosePayloadShape } from '@/lib/trade/validate-close'
+import { appendNoteLine } from '@/lib/trade/position-notes'
 import type { TablesUpdate } from '@/lib/db/types'
 
 type ClosePayload = ClosePayloadShape
@@ -97,11 +98,10 @@ export async function POST(req: NextRequest) {
 
   // If modified_stop, append the modified-stop price to notes (per plan).
   if (close.closeReason === 'modified_stop' && close.modifiedStopPrice != null) {
-    const stopLine = modifiedStopNote(close.modifiedStopPrice)
-    const existingNotes = (openAnn.notes as string | undefined) || ''
-    trade_update.notes = existingNotes
-      ? `${existingNotes}\n${stopLine}`
-      : stopLine
+    trade_update.notes = appendNoteLine(
+      openAnn.notes as string | undefined,
+      modifiedStopNote(close.modifiedStopPrice),
+    )
   }
 
   const { error: updErr } = await admin

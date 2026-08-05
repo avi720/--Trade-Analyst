@@ -4,6 +4,8 @@ import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { TradeDetailModal, type TradeModalMode } from './trade-detail-modal'
 import { ManualCloseModal } from './manual-close-modal'
+import { PositionChangeModal } from './position-change-modal'
+import type { PositionNoteKind } from '@/lib/trade/position-notes'
 import { cn } from '@/lib/utils/cn'
 import { formatUsd } from '@/lib/utils/position-calc'
 import { fmtLocalDate } from '@/lib/utils/format-date'
@@ -120,6 +122,7 @@ export function TradeSearch({ trades, initialParams }: Props) {
   const [page, setPage] = useState(Number(initialParams.page ?? '0'))
   const [selected, setSelected] = useState<{ trade: RawTrade; mode: TradeModalMode } | null>(null)
   const [closing, setClosing] = useState<RawTrade | null>(null)
+  const [changing, setChanging] = useState<{ trade: RawTrade; kind: PositionNoteKind } | null>(null)
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState<RawTrade | null>(null)
   const [deletingBusy, setDeletingBusy] = useState(false)
@@ -399,7 +402,9 @@ export function TradeSearch({ trades, initialParams }: Props) {
                 </tr>
               )}
               {pageItems.map(t => {
-                const canManualClose = t.source === 'manual' && t.status === 'Open'
+                // Manual + Open is the gate for every position mutation: add,
+                // trim, close. Broker-sourced rows mirror IBKR and stay read-only.
+                const canMutatePosition = t.source === 'manual' && t.status === 'Open'
                 return (
                   <tr
                     key={t.id}
@@ -461,7 +466,38 @@ export function TradeSearch({ trades, initialParams }: Props) {
                             <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
                           </svg>
                         </button>
-                        {canManualClose && (
+                        {canMutatePosition && (
+                          <button
+                            type="button"
+                            onClick={() => setChanging({ trade: t, kind: 'add' })}
+                            aria-label={`הוספה לפוזיציה ${t.ticker}`}
+                            title="הוספה לפוזיציה"
+                            className="w-11 h-11 inline-flex items-center justify-center text-text-dim hover:text-green transition-colors border border-border rounded"
+                          >
+                            {/* plus-circle icon */}
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <circle cx="12" cy="12" r="10" />
+                              <line x1="12" y1="8" x2="12" y2="16" />
+                              <line x1="8" y1="12" x2="16" y2="12" />
+                            </svg>
+                          </button>
+                        )}
+                        {canMutatePosition && t.totalQuantity > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setChanging({ trade: t, kind: 'reduce' })}
+                            aria-label={`מכירת חלק מהפוזיציה ${t.ticker}`}
+                            title="מכירת חלק מהפוזיציה"
+                            className="w-11 h-11 inline-flex items-center justify-center text-text-dim hover:text-amber transition-colors border border-border rounded"
+                          >
+                            {/* minus-circle icon */}
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <circle cx="12" cy="12" r="10" />
+                              <line x1="8" y1="12" x2="16" y2="12" />
+                            </svg>
+                          </button>
+                        )}
+                        {canMutatePosition && (
                           <button
                             type="button"
                             onClick={() => setClosing(t)}
@@ -559,6 +595,22 @@ export function TradeSearch({ trades, initialParams }: Props) {
             // server refresh that will clear the patch once data catches up.
             patchTrade(closedId, { status: 'Closed' })
             setClosing(null)
+          }}
+        />
+      )}
+
+      {changing && (
+        <PositionChangeModal
+          trade={changing.trade}
+          kind={changing.kind}
+          onClose={() => setChanging(null)}
+          onApplied={() => {
+            // No optimistic patch here on purpose: a scale-in / trim rewrites
+            // avgEntryPrice, realizedPnl and totalCommission by amounts only the
+            // server's FIFO knows. Guessing them would show wrong numbers for a
+            // beat; a plain refresh shows the real row instead.
+            setChanging(null)
+            router.refresh()
           }}
         />
       )}

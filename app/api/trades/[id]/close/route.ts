@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { processExecutions } from '@/lib/ibkr/process-executions'
 import { validateCloseShape, validateCloseAgainstTrade, modifiedStopNote, type ClosePayloadShape } from '@/lib/trade/validate-close'
+import { appendNoteLine } from '@/lib/trade/position-notes'
 import type { NormalizedExecution } from '@/types/trade'
 import type { TablesUpdate } from '@/lib/db/types'
 
@@ -113,9 +114,10 @@ export async function POST(
     update.executionQuality = body.executionQuality
   }
   if (body.closeReason === 'modified_stop' && body.modifiedStopPrice != null) {
-    const stopLine = modifiedStopNote(body.modifiedStopPrice)
-    const existingNotes = (trade.notes as string | null) ?? ''
-    update.notes = existingNotes ? `${existingNotes}\n${stopLine}` : stopLine
+    update.notes = appendNoteLine(
+      trade.notes as string | null,
+      modifiedStopNote(body.modifiedStopPrice),
+    )
   }
 
   const { error: updErr } = await admin
