@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**Rules live in [`.claude/rules/`](.claude/rules/)** and load automatically each session. This file is reference / documentation — commands, architecture, schema, phase history. If a claim here reads like a "must / must not", it probably belongs in a rules file; move it there.
+**Rules live in [`.claude/rules/`](.claude/rules/)** and load automatically each session (FIFO invariants + concurrency, position-mutation paths, migrations, multi-user/RLS, IBKR date parsing, RTL/language, env vars, base URL). This file is reference / documentation — commands, architecture, schema, phase history. If a claim here reads like a "must / must not", it probably belongs in a rules file; move it there.
 
 ## Commands
 
@@ -139,7 +139,17 @@ The Flex parser also has a dual-root quirk documented in the same rule file.
 Key implementation details:
 - `buildExecution()` populates `commissionCurrency` (falls back to leg `currency`) and `orderTimeIso` (pre-parsed ISO instant, or `null` if the leg didn't provide `orderPlacedDate`) as explicit fields on `NormalizedExecution`. `netCash` is IBKR-only and stays `null` for manual entries. The `broker` and `_manualClose` fields formerly stashed in `rawPayload` are gone — no downstream consumer.
 - `extractAnnotations()` strips Order-level fields and returns only Trade-level annotation fields ready for a Supabase `.update()` call.
-- The route (`app/api/trades/manual/route.ts`) calls `processExecutions` first (FIFO), then applies annotations to the resulting `tradeId` via the admin client. The persistence half of that flow (FIFO → annotation merge → manual-source tag → `recomputeActualR`) is extracted into `persistManualLegs(legs, userId)` in [lib/trade/persist-manual-legs.ts](lib/trade/persist-manual-legs.ts) (server-only) and reused by the AI-import confirm route. `manualBrokerExecId(leg, i)` in `manual-entry.ts` is the single source of the dedup key — annotation mapping reconstructs it timezone-aware (a leg's non-UTC tz shifts the instant, so the key must apply `localToUtcIso`).
+- The route (`app/api/trades/manual/route.ts`) calls `processExecutions` first (FIFO), then applies annotations to the resulting `tradeId` via the admin client. The persistence half of that flow (FIFO → annotation merge → manual-source tag → `recomputeActualR`) is extracted into `persistManualLegs(legs, userId)` in [lib/trade/persist-manual-legs.ts](lib/trade/persist-manual-legs.ts) (server-only) and reused by the Excel-import confirm route and the AI-import confirm route. `manualBrokerExecId(leg, i)` in `manual-entry.ts` is the single source of the dedup key — annotation mapping reconstructs it timezone-aware (a leg's non-UTC tz shifts the instant, so the key must apply `localToUtcIso`).
+
+### Position mutations — opening-only manual entry
+
+The manual-entry tab **opens positions and nothing else**. `POST /api/trades/manual` rejects (422, all-or-nothing) any leg that touches a trade which was already open before the request — scale-in included — and any leg that closes/reduces/reverses a position opened within the same batch. Enforced by `findForbiddenLegs` in [lib/trade/guard-position-mutations.ts](lib/trade/guard-position-mutations.ts), which replays the batch through the real `matchExecution`. The form mirrors the same simulation client-side using `GET /api/trades/open-positions`.
+
+Changing an existing position happens through dedicated routes + modals in the search tab: `POST /api/trades/[id]/add-to-position` (SCALE_IN), `.../reduce-position` (REDUCE, strictly partial), `.../close` (CLOSE). All three share [lib/trade/apply-position-change.ts](lib/trade/apply-position-change.ts) or the close route's equivalent, and are gated on `source='manual'` + `status='Open'`.
+
+The Excel import gets its own commit endpoint (`POST /api/trades/import/confirm`) precisely so it is **not** subject to the guard — a spreadsheet is one row per execution and carries the closing rows.
+
+Full invariant + exemption list: [`.claude/rules/position-mutation-paths.md`](.claude/rules/position-mutation-paths.md).
 
 ### AI custom-Excel import (Pro)
 

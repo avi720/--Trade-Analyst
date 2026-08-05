@@ -112,3 +112,84 @@ describe('extract', () => {
     ).rejects.toThrow()
   })
 })
+
+// ─── Sheet shapes the extractor must handle ────────────────────────────────
+//
+// Two layouts show up in the wild and both have to work:
+//   A) execution log — one row per execution, with a side column
+//   B) round-trip journal — one row per TRADE, holding entry AND exit
+// Shape B has to become two legs, which "mapping" mode cannot express. These
+// tests pin the instructions that make that happen; deleting them from the
+// prompt silently regresses every shape-B sheet back to entry-only imports.
+
+describe('system prompt — sheet shapes', () => {
+  async function capturePrompt(): Promise<string> {
+    let captured = ''
+    const call: GeminiCall = vi.fn(async ({ systemPrompt }) => {
+      captured = systemPrompt
+      return flatMappingJson
+    })
+    await extract(sampleWith([['h'], ['x']]), { call, delayFn: noDelay })
+    return captured
+  }
+
+  it('describes both the execution-log and round-trip shapes', async () => {
+    const prompt = await capturePrompt()
+    expect(prompt).toContain('EXECUTION LOG')
+    expect(prompt).toContain('ROUND-TRIP JOURNAL')
+  })
+
+  it('tells the model that closing rows are expected, not duplicates', async () => {
+    const prompt = await capturePrompt()
+    expect(prompt).toContain('Closing rows are EXPECTED')
+  })
+
+  it('requires two legs for a row holding both entry and exit', async () => {
+    const prompt = await capturePrompt()
+    expect(prompt).toContain('MUST become TWO legs')
+    // mapping is one-leg-per-row, so shape B has to force extraction mode
+    expect(prompt).toContain('MUST use "extraction" mode')
+  })
+
+  it('requires an entry-only leg when the exit is still blank', async () => {
+    const prompt = await capturePrompt()
+    expect(prompt).toContain('emit ONLY the entry leg')
+  })
+
+  it('requires chronological leg order', async () => {
+    const prompt = await capturePrompt()
+    expect(prompt).toContain('Order legs chronologically')
+  })
+
+  it('reminds chunked slices of the round-trip rule', async () => {
+    const rows = Array.from({ length: 6 }, (_, i) => [`r${i}`])
+    const userPrompts: string[] = []
+    let first = true
+    const call: GeminiCall = vi.fn(async ({ userPrompt }) => {
+      userPrompts.push(userPrompt)
+      if (first) {
+        first = false
+        return extractionJson([oneLeg], 0.9, 1) // low coverage → triggers chunking
+      }
+      return extractionJson([oneLeg], 0.9, 1)
+    })
+    await extract(sampleWith(rows), { call, delayFn: noDelay, chunkSize: 3 })
+    expect(userPrompts.some(p => p.includes('TWO legs'))).toBe(true)
+  })
+})
+
+describe('round-trip extraction result', () => {
+  it('accepts two opposite-side legs produced from one source row', async () => {
+    const entry = { ticker: 'AAPL', date: '2026-01-15', time: '09:30', side: 'BUY', quantity: 10, price: 100 }
+    const exit = { ticker: 'AAPL', date: '2026-01-18', time: '15:45', side: 'SELL', quantity: 10, price: 120 }
+    const call: GeminiCall = vi.fn(async () => extractionJson([entry, exit], 0.9, 1))
+    const res = await extract(sampleWith([['h'], ['x']]), { call, delayFn: noDelay })
+    expect(res.mode).toBe('extraction')
+    if (res.mode === 'extraction') {
+      expect(res.legs).toHaveLength(2)
+      expect(res.legs.map(l => l.side)).toEqual(['BUY', 'SELL'])
+      // chronological — the journal replays legs in order
+      expect(res.legs[0].date <= res.legs[1].date).toBe(true)
+    }
+  })
+})
