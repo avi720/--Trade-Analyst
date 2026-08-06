@@ -1,7 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import type { ManualLeg } from '@/lib/trade/manual-entry'
+import { buildExecution } from '@/lib/trade/manual-entry'
+import {
+  findForbiddenLegs,
+  forbiddenLegMessage,
+  snapshotsByTicker,
+  type OpenTradeRow,
+} from '@/lib/trade/guard-position-mutations'
+import type { NormalizedExecution } from '@/types/trade'
 import { CURRENCIES, BROKERS } from '@/lib/constants/trade-options'
 import { TRADE_TIMEZONES, DEFAULT_TIMEZONE, toUtcPreview } from '@/lib/trade/tz'
 import { SetupTypeInput } from './inputs/setup-type-input'
@@ -52,11 +61,13 @@ interface LegCardProps {
   index: number
   canRemove: boolean
   timezone: string
+  /** Set when this leg would mutate an existing position — blocks submission. */
+  warning: string | null
   onChange: (patch: Partial<ManualLeg>) => void
   onRemove: () => void
 }
 
-function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCardProps) {
+function LegCard({ leg, index, canRemove, timezone, warning, onChange, onRemove }: LegCardProps) {
   const [showOrderDetails, setShowOrderDetails] = useState(false)
   const [showAnnotations, setShowAnnotations] = useState(false)
 
@@ -93,6 +104,18 @@ function LegCard({ leg, index, canRemove, timezone, onChange, onRemove }: LegCar
       </div>
 
       <div className="p-4 flex flex-col gap-3">
+        {warning && (
+          <div role="alert" className="text-xs font-mono text-red border border-red/30 bg-red/5 rounded px-3 py-2 flex flex-col gap-1">
+            <span>{warning}</span>
+            <Link
+              href={`/search?status=Open&q=${encodeURIComponent(leg.ticker.trim())}`}
+              className="text-amber hover:underline w-fit"
+            >
+              פתח את {leg.ticker.trim()} בטאב חיפוש ←
+            </Link>
+          </div>
+        )}
+
         {/* ── Section 1: ביצוע (always visible) ── */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <div>
@@ -403,6 +426,47 @@ export function TradeEntryForm() {
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<Result | null>(null)
   const [error, setError] = useState('')
+  const [legErrors, setLegErrors] = useState<string[]>([])
+  const [openRows, setOpenRows] = useState<OpenTradeRow[]>([])
+
+  // The server rejects legs that touch an existing position (see
+  // lib/trade/guard-position-mutations.ts). Mirroring the check here means the
+  // user sees the conflict while typing rather than after a failed submit.
+  // Refetched after every successful submission so a freshly-opened position
+  // is immediately recognised as existing.
+  const [openRowsVersion, setOpenRowsVersion] = useState(0)
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/trades/open-positions')
+      .then(res => (res.ok ? res.json() : { trades: [] }))
+      .then(json => { if (!cancelled) setOpenRows(json.trades ?? []) })
+      .catch(() => { /* server-side guard still enforces this — degrade quietly */ })
+    return () => { cancelled = true }
+  }, [openRowsVersion])
+
+  // Warnings keyed by leg index. Legs too incomplete to simulate are skipped;
+  // findForbiddenLegs indexes into the filtered array, so map back to the
+  // original card number before building the message.
+  const warningsByLeg = useMemo(() => {
+    const simulated: { exec: NormalizedExecution; legIndex: number }[] = []
+    legs.forEach((leg, i) => {
+      if (!leg.ticker.trim()) return
+      if (!Number.isFinite(leg.quantity) || leg.quantity <= 0) return
+      if (!Number.isFinite(leg.price) || leg.price <= 0) return
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(leg.date) || !/^\d{2}:\d{2}$/.test(leg.time)) return
+      simulated.push({ exec: buildExecution({ ...leg, timezone }, i), legIndex: i })
+    })
+
+    const map = new Map<number, string>()
+    const found = findForbiddenLegs(simulated.map(s => s.exec), snapshotsByTicker(openRows))
+    for (const f of found) {
+      const legIndex = simulated[f.index].legIndex
+      map.set(legIndex, forbiddenLegMessage({ ...f, index: legIndex }))
+    }
+    return map
+  }, [legs, timezone, openRows])
+
+  const hasBlockingWarning = warningsByLeg.size > 0
 
   function updateLeg(i: number, patch: Partial<ManualLeg>) {
     setLegs(prev => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)))
@@ -427,7 +491,13 @@ export function TradeEntryForm() {
 
   async function handleSubmit() {
     setError('')
+    setLegErrors([])
     setResult(null)
+
+    if (hasBlockingWarning) {
+      setLegErrors(Array.from(warningsByLeg.values()))
+      return
+    }
 
     // Client-side validation — block submission when a required numeric field
     // is missing or zero. type="number" already rejects non-numeric typing,
@@ -449,7 +519,11 @@ export function TradeEntryForm() {
       })
       const json = await res.json()
       if (!res.ok) {
-        setError(json.error ?? 'שגיאה')
+        if (Array.isArray(json.legErrors) && json.legErrors.length > 0) {
+          setLegErrors(json.legErrors)
+        } else {
+          setError(json.error ?? 'שגיאה')
+        }
         return
       }
       setResult(json)
@@ -457,6 +531,8 @@ export function TradeEntryForm() {
         const { trackEvent } = await import('@/lib/analytics/posthog')
         trackEvent('first_trade_imported', { source: 'manual_form', count: json.processed })
         setLegs([EMPTY_LEG()])
+        // The batch just opened positions — refresh the guard's view of them.
+        setOpenRowsVersion(v => v + 1)
       }
     } catch {
       setError('שגיאת רשת')
@@ -469,7 +545,14 @@ export function TradeEntryForm() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h2 className="font-mono text-text-main text-sm">הזנת ביצועים ידנית</h2>
-        <span className="text-sm text-text-dim font-mono">כל כרטיס = ביצוע פעולה אחת (קנייה/מכירה)</span>
+        <span className="text-sm text-text-dim font-mono">כל כרטיס = ביצוע אחד של פתיחת הפוזיציה</span>
+      </div>
+
+      <div className="text-xs text-text-dim font-mono border border-border rounded px-3 py-2 leading-relaxed">
+        טאב זה מיועד <span className="text-amber">לפתיחת טרייד חדש</span> בלבד. כמה כרטיסים באותה הגשה = מילויים חלקיים של אותה כניסה.
+        <br />
+        פעולות על פוזיציה שכבר פתוחה — הוספת כסף, מכירת חלק, או סגירה — מתבצעות בטאב{' '}
+        <Link href="/search?status=Open" className="text-amber hover:underline">חיפוש</Link>, במודאלים הייעודיים.
       </div>
 
       <div className="flex items-center gap-2 text-sm font-mono text-text-dim">
@@ -493,6 +576,7 @@ export function TradeEntryForm() {
             index={i}
             canRemove={legs.length > 1}
             timezone={timezone}
+            warning={warningsByLeg.get(i) ?? null}
             onChange={patch => updateLeg(i, patch)}
             onRemove={() => removeLeg(i)}
           />
@@ -518,7 +602,8 @@ export function TradeEntryForm() {
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={submitting || legs.length === 0}
+          disabled={submitting || legs.length === 0 || hasBlockingWarning}
+          title={hasBlockingWarning ? 'יש כרטיס שנוגע בפוזיציה קיימת' : undefined}
           className="px-4 py-1.5 bg-amber text-black text-sm font-mono font-semibold rounded hover:bg-amber-dark disabled:opacity-50 transition-colors mr-auto"
         >
           {submitting ? 'שולח…' : 'שלח לעיבוד'}
@@ -528,6 +613,12 @@ export function TradeEntryForm() {
       {error && (
         <div className="text-xs text-red font-mono border border-red/20 bg-red/5 rounded px-3 py-2">
           {error}
+        </div>
+      )}
+
+      {legErrors.length > 0 && (
+        <div role="alert" className="text-xs text-red font-mono border border-red/20 bg-red/5 rounded px-3 py-2 flex flex-col gap-1">
+          {legErrors.map((e, i) => <span key={i}>{e}</span>)}
         </div>
       )}
 

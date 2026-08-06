@@ -114,7 +114,8 @@ object, no prose, in ONE of two shapes:
 }
 
 2) COMPLEX LAYOUT — choose this when the sheet has merged cells inside the data, sub-tables,
-   grouped/section headers, vertical labels, or anything that is not a single flat table.
+   grouped/section headers, vertical labels, one row that describes a whole round-trip trade,
+   or anything else that is not a single flat one-execution-per-row table.
    Extract every trade leg directly:
 {
   "mode": "extraction",
@@ -124,11 +125,34 @@ object, no prose, in ONE of two shapes:
   "rowsCovered": number   // how many source rows you turned into legs
 }
 
+THE TWO SHAPES A TRADING SHEET COMES IN — recognise which one you are looking at:
+
+A) EXECUTION LOG — one row per execution, with a side/direction column (BUY/SELL, קנייה/מכירה,
+   Long/Short, +/- quantity). This is what a broker export looks like. A closed trade appears
+   as two or more rows: the entries, then the exits. Closing rows are EXPECTED here — never
+   drop a SELL row thinking it is a duplicate of its BUY row. "mapping" mode fits this shape.
+
+B) ROUND-TRIP JOURNAL — one row per TRADE, holding both sides at once: columns like
+   entry/exit, buy price + sell price, כניסה/יציאה, open + close, "in" + "out", often with a
+   P&L column. There is usually no side column at all.
+   Each such row MUST become TWO legs:
+     - the entry leg:  side = BUY  if the trade was long, SELL if it was short
+     - the exit leg:   the opposite side, same quantity, at the exit price
+   Use the entry date/time for the first leg and the exit date/time for the second; if only
+   one date exists, use it for both. Infer direction from a Long/Short column, from the
+   wording, or — as a last resort — assume Long.
+   "mapping" CANNOT express this (it produces exactly one leg per row), so a sheet of this
+   shape MUST use "extraction" mode even if it otherwise looks like a flat table.
+   If a row has an entry but no exit yet (blank exit price/date), emit ONLY the entry leg —
+   that trade is still open.
+
 Rules:
 - NEVER infer or output a timezone — the app supplies it.
 - Dates must reflect what is written; do not shift them.
 - If a value is absent, omit the field (mapping: set the column to null).
-- Prefer "mapping" when possible; it is cheaper and more reliable.`
+- Prefer "mapping" when possible; it is cheaper and more reliable — but only for shape A.
+- Order legs chronologically. The journal replays them in order to reconstruct positions,
+  so an exit that precedes its entry produces a wrong position.`
 
 const FIELD_LIST = MAPPABLE_FIELDS.join(', ')
 
@@ -147,7 +171,8 @@ function buildUserPrompt(sample: WorkbookSample): string {
 function buildChunkPrompt(sheetName: string, rows: unknown[][], mergedRanges: string[]): string {
   return JSON.stringify({
     instruction:
-      'This is a slice of a larger sheet. Return mode "extraction" with every trade leg you find in these rows.',
+      'This is a slice of a larger sheet. Return mode "extraction" with every trade leg you find in these rows. ' +
+      'Remember shape B: a row holding both an entry and an exit becomes TWO legs.',
     sheetName,
     mergedRanges,
     rows,

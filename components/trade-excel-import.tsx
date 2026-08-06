@@ -65,7 +65,10 @@ export function TradeExcelImport() {
     setSubmitting(true)
     setResult(null)
     try {
-      const res = await fetch('/api/trades/manual', {
+      // Not /api/trades/manual — that endpoint belongs to the manual-entry tab
+      // and only accepts legs that OPEN a position. A spreadsheet carries
+      // closing rows by design, so the import commits through its own route.
+      const res = await fetch('/api/trades/import/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ legs: preview.legs }),
@@ -110,6 +113,8 @@ export function TradeExcelImport() {
           ⬇ הורד תבנית
         </button>
       </div>
+
+      <ImportFormatExplainer />
 
       {/* Drop zone — <label> wraps a visually-hidden but focusable file input so
           keyboard users can Tab to the input and press Enter to open the picker. */}
@@ -217,6 +222,110 @@ export function TradeExcelImport() {
           {result.skipped > 0 && <span className="text-text-dim">כפולים שנדחו: {result.skipped}</span>}
           {result.failed > 0 && <span className="text-red">נכשלו: {result.failed}</span>}
           {result.errors.map((e, i) => <span key={i} className="text-red">{e}</span>)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * How to lay out the spreadsheet. Worth spelling out: unlike the manual-entry
+ * tab, which opens positions only, the import expects the closing rows too —
+ * that is the whole reason a broker's execution log imports cleanly here.
+ */
+function ImportFormatExplainer() {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div className="panel">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        aria-expanded={open}
+        className="w-full flex items-center justify-between px-4 py-3 text-sm font-mono text-text-dim hover:text-text-main transition-colors"
+      >
+        <span>
+          <span aria-hidden="true" className="text-amber">ⓘ</span> איך לכתוב את הנתונים בקובץ?
+        </span>
+        <span aria-hidden="true" className="text-text-faint text-[10px]">{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 pt-1 border-t border-input-bg flex flex-col gap-3 text-sm text-text-dim leading-relaxed">
+          <p>
+            <span className="text-text-main font-mono">שורה אחת = ביצוע אחד.</span>{' '}
+            לא שורה אחת לכל טרייד — שורה לכל פעולה שביצעת בפועל אצל הברוקר.
+            עמודת <span className="font-mono text-amber">side</span> היא הכיוון של אותו ביצוע:{' '}
+            <span className="font-mono text-green">BUY</span> לקנייה,{' '}
+            <span className="font-mono text-red">SELL</span> למכירה.
+          </p>
+
+          <p>
+            <span className="text-text-main font-mono">לכל שורת קנייה צריכה להיות שורת מכירה</span>{' '}
+            — אם הטרייד אכן נסגר. בלי שורת הסגירה הטרייד יישאר פתוח במערכת. אם הפוזיציה
+            עדיין פתוחה במציאות, פשוט אל תכתוב שורת סגירה.
+          </p>
+
+          <div className="overflow-x-auto">
+            <table className="text-xs font-mono border border-input-bg rounded">
+              <thead>
+                <tr className="border-b border-input-bg bg-panel-2">
+                  <th className="px-2 py-1 text-right text-text-dim">date</th>
+                  <th className="px-2 py-1 text-right text-text-dim">ticker</th>
+                  <th className="px-2 py-1 text-right text-text-dim">side</th>
+                  <th className="px-2 py-1 text-right text-text-dim">quantity</th>
+                  <th className="px-2 py-1 text-right text-text-dim">price</th>
+                  <th className="px-2 py-1 text-right text-text-dim">מה זה עושה</th>
+                </tr>
+              </thead>
+              <tbody className="text-text-main">
+                <tr className="border-b border-input-bg">
+                  <td className="px-2 py-1">2026-01-15</td>
+                  <td className="px-2 py-1">AAPL</td>
+                  <td className="px-2 py-1 text-green">BUY</td>
+                  <td className="px-2 py-1">100</td>
+                  <td className="px-2 py-1">150.00</td>
+                  <td className="px-2 py-1 text-text-dim">פותח פוזיציה</td>
+                </tr>
+                <tr className="border-b border-input-bg">
+                  <td className="px-2 py-1">2026-01-16</td>
+                  <td className="px-2 py-1">AAPL</td>
+                  <td className="px-2 py-1 text-green">BUY</td>
+                  <td className="px-2 py-1">50</td>
+                  <td className="px-2 py-1">152.00</td>
+                  <td className="px-2 py-1 text-text-dim">מוסיף לפוזיציה (150 יחידות)</td>
+                </tr>
+                <tr className="border-b border-input-bg">
+                  <td className="px-2 py-1">2026-01-18</td>
+                  <td className="px-2 py-1">AAPL</td>
+                  <td className="px-2 py-1 text-red">SELL</td>
+                  <td className="px-2 py-1">60</td>
+                  <td className="px-2 py-1">158.00</td>
+                  <td className="px-2 py-1 text-text-dim">מוכר חלק (נשארות 90)</td>
+                </tr>
+                <tr>
+                  <td className="px-2 py-1">2026-01-20</td>
+                  <td className="px-2 py-1">AAPL</td>
+                  <td className="px-2 py-1 text-red">SELL</td>
+                  <td className="px-2 py-1">90</td>
+                  <td className="px-2 py-1">161.00</td>
+                  <td className="px-2 py-1 text-text-dim">סוגר את הטרייד</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <ul className="flex flex-col gap-1.5 list-disc ps-5">
+            <li>סדר השורות לפי תאריך ושעה. המערכת מחשבת FIFO לפי הסדר הזה.</li>
+            <li>מכירה בכמות גדולה מהפתוח הופכת את הפוזיציה לכיוון ההפוך — ודא שהכמויות נכונות.</li>
+            <li>טיקר ללא שורת קנייה שקודמת למכירה ייפתח כפוזיציית שורט.</li>
+            <li>שעה ריקה נחשבת כתחילת היום; העמודות האופציונליות (סטופ, יעד, סטאפ, הערות) מתייחסות לטרייד כולו.</li>
+            <li>
+              <span className="text-text-main">שים לב:</span> טאב{' '}
+              <span className="font-mono">״טרייד פתוח״</span> מיועד לפתיחת פוזיציה בלבד ולכן
+              דוחה שורות סגירה — הכלל הזה לא חל כאן. בייבוא Excel שורות הסגירה נחוצות.
+            </li>
+          </ul>
         </div>
       )}
     </div>
