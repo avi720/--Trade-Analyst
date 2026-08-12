@@ -1,3 +1,11 @@
+---
+paths:
+  - "lib/trade/**/*.ts"
+  - "lib/ibkr/**/*.ts"
+  - "app/api/trades/**/*.ts"
+  - "__tests__/**/*.ts"
+---
+
 # FIFO logic — invariants
 
 Applies whenever touching [lib/trade/fifo.ts](../../lib/trade/fifo.ts) or the persistence layer that consumes its output.

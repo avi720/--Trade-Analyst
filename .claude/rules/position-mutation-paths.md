@@ -1,3 +1,16 @@
+---
+paths:
+  - "lib/trade/**/*.ts"
+  - "lib/ibkr/**/*.ts"
+  - "app/api/trades/**/*.ts"
+  - "__tests__/**/*.ts"
+  - "components/trade-entry-form.tsx"
+  - "components/closed-trade-entry-form.tsx"
+  - "components/manual-close-modal.tsx"
+  - "components/position-change-modal.tsx"
+  - "components/manual-import-tabs.tsx"
+---
+
 # Position mutation paths — who may change an open position
 
 Every write that changes a position goes through `processExecutions` → `matchExecution`. That is not the rule. The rule is **which entry points are allowed to produce which FIFO actions**.

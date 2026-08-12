@@ -1,3 +1,11 @@
+---
+paths:
+  - "lib/trade/**/*.ts"
+  - "lib/ibkr/**/*.ts"
+  - "app/api/trades/**/*.ts"
+  - "__tests__/**/*.ts"
+---
+
 # `reverse_position` RPC — signature & guard rules
 
 ## Always use the 11-param `p_`-prefixed overload

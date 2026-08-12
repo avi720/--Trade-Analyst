@@ -1,3 +1,9 @@
+---
+paths:
+  - "lib/ibkr/**/*.ts"
+  - "__tests__/**/*.ts"
+---
+
 # IBKR date parsing — do not use `new Date()` or `date-fns parse()`
 
 Applies whenever touching [lib/ibkr/parse-date.ts](../../lib/ibkr/parse-date.ts) or any IBKR Flex ingestion path.

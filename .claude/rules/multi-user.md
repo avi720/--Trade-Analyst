@@ -1,3 +1,10 @@
+---
+paths:
+  - "app/api/**/*.ts"
+  - "lib/**/*.ts"
+  - "scripts/**/*.ts"
+---
+
 # Multi-user SaaS — data-layer rules
 
 The app ships as a public multi-user SaaS (public signup via `/signup`). Do **not** add single-user shortcuts, even for local convenience.

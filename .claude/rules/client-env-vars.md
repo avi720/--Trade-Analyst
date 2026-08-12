@@ -1,3 +1,9 @@
+---
+paths:
+  - "app/**/*.tsx"
+  - "components/**/*.{ts,tsx}"
+---
+
 # Client-bundle env var rule
 
 Only `NEXT_PUBLIC_*` env vars may be referenced from client-side files — anything under a `"use client"` boundary or transitively imported into one.

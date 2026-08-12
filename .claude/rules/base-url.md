@@ -1,3 +1,10 @@
+---
+paths:
+  - "app/**/*.ts"
+  - "lib/**/*.ts"
+  - "proxy.ts"
+---
+
 # Base URL — server-side redirect / callback rule
 
 **Never use `new URL(request.url).origin` to build redirect or callback URLs.** `request.url` in server-side handlers may not reflect the real external URL depending on the hosting environment (proxies, Vercel edge, custom domains).

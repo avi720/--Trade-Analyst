@@ -1,3 +1,11 @@
+---
+paths:
+  - "lib/trade/**/*.ts"
+  - "lib/ibkr/**/*.ts"
+  - "app/api/trades/**/*.ts"
+  - "__tests__/**/*.ts"
+---
+
 # FIFO concurrency — retry & guard invariants
 
 Applies to [lib/ibkr/process-executions.ts](../../lib/ibkr/process-executions.ts) and any new code path that persists FIFO actions.
