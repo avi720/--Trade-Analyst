@@ -1,8 +1,39 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code when working in this repository. This file is the always-loaded
+layer: commands, architecture orientation, and cross-cutting gotchas. Detail that only matters
+for part of the work lives in the on-demand layers below — keep it that way. If something here
+reads like a "must / must not" scoped to one area, it belongs in a rule; if it's reference
+detail, it belongs in a skill.
 
-**Rules live in [`.claude/rules/`](.claude/rules/)** and load automatically each session (FIFO invariants + concurrency, position-mutation paths, migrations, multi-user/RLS, IBKR date parsing, RTL/language, env vars, base URL). This file is reference / documentation — commands, architecture, schema, phase history. If a claim here reads like a "must / must not", it probably belongs in a rules file; move it there.
+## Where the rest of the knowledge lives
+
+**Rules** — [`.claude/rules/`](.claude/rules/). Most carry `paths:` frontmatter and load only
+when the matching files are touched (FIFO invariants + concurrency, position-mutation paths,
+`reverse_position` RPC, IBKR date parsing, multi-user/RLS, base URL, client env vars).
+`rtl-and-language.md` is unscoped and always loads.
+
+**Skills** — load one of these *before* starting the matching work, not after:
+
+| Doing this | YOU MUST first load |
+|---|---|
+| Any schema change, migration, RLS policy, new column, regenerating `lib/db/types.ts` | `db-schema` |
+| Adding, renaming or removing an environment variable | `env-var` |
+| Touching `.github/workflows`, `/api/cron/*`, the AI-import worker, backfill, retention | `cron-and-workers` |
+
+Two things from those skills are worth knowing without loading anything: **`Order` columns
+dropped in cleanup (`tax`, `tradeDate`, `exchange`, `proceeds`, `brokerTradeId`, `rawPayload`)
+must not be re-added** — the audit trail lives on `BrokerEvent.rawPayload`; and **`SITE_URL`
+must be the non-redirecting origin**, or every cron silently no-ops while Actions stays green.
+
+**Nested CLAUDE.md** — [app/(dashboard)/admin/CLAUDE.md](app/(dashboard)/admin/CLAUDE.md)
+covers the admin panel and loads on its own when admin files are read.
+
+**Decisions** — [docs/decisions/](docs/decisions/) records things that are deliberately not
+built or deliberately off, so they don't get "fixed":
+[geo-gate.md](docs/decisions/geo-gate.md) (built, off on purpose — do not enable, and do not
+remove the `/api/cron/*` exclusion from the proxy matcher) and
+[captcha-dropped.md](docs/decisions/captcha-dropped.md).
 
 ## Commands
 
@@ -20,9 +51,9 @@ npm run db:seed                              # Seed DB (uses .env.local + servic
 
 ## Architecture
 
-**Trade Analysis** is a Hebrew RTL trading journal with AI assistant ("חנן"), built on Next.js 16 App Router + React 19 + Supabase. Public multi-user SaaS — public signup via `/signup`, RLS at the DB level. See [`.claude/rules/multi-user.md`](.claude/rules/multi-user.md).
-
-### Data flow
+**Trade Analysis** is a Hebrew RTL trading journal with AI assistant ("חנן"), built on
+Next.js 16 App Router + React 19 + Supabase. Public multi-user SaaS — public signup via
+`/signup`, RLS at the DB level. See [`.claude/rules/multi-user.md`](.claude/rules/multi-user.md).
 
 ```
 Supabase Auth → proxy.ts → protected routes → DashboardLayout
@@ -30,263 +61,133 @@ Supabase Auth → proxy.ts → protected routes → DashboardLayout
                                               → Header + tab content
 ```
 
-The edge gate is [proxy.ts](proxy.ts) — Next 16 renamed `middleware.ts` → `proxy.ts` and the
-export from `middleware` → `proxy`. There is no `middleware.ts` in this repo; don't add one.
+Two layout facts that break silently if you get them wrong:
 
-The dashboard layout (`app/(dashboard)/layout.tsx`) wraps everything in `ChatContextProvider`, and `<ChatSidebar />` is placed **outside** the `overflow-hidden` flex div as a sibling — required so `position: fixed` anchors to the viewport instead of rendering inline.
+- The edge gate is [proxy.ts](proxy.ts) — Next 16 renamed `middleware.ts` → `proxy.ts` and the
+  export from `middleware` → `proxy`. **There is no `middleware.ts` in this repo; don't add one.**
+- `<ChatSidebar />` sits **outside** the `overflow-hidden` flex div in
+  `app/(dashboard)/layout.tsx`, as a sibling — required so `position: fixed` anchors to the
+  viewport instead of rendering inline. `ChatContextProvider` wraps everything.
 
-### Key facts (non-rule reference)
+### Key facts
 
-- **Auth**: Supabase email+password with public signup via `/signup`. Post-email-confirmation, the signup page collects profile details before redirecting to `/research`.
-- **DB access**: Supabase JS client (`@supabase/ssr` server, `@supabase/supabase-js` browser/scripts). Type safety via the generated `Database` type in `lib/db/types.ts`. The `_prisma_migrations` table is a leftover from initial bootstrap — kept as an audit row, not used by tooling.
-- **RTL**: `<html dir="rtl" lang="he">` at root layout. User-facing copy is Hebrew; code/identifiers/comments stay in English.
-- **IBKR**: Flex Web Service — 2-step pull (request → download). Token valid ~1 year. Encrypted AES-256-GCM at rest.
-- **Single Flex Query**: Only the **Activity** Flex Query is used (Trade Confirmations was dropped). Activity updates once per end-of-day, so cron runs 2×/day at 13:00 & 20:00 UTC. The `flexQueryIdTrades` column is nullable and unused.
-- **Massive (formerly Polygon)**: All `lib/polygon` → `lib/massive`, `app/api/polygon` → `app/api/massive`, env var `POLYGON_API_KEY` → `MASSIVE_API_KEY`. **Price sync is currently disabled** (GitHub Actions workflow for massive-prices not added; sync dot removed from `components/sync-indicator.tsx`; settings panel hidden in `app/(dashboard)/settings/page.tsx`). Code paths still exist for re-enabling.
-- **Routing**: Default landing is `/research`. `app/page.tsx`, the login page, and the auth callback redirect there. The earlier live open-positions `/dashboard` view was removed in the Phase 3 tech-debt round (T14); if a real-time view is needed again it will be rebuilt from scratch.
+- **Routing**: default landing is `/research`. `app/page.tsx`, the login page and the auth
+  callback all redirect there. The old live open-positions `/dashboard` view was removed
+  entirely (tech-debt T14); a real-time view would be rebuilt from scratch.
 - **Nav tabs**: "תחקור" (`/research`) · "חיפוש" (`/search`) · "ייבוא-ידני" (`/manual-import`).
-- **Profile/Settings**: unified at `/profile` with sidebar tabs — חשבון / אבטחה / תצוגה / ברוקר. `/settings` redirects to `/profile?tab=broker`.
+- **Profile/Settings**: unified at `/profile` with sidebar tabs — חשבון / אבטחה / תצוגה / ברוקר.
+  `/settings` redirects to `/profile?tab=broker`.
+- **IBKR**: Flex Web Service, 2-step pull (request → download). Token valid ~1 year, encrypted
+  AES-256-GCM at rest. Only the **Activity** Flex Query is used.
+- **Massive (formerly Polygon)**: `lib/massive`, `app/api/massive`, `MASSIVE_API_KEY`.
+  **Price sync is currently disabled** — no workflow, sync dot removed from
+  `components/sync-indicator.tsx`, settings panel hidden. Code paths still exist for re-enabling.
 
 ### Theme
 
-| Variable | Value | Use |
-|---|---|---|
-| `--bg-dark` | `#080808` | Page background |
-| `--panel-bg` | `#111111` | Panel backgrounds |
-| `--border` | `#222222` | Borders |
-| `--green` | `#2CC84A` | Win / positive |
-| `--red` | `#FF4D4D` | Loss / negative |
-| `--amber` | `#FFB800` | Accent / warning |
-| `--text-main` | `#E0E0E0` | Primary text |
-| `--text-dim` | `#888888` | Secondary text |
+Dark only; no light theme and none planned. The palette lives in
+[app/globals.css](app/globals.css) under `:root` — **that file is the source of truth for hex
+values, don't duplicate them here.** What the CSS can't express:
 
-Fonts: **IBM Plex Mono** (numbers) + **Assistant** (UI, Hebrew).
+- `--green` / `--red` mean **gain / loss**, never generic success/error chrome.
+- `--amber` is the single accent: primary action, focus ring, active tab.
+- Everything else is grayscale on near-black; depth comes from the `--panel-bg` on `--bg-dark`
+  pair plus a `--border` hairline.
 
-## DB schema highlights
-
-- `Trade` + `Order` — FIFO-based. Each execution = one `Order`. A `Trade` aggregates multiple `Order`s.
-- `Order.brokerExecId` — UNIQUE. Global idempotency key for IBKR dedup.
-- `Order.brokerOrderId` — NOT unique. Groups partial fills.
-- `Order` columns in use: `id`, `tradeId`, `userId`, `side`, `quantity`, `price`, `commission`, `executedAt`, `brokerExecId`, `brokerOrderId`, `brokerClientAccountId`, `currency`, `orderType`, `netCash`, `commissionCurrency`, `orderTime`, `broker`. Removed in cleanup: `tax`, `tradeDate`, `exchange`, `proceeds`, `brokerTradeId`, `rawPayload` (dropped in P8 of `docs/in-progress/PERFORMANCE-AUDIT.md` — audit trail lives on `BrokerEvent.rawPayload` instead). `broker` was reinstated as an explicit column in P11 (was previously stashed in the now-dropped `rawPayload` blob without any query being able to read it).
-- `User` columns: `id`, `email`, `name` (display name = firstName + lastName), `firstName`, `lastName`, `phone`, `addressStreet`, `addressCity`, `addressCountry`, `settings` (Json), `createdAt`. Display preferences (currency, dateFormat, numberFormat, timezone) live in `settings.display` JSON — no dedicated columns. API: `GET/PATCH /api/profile`.
-- `BrokerEvent` — raw XML audit log of every IBKR fetch.
-- `BrokerConnection.flexTokenEncrypted` — AES-256-GCM. Never returned in API responses.
-
-## Database RPCs
-
-- `reverse_position(...)` — atomic FIFO REVERSAL (close existing position + open opposite-side trade in one Postgres transaction). See [`.claude/rules/reverse-position-rpc.md`](.claude/rules/reverse-position-rpc.md) for the 11-param signature and the guard semantics.
-
-## Admin panel
-
-Private in-app admin surface at `/admin`, gated by the `User.isAdmin` boolean column. Not linked from any public UI — a "מנהל" tab appears in the header only when `isAdmin=true`, and both [app/(dashboard)/admin/layout.tsx](app/(dashboard)/admin/layout.tsx) and each sub-page re-check the flag and redirect to `/research` otherwise. RLS additionally lets an admin `SELECT` any `User` and `ExcelImportJob` row via the `admins_select_all_users` and `admins_select_all_excel_import_jobs` policies, both keyed off the `SECURITY DEFINER public.is_admin(uuid)` helper (needed to break the recursion the naive `EXISTS(SELECT ... FROM "User")` form causes).
-
-The rollout plan lives at [docs/in-progress/ADMIN-PANEL.md](docs/in-progress/ADMIN-PANEL.md) — Phases 1–4 shipped (users list + Free/Pro toggle, AI-import jobs viewer, IBKR sync trigger + BrokerEvent viewer, system health dashboard).
-
-To become an admin: `UPDATE "User" SET "isAdmin"=true WHERE email='…';` via Supabase MCP `execute_sql`. No self-service; the flag is set by the owner directly in Postgres.
-
-`/admin` itself is a redirect to `/admin/users`. The sub-tabs sidebar ([components/admin/admin-layout.tsx](components/admin/admin-layout.tsx)) is a client-side RTL vertical tablist mirroring the profile page pattern — URL-driven active state, `ArrowUp/Down/Home/End` keyboard nav.
-
-**Phase 1 — Users list + Pro/Free toggle** (`/admin/users`, `POST /api/admin/users/[userId]/toggle-tier`):
-- Runs `requireAdmin()` from [lib/auth/require-admin.ts](lib/auth/require-admin.ts) (401/403 on failure).
-- Writes via `createAdminClient()` because billing columns are RLS-protected against authenticated-role writes (migration `harden_user_billing_write_paths`).
-- Sets `subscriptionTier` + a **fake** matching `subscriptionStatus` (`active` on upgrade, `cancelled` on downgrade) and `subscriptionRenewsAt` (`now + 30d` on upgrade, `null` on downgrade), so the profile ▸ מנוי tab reads a coherent state.
-- **Never touches `lemonsqueezyCustomerId` / `lemonsqueezySubscriptionId`** — a real Lemon Squeezy webhook can still overwrite the fake state cleanly.
-
-**Phase 2 — AI-import jobs viewer** (`/admin/jobs`, endpoints under `/api/admin/jobs/*`):
-- Lists the 200 most-recent `ExcelImportJob` rows across all users with a status filter (`PENDING`/`PARSING`/`AI_MAPPING`/`IMPORTING`/`AWAITING_CONFIRMATION`/`COMPLETED`/`FAILED`/`CANCELLED`). Owner-side view for debugging stuck imports.
-- **Reset** (`POST /api/admin/jobs/[jobId]/reset`) puts a job back to `PENDING` and clears `errorMessage` — the next worker drain (`repository_dispatch` or the `*/30` schedule) re-claims it via `claim_excel_import_job()`. Reset does NOT re-fire `repository_dispatch` (the app has no GitHub PAT).
-- **Delete** (`DELETE /api/admin/jobs/[jobId]`) removes the xlsx from the `ai-imports` bucket (best-effort log-and-continue) then hard-deletes the DB row. Returns 204.
-- **Detail modal** shows the full row — pretty-printed `aiMapping` (both `mode:'mapping'` and `mode:'extraction'` branches), first-20 `extractedLegs`, `parseErrors`, `importSummary`, `errorMessage`. Reset + delete are also reachable from the modal footer.
-- The table polls `GET /api/admin/jobs` every 5 seconds only while at least one visible row is non-terminal; polling stops when everything settles.
-
-**Phase 3 — IBKR sync trigger + BrokerEvent viewer** (`/admin/ibkr`, `/admin/broker-events`, endpoints under `/api/admin/ibkr/*` and `/api/admin/broker-events/*`):
-- **Sync pipeline extracted** from `app/api/cron/ibkr-sync/route.ts` into [lib/ibkr/sync-pipeline.ts](lib/ibkr/sync-pipeline.ts). Exports `syncOneConnection(admin, conn)` (single connection) and `syncActiveConnections(admin)` (fan out over `isActive=true`). The cron route becomes a thin caller; the admin trigger reuses the same code with no behavior drift.
-- `/admin/ibkr` lists every `BrokerConnection` with `lastSyncAt` / `lastSyncStatus` / `lastSyncError` and a **סנכרן עכשיו** button per active row.
-- **Manual sync** (`POST /api/admin/ibkr/[connectionId]/sync`) fires `syncOneConnection` through `waitUntil()` from `@vercel/functions` (same async pattern as `/api/ibkr/backfill`). Returns 202 immediately; the UI polls `GET /api/admin/ibkr` every 5 s while an in-flight sync exists.
-- `/admin/broker-events` lists every `BrokerEvent` across users, 50/page, filterable by `processingStatus`. Detail modal shows the full row + a `<pre>` of `rawPayload` (`xml` for `IBKR_FLEX` events, JSON otherwise). **Read-only** — no reprocess endpoint (dropped by owner decision 2026-07-22; the plan doc explains why).
-- RLS: three new additive `admins_select_all_*` policies (`BrokerConnection`, `BrokerEvent`, `AuditEvent`), keyed off the same `public.is_admin(uuid)` helper.
-
-**Phase 4 — System health dashboard** (`/admin/health`, read-only):
-- Three `SECURITY DEFINER STABLE` SQL functions in migration `add_admin_metrics_functions`, all self-gating on `public.is_admin(auth.uid())` (raise `admin_only` for non-admins) and granted only to `authenticated, service_role`:
-  - `admin_system_metrics()` → one JSON snapshot: users (total / Pro / Free / signups 7d), retention 30/60/90d (`active = user has an Order with executedAt ≥ now-14d`, denominator = users with `createdAt ≤ now-Nd`), activity (trades total/open/closed/7d; orders total/7d), integrations (active broker connections, pending / failed jobs), broker-sync staleness (`staleSyncConnections` = active connections with `lastSyncAt` NULL or older than 48h; `brokerSyncErrors`; `lastBrokerSyncAt`) — added in migration `add_broker_sync_staleness_metrics`, IBKR success rate 7d (`BrokerEvent` where `source='IBKR_FLEX'`, success = `processingStatus='PROCESSED'`), chat usage 24h/7d (conversations + distinct users on `AIConversation.updatedAt`), and `auditFailures24h`.
-  - `admin_table_sizes()` → 7 rows `{tableName, sizeBytes}` from `pg_total_relation_size()` for `User`, `Trade`, `Order`, `BrokerEvent`, `ExcelImportJob`, `AuditEvent`, `BillingWebhookEvent`.
-  - `admin_timeseries(days integer default 30)` → `{day, signups, trades}` per day for the last N days (guarded to `[1,365]`), using `generate_series` so zero-activity days still show as 0.
-- The page ([app/(dashboard)/admin/health/page.tsx](app/(dashboard)/admin/health/page.tsx)) is a plain RSC — reads all three RPCs + the last 20 `AuditEvent` failures (JOIN to `User.email`) in a single `Promise.all` under `createAdminClient()`, then hands the frozen snapshot to [components/admin/admin-health-dashboard.tsx](components/admin/admin-health-dashboard.tsx). **No polling** — refresh reruns the fetches.
-- The client dashboard renders card groups (Users / Retention / Activity / Integrations / IBKR / Chat / Health), two `recharts` LineCharts (daily signups + daily trades over 30d, reusing the axis/tooltip constants from [components/research/shell.tsx](components/research/shell.tsx)), the table-sizes table, and the recent-failures table. All numbers use IBM Plex Mono.
-
-The admin panel's purpose is manual QA of Pro-gated flows, hands-on recovery of stuck AI-import jobs, on-demand IBKR syncs / audit inspection, and read-only system-health monitoring — no impersonation, no session-swap.
+Fonts: **IBM Plex Mono** (numbers, tickers, timestamps) + **Assistant** (UI, Hebrew).
 
 ## FIFO logic
 
-`matchExecution` in [lib/trade/fifo.ts](lib/trade/fifo.ts) is a pure function returning a `FifoAction` union (`OPEN | SCALE_IN | REDUCE | CLOSE | REVERSAL`). Persistence + concurrency handling live in [lib/ibkr/process-executions.ts](lib/ibkr/process-executions.ts).
+`matchExecution` in [lib/trade/fifo.ts](lib/trade/fifo.ts) is a pure function returning a
+`FifoAction` union (`OPEN | SCALE_IN | REDUCE | CLOSE | REVERSAL`). Persistence + concurrency
+handling live in [lib/ibkr/process-executions.ts](lib/ibkr/process-executions.ts). Invariants
+and concurrency rules: [`.claude/rules/fifo-invariants.md`](.claude/rules/fifo-invariants.md),
+[`.claude/rules/fifo-concurrency.md`](.claude/rules/fifo-concurrency.md).
 
-Invariants and concurrency rules are in [`.claude/rules/fifo-invariants.md`](.claude/rules/fifo-invariants.md) and [`.claude/rules/fifo-concurrency.md`](.claude/rules/fifo-concurrency.md).
-
-## IBKR date parsing
-
-IBKR Flex emits `dd/MM/yyyy;HH:mm:ss TimeZone` (e.g. `23/04/2026;14:30:00 EST`). Parsed manually in [lib/ibkr/parse-date.ts](lib/ibkr/parse-date.ts) — see [`.claude/rules/ibkr-date-parsing.md`](.claude/rules/ibkr-date-parsing.md) for why `new Date()` / `date-fns parse()` don't work. Tests in [__tests__/parse-date.test.ts](__tests__/parse-date.test.ts) cover all US zones + DST transitions.
-
-The Flex parser also has a dual-root quirk documented in the same rule file.
+IBKR Flex emits `dd/MM/yyyy;HH:mm:ss TimeZone`, parsed manually in
+[lib/ibkr/parse-date.ts](lib/ibkr/parse-date.ts) — see
+[`.claude/rules/ibkr-date-parsing.md`](.claude/rules/ibkr-date-parsing.md) for why `new Date()`
+and `date-fns parse()` don't work, plus the Flex dual-root quirk.
 
 ## Manual entry pipeline
 
-`ManualLeg` (in [lib/trade/manual-entry.ts](lib/trade/manual-entry.ts)) is the input type for both the form (`/manual-import`) and the Excel import. Fields:
+`ManualLeg` ([lib/trade/manual-entry.ts](lib/trade/manual-entry.ts)) is the input type for the
+form (`/manual-import`), the Excel import and the AI import:
 
-- **Required** (8): `ticker`, `date` (YYYY-MM-DD UTC), `time` (HH:MM UTC), `side`, `quantity`, `price`, `commission`, `currency`
-- **Optional order-level** (6): `commissionCurrency`, `orderType`, `orderPlacedDate`, `orderPlacedTime`, `broker`, `timezone` (IANA tz for the date/time fields — defaults to UTC)
-- **Optional Trade-level annotations** (6): `setupType`, `emotionalState`, `stopPrice`, `targetPrice`, `notes`, `didRight` (`wouldChange` was removed from open-trade entry — it only makes sense at close and is set via the manual-close flow)
+- **Required** (8): `ticker`, `date` (YYYY-MM-DD), `time` (HH:MM), `side`, `quantity`, `price`,
+  `commission`, `currency`
+- **Optional order-level** (6): `commissionCurrency`, `orderType`, `orderPlacedDate`,
+  `orderPlacedTime`, `broker`, `timezone` (IANA tz for date/time — defaults to UTC)
+- **Optional Trade-level annotations** (6): `setupType`, `emotionalState`, `stopPrice`,
+  `targetPrice`, `notes`, `didRight` (`wouldChange` only makes sense at close and is set via
+  the manual-close flow)
 
-Key implementation details:
-- `buildExecution()` populates `commissionCurrency` (falls back to leg `currency`) and `orderTimeIso` (pre-parsed ISO instant, or `null` if the leg didn't provide `orderPlacedDate`) as explicit fields on `NormalizedExecution`. `netCash` is IBKR-only and stays `null` for manual entries. The `broker` and `_manualClose` fields formerly stashed in `rawPayload` are gone — no downstream consumer.
-- `extractAnnotations()` strips Order-level fields and returns only Trade-level annotation fields ready for a Supabase `.update()` call.
-- The route (`app/api/trades/manual/route.ts`) calls `processExecutions` first (FIFO), then applies annotations to the resulting `tradeId` via the admin client. The persistence half of that flow (FIFO → annotation merge → manual-source tag → `recomputeActualR`) is extracted into `persistManualLegs(legs, userId)` in [lib/trade/persist-manual-legs.ts](lib/trade/persist-manual-legs.ts) (server-only) and reused by the Excel-import confirm route and the AI-import confirm route. `manualBrokerExecId(leg, i)` in `manual-entry.ts` is the single source of the dedup key — annotation mapping reconstructs it timezone-aware (a leg's non-UTC tz shifts the instant, so the key must apply `localToUtcIso`).
+`persistManualLegs(legs, userId)` in
+[lib/trade/persist-manual-legs.ts](lib/trade/persist-manual-legs.ts) is the shared persistence
+half (FIFO → annotation merge → manual-source tag → `recomputeActualR`), reused by the manual,
+Excel-confirm and AI-confirm routes. `manualBrokerExecId(leg, i)` is the single source of the
+dedup key, and annotation mapping must reconstruct it **timezone-aware** — a leg's non-UTC tz
+shifts the instant, so the key has to apply `localToUtcIso`.
 
-### Position mutations — opening-only manual entry
+### Position mutations — manual entry opens positions and nothing else
 
-The manual-entry tab **opens positions and nothing else**. `POST /api/trades/manual` rejects (422, all-or-nothing) any leg that touches a trade which was already open before the request — scale-in included — and any leg that closes/reduces/reverses a position opened within the same batch. Enforced by `findForbiddenLegs` in [lib/trade/guard-position-mutations.ts](lib/trade/guard-position-mutations.ts), which replays the batch through the real `matchExecution`. The form mirrors the same simulation client-side using `GET /api/trades/open-positions`.
+`POST /api/trades/manual` rejects (422, all-or-nothing) any leg touching a trade that was
+already open before the request — scale-in included — and any leg closing/reducing/reversing a
+position opened within the same batch. Enforced by `findForbiddenLegs` in
+[lib/trade/guard-position-mutations.ts](lib/trade/guard-position-mutations.ts), which replays
+the batch through the real `matchExecution`; the form mirrors it client-side via
+`GET /api/trades/open-positions`.
 
-Changing an existing position happens through dedicated routes + modals in the search tab: `POST /api/trades/[id]/add-to-position` (SCALE_IN), `.../reduce-position` (REDUCE, strictly partial), `.../close` (CLOSE). All three share [lib/trade/apply-position-change.ts](lib/trade/apply-position-change.ts) or the close route's equivalent, and are gated on `source='manual'` + `status='Open'`.
+Changing an existing position goes through dedicated routes + modals in the search tab:
+`add-to-position` (SCALE_IN), `reduce-position` (REDUCE, strictly partial), `close` (CLOSE) —
+all gated on `source='manual'` + `status='Open'`. The Excel import has its own commit endpoint
+(`POST /api/trades/import/confirm`) precisely so it is **not** subject to the guard: a
+spreadsheet is one row per execution and carries the closing rows.
 
-The Excel import gets its own commit endpoint (`POST /api/trades/import/confirm`) precisely so it is **not** subject to the guard — a spreadsheet is one row per execution and carries the closing rows.
-
-Full invariant + exemption list: [`.claude/rules/position-mutation-paths.md`](.claude/rules/position-mutation-paths.md).
+Full invariant + exemption list:
+[`.claude/rules/position-mutation-paths.md`](.claude/rules/position-mutation-paths.md).
 
 ### AI custom-Excel import (Pro)
 
-Pro users upload a **personal** xlsx (arbitrary layout — merged cells, sub-tables, non-standard headers). Gemini maps/extracts it into `ManualLeg[]`; the user reviews an editable preview, and on confirm the legs flow through `persistManualLegs` (same FIFO path as manual entry). See [`docs/`—plan] and the modules under [lib/trade/ai-import/](lib/trade/ai-import/):
+Pro users upload an arbitrary-layout xlsx; Gemini maps or extracts it into `ManualLeg[]`, the
+user reviews an editable preview, and confirm flows through `persistManualLegs`. Modules under
+[lib/trade/ai-import/](lib/trade/ai-import/): `sample-workbook` → `extract` (Gemini cascade
+returning a discriminated `AiMapping`) → `apply-mapping` / `finalize-legs` → `process`
+orchestrates. Two non-obvious constraints:
 
-- **`sample-workbook.ts`** → dense 2D cell arrays + merged ranges (cap 2000 rows). **`extract.ts`** → Gemini cascade returning a discriminated `AiMapping` (`mode:'mapping'` = deterministic `columnMap`+`transformations`; `mode:'extraction'` = AI-returned legs, chunked for big sheets). `responseMimeType:'application/json'` + Zod validation (no `responseSchema` — more robust for the union). Injectable `call` for tests. **`apply-mapping.ts`** applies a mapping deterministically; **`finalize-legs.ts`** injects the user-chosen timezone and strict-validates. **`process.ts`** orchestrates all four.
-- **Timezone is never AI-inferred** — it's a required field at upload (`ExcelImportJob.sourceTimezone`), passed as a hard param to `finalizeLegs`. Excel carries no tz; a guess would break FIFO chronology.
-- **Async off-Vercel**: upload route creates a `PENDING` `ExcelImportJob` + stores the file in the private `ai-imports` bucket, returns 202. A GitHub-Actions worker (`scripts/process-ai-import-queue.ts`, run via `tsx`) claims jobs through narrow Vercel proxy endpoints (`/api/cron/ai-import-{claim,status,result}`) — the worker holds **only** `CRON_SECRET`+`GEMINI_API_KEY`+`SITE_URL`, never the service-role key. See the Backfill/cron section.
-- IBKR imports set `netCash`/`commissionCurrency`/`orderTimeIso` at parse time in `parse-flex-xml.ts` (camelCase real IBKR takes priority over PascalCase legacy fixtures). `buildOrderInsert` reads these explicit fields directly.
-
-## Backfill / cron behavior
-
-- **Backfill**: async — `POST /api/ibkr/backfill` returns 202; `GET` polls status. Uses `waitUntil()` from `@vercel/functions` (replaced `setImmediate` which was killed by Vercel after response).
-- **IBKR cron**: GitHub Actions fires at 13:00 & 20:00 UTC (`.github/workflows/ibkr-sync.yml`). Step 2 polls every 10s up to **4 attempts** (~40s); IBKR typically generates the statement within 1–2 attempts. If IBKR is slow and all 4 attempts fail, `IbkrTransientError` is thrown → `lastSyncAt` is not updated → next cron run retries automatically.
-- **Massive price cron**: currently disabled (see Massive note above).
-- **AI-import worker** (`.github/workflows/ai-import-worker.yml`): drains up to 5 queued `ExcelImportJob`s per run. Primary trigger is on-demand `repository_dispatch` from the upload route (requires `AI_IMPORT_DISPATCH_TOKEN`/`AI_IMPORT_DISPATCH_REPO` set in Vercel — processes within seconds); a `*/30 * * * *` schedule is only the safety net for a silently-failed dispatch (kept infrequent to save Actions minutes since dispatch handles the common case). `concurrency` guard prevents overlapping drains. Claims are atomic (`claim_excel_import_job()` RPC, `FOR UPDATE SKIP LOCKED`). **AI-import watchdog** (`*/15`): fails jobs stuck in an in-flight state >15 min (`errorMessage='timeout_watchdog'`). **AI-import cleanup** (daily `0 3`): removes uploaded xlsx files for terminal jobs older than 7 days (job row kept as audit). Watchdog + cleanup are curl-to-Vercel like `ibkr-sync.yml`.
-- **GitHub Actions secrets for the worker**: `SITE_URL`, `CRON_SECRET`, `GEMINI_API_KEY` — least-privilege, **no** Supabase URL or service-role key on the runner.
-- **Calling a cron endpoint from Actions**: use the composite action [.github/actions/call-cron](.github/actions/call-cron/action.yml), never a bare `curl -f`. It asserts HTTP 200 **and** a jq predicate on the body (default `.ok == true`), so a 200-but-did-nothing response fails the run. Workflows using it need `actions/checkout` first (local composite actions are resolved from the checked-out tree).
-- **`SITE_URL` must be the non-redirecting origin** (`https://tradeanalyst.app`, no `www`). This is not cosmetic: `curl -f` does not fail on 3xx and `-L` would strip the `Authorization` header across origins, so a redirecting value makes every cron silently no-op while Actions stays green. That exact bug ran from 2026-05-26 to 2026-07-28 — the `call-cron` HTTP assertion and the `staleSyncConnections` metric on `/admin/health` are the two guards against a repeat.
-- **BrokerEvent retention** (`pg_cron` job `purge-broker-events`, migration `schedule_broker_event_retention_90d`): daily `0 4 * * *` UTC `DELETE FROM "BrokerEvent" WHERE "receivedAt" < now() - interval '90 days'`. Chosen window is outside the IBKR sync slots (13:00 & 20:00 UTC). 90 days is a compromise between debuggability (the audit surface at `/admin/broker-events` stays useful for recent-week investigations) and unbounded storage growth (~10 KB/row × 2 syncs/day/user). Change the retention by re-running the migration with the new interval.
-
-## Geo gate — BUILT, DELIBERATELY OFF
-
-**Status: shipped but disabled, and that is the intended steady state. Do not turn it on
-without the evidence described below.** `GEO_GATE_ENABLED` is unset/`false` in Vercel;
-`evaluateGeoAccess` short-circuits to `allowed: true` on its first branch, so the whole
-feature is inert. `GEO_ALLOWED_COUNTRIES` and `GEO_BYPASS_SECRET` may be present in the
-dashboard — they are never read while the gate is off. Only the exact string `true` arms it.
-
-**Why it is off.** It was built 2026-07-30 to blunt bot signups, then shelved the same day
-once the data was actually checked: at that point the project had **4 auth users, all real,
-all with completed profiles, zero junk signups** across two months. The gate was solving a
-problem that had never occurred, while imposing two real costs:
-
-1. **Israelis abroad get locked out of their own trading journal** — travellers and expats
-   are core market, and the bypass secret is not something you hand to customers.
-2. **It contradicts the roadmap.** An English version is planned; an English site only
-   Israelis can log into is not a product.
-
-**The trigger to enable it**, should abuse ever materialise: *more than ~10 signups in a week
-from a single country that never complete a profile.* The auth telemetry below is what
-detects this — `logAuditEvent` stamps `metadata.country` on every event, so the evidence
-accumulates without the gate being on. Flip one env var, redeploy, done.
-
-When enabled: restricts the app + API to `GEO_ALLOWED_COUNTRIES` (default `IL`); blocked
-requests get **451** — JSON for `/api/*`, an inline Hebrew HTML page otherwise.
-
-**The path split is load-bearing, not cosmetic.** These stay open worldwide:
-
-- `/`, `/pricing`, `/terms`, `/privacy`, `/ibkr-sync`, `/fifo-analytics`, `/ai-trading-assistant` — indexed pages (`robots index:true` + JSON-LD on `/`). Googlebot crawls from US IPs; blocking it deindexes the site.
-- `/og` — fetched by WhatsApp / Facebook / LinkedIn crawlers to render link previews.
-- `/api/billing/webhook` — Lemon Squeezy posts from US infra.
-- `/api/cron/*` is already excluded by the **proxy matcher**, which is what keeps the US-based GitHub Actions crons working. Do not remove that exclusion from the matcher.
-
-**Fails open** in three cases, all deliberate: gate disabled (the default), no
-`x-vercel-ip-country` header (localhost / `next dev` — failing closed would break local dev),
-or country `XX` (Vercel couldn't geolocate). Escape hatch: `?geo_bypass=<GEO_BYPASS_SECRET>`
-sets a 90-day HttpOnly cookie and redirects to strip the secret from the URL (keeps it out of
-history, `Referer` and access logs). Tests: [__tests__/geo-gate.test.ts](__tests__/geo-gate.test.ts).
+- **Timezone is never AI-inferred.** It's a required field at upload
+  (`ExcelImportJob.sourceTimezone`), passed as a hard param to `finalizeLegs`. Excel carries no
+  tz; a guess would break FIFO chronology.
+- The job runs **off-Vercel** on a GitHub-Actions worker — see the `cron-and-workers` skill.
 
 ## Auth telemetry
 
-Two layers, both added after a Google-OAuth signup failed silently on 2026-07-15 and left
-**no trace in PostHog or `AuditEvent`** — see [docs/in-progress/AUTH-HARDENING-GEO-GATE.md](docs/in-progress/AUTH-HARDENING-GEO-GATE.md).
+Added after a Google-OAuth signup failed silently and left no trace in PostHog *or*
+`AuditEvent` — [docs/in-progress/AUTH-HARDENING-GEO-GATE.md](docs/in-progress/AUTH-HARDENING-GEO-GATE.md).
 
-- **PostHog identity**: [components/analytics/analytics-identity.tsx](components/analytics/analytics-identity.tsx) is mounted once in the **root** layout (not the dashboard layout — the blind spot is users who never reach the dashboard). It calls `identifyUser()` on session load and on `onAuthStateChange`, so Google OAuth sign-ins get identified; previously only the email+password wizard did. Idempotent via a distinct-id comparison; no-ops without analytics consent.
-- **Funnel events**: `google_signin_clicked`, `oauth_callback_failed`, `login_failed` alongside the existing ones. `/auth/callback` appends `reason=exchange_failed` on PKCE failure so `/signup/verified` can tell a genuine email verification from a failed exchange — the page renders the same copy either way, so without the param the metric would be meaningless.
-- **`AuditEvent`**: `signup_completed`, `oauth_callback_failed`, `auth_callback_no_code` (migration `extend_audit_event_types_for_auth`). `logAuditEvent` now also stamps `metadata.country` from `x-vercel-ip-country` on **every** event type. `AuditContext.userId` is `string | null` — the auth-callback events must pass `null` because `AuditEvent.userId` has an FK to `User(id)` and those events fire before the `User` row exists.
-- **Deliberately not logged server-side**: `signup_started`. It happens in the browser, so capturing it would need a new unauthenticated POST endpoint — new attack surface for a metric PostHog already provides.
-
-CAPTCHA (hCaptcha / Turnstile) was considered and **dropped** — enabling Supabase's
-project-level toggle also covers `signInWithPassword`, which would break the server-side
-`verifyCurrentPassword` in [lib/auth/reauth.ts](lib/auth/reauth.ts) that backs
-change-password / change-email / delete-account. The plan doc records the revisit path.
-
-## Env vars
-
-The required names are listed in `.env.example` (do not commit values). Brief purpose:
-
-| Name | Purpose |
-|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL (browser-safe) |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key (browser-safe, RLS-bound) |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role key — server-only, bypasses RLS |
-| `DATABASE_URL` / `DIRECT_URL` | Supabase Postgres connection strings (pgbouncer + direct) |
-| `FLEX_TOKEN_ENCRYPTION_KEY` | 64-char hex — AES-256-GCM key for IBKR Flex token at rest |
-| `MASSIVE_API_KEY` | Massive API key (price data; sync currently disabled) |
-| `GEMINI_API_KEY` | Google Gemini API key for the chat assistant |
-| `CRON_SECRET` | Bearer token expected by cron endpoints (`/api/cron/*`) |
-| `SITE_URL` | Canonical external URL of the app; used by `getBaseUrl()` (`lib/utils.ts`) to build server-side redirects and callbacks. Set in Vercel dashboard (e.g. `https://tradeanalyst.app`). Server-only (no `NEXT_PUBLIC_` prefix). Not needed locally. |
-| `NEXT_PUBLIC_SENTRY_DSN` | Sentry DSN — browser-safe (public). Enables error reporting from both client and server. |
-| `SENTRY_AUTH_TOKEN` | Sentry auth token — required only at build time for source-map upload. Server-only. |
-| `NEXT_PUBLIC_POSTHOG_KEY` | PostHog project API key — browser-safe. Powers analytics + signup funnel. |
-| `NEXT_PUBLIC_POSTHOG_HOST` | PostHog cloud host (`https://us.i.posthog.com` by default; `https://eu.i.posthog.com` for EU projects). |
-| `LEMONSQUEEZY_API_KEY` | Lemon Squeezy API key for billing |
-| `LEMONSQUEEZY_STORE_ID` | Lemon Squeezy store ID |
-| `LEMONSQUEEZY_VARIANT_ID_MONTHLY` | LS variant ID for monthly Pro ($11.99/mo) |
-| `LEMONSQUEEZY_VARIANT_ID_ANNUAL` | LS variant ID for annual Pro ($107.99/yr) |
-| `LEMONSQUEEZY_WEBHOOK_SECRET` | LS webhook signing secret (HMAC-SHA256) |
-| `LEMONSQUEEZY_DISCOUNT_CODE_LAUNCH_MONTHLY` | LS discount **code** (not ID) for launch promo monthly ($7.99 × 3mo). Optional — omit after promo ends. The LS checkout API attaches discounts via `checkout_data.discount_code`, not as a `relationships.discount`. |
-| `LEMONSQUEEZY_DISCOUNT_CODE_LAUNCH_ANNUAL` | LS discount **code** for launch promo annual ($79.99). Optional — omit after promo ends |
-| `AI_IMPORT_DISPATCH_TOKEN` | **Optional.** Fine-grained GitHub PAT (repo access, dispatch) so the AI-Excel-import upload route can `repository_dispatch` the worker for near-instant processing. Server-only. Omit → the `*/5` schedule in `ai-import-worker.yml` handles jobs instead. |
-| `AI_IMPORT_DISPATCH_REPO` | **Optional.** `owner/repo` target for the dispatch above. Server-only. Omit with the token to rely on the schedule. |
-| `GEO_GATE_ENABLED` | **Optional. Intended state: `false`/unset — see the Geo gate section for why.** `'true'` enforces the geo gate (app + API restricted to `GEO_ALLOWED_COUNTRIES`). Anything else = allow all. Server-only. |
-| `GEO_ALLOWED_COUNTRIES` | **Optional.** Comma-separated ISO-3166-1 alpha-2 allow-list for the geo gate. Defaults to `IL`. Server-only. |
-| `GEO_BYPASS_SECRET` | **Optional.** Secret for the `?geo_bypass=<secret>` escape hatch (sets a 90-day cookie exempting that browser). Unset = escape hatch disabled. Server-only. |
-
-When adding a new env var, follow [`.claude/rules/env-var-checklist.md`](.claude/rules/env-var-checklist.md).
+- [components/analytics/analytics-identity.tsx](components/analytics/analytics-identity.tsx) is
+  mounted in the **root** layout, not the dashboard layout — the blind spot is users who never
+  reach the dashboard. Idempotent; no-ops without analytics consent.
+- `/auth/callback` appends `reason=exchange_failed` on PKCE failure so `/signup/verified` can
+  tell a genuine email verification from a failed exchange. The page renders the same copy
+  either way, so **without the param the metric is meaningless**.
+- `logAuditEvent` stamps `metadata.country` on **every** event type. `AuditContext.userId` is
+  `string | null` — auth-callback events must pass `null`, because `AuditEvent.userId` has an FK
+  to `User(id)` and those events fire before the `User` row exists.
+- `signup_started` is deliberately **not** logged server-side: it happens in the browser, so
+  capturing it would need a new unauthenticated POST endpoint — new attack surface for a metric
+  PostHog already provides.
 
 ## Phase history
 
-The project shipped in eight phases plus several post-Phase-8 refactors. The **invariants** that survive each phase have been pulled into the sections above; the phase logs themselves were not persisted as separate files — read them out of git history when needed:
-
-```bash
-git log --oneline --reverse main          # all phase commits in order
-git log --grep='Phase'                    # commits that named a phase
-git log --all --oneline -- lib/trade/     # FIFO evolution (Phase 2)
-git log --all --oneline -- lib/ibkr/      # IBKR Flex integration (Phase 3)
-git log --all --oneline -- lib/massive/   # Massive (formerly Polygon) price sync (Phase 4)
-git log --all --oneline -- components/research-dashboard.tsx  # Research dashboard (Phase 6)
-git log --all --oneline -- lib/chat/      # Chat sidebar "חנן" (Phase 7)
-git log --all --oneline -- components/trade-search.tsx components/trade-excel-import.tsx  # Search + manual / Excel (Phase 8)
-```
-
-| Phase | Scope |
-|---|---|
-| 1 | Bootstrap + auth + layout |
-| 2 | DB models + FIFO logic |
-| 3 | IBKR Flex Web Service integration |
-| 4 | Polygon (now Massive) price sync |
-| 5 | Real-time open-positions dashboard (now hidden) |
-| 6 | Research dashboard (analytics + charts) |
-| 7 | AI chat sidebar "חנן" (Gemini) |
-| 8 | Trade search + soft-field editing + manual / Excel import |
-
-Refactors after Phase 7: Activity-only Flex query + CSV export. Refactor after Phase 8: Polygon→Massive rename + price-sync disabled + `/dashboard` hidden behind `/research` redirects (Phase 5 view; the route and component were then removed entirely in the Phase 3 tech-debt round — see T14). Post-Phase-8 cleanup: IBKR Order columns trimmed (tax/tradeDate/exchange/proceeds/brokerTradeId removed; netCash/commissionCurrency/orderTime properly extracted from rawPayload); manual import expanded to card-based UI with the current ManualLeg field set + updated Excel template. Tech-debt remediation rounds (`docs/TECH-DEBT.md`): xlsx → exceljs swap, multi-user cron iteration, `@supabase/ssr` upgrade with `as any` shim removal, shared close-validation helper + close-route test coverage, concurrency integration tests, research-dashboard 1237 LOC split into 5 modules, `/dashboard` removal.
+Shipped in eight phases plus post-Phase-8 refactors and several tech-debt rounds. The
+invariants that survived are in the sections above; the phase logs were never persisted as
+files. Read them out of git history when needed (`git log --grep='Phase'`, or scope to
+`lib/trade/`, `lib/ibkr/`, `lib/chat/`).
 
 ## QA / testing
 
-[docs/qa-test-user.md](docs/qa-test-user.md) — tracks the dedicated **QA test user** (`yadefam806@ameady.com`) used for pre-launch manual-QA of the manual-entry + research-analytics flows. Documents the test user identity, the current entered dataset + expected research KPIs (regression baseline), bugs found & fixed during QA, operational gotchas (Render cold-start/swap request pile-ups, `brokerExecId` dedup), and ready-to-run reset/verification SQL. Read it before running further experiments on that user.
+[docs/qa-test-user.md](docs/qa-test-user.md) tracks the dedicated QA test user, its current
+dataset + expected research KPIs (regression baseline), bugs found during QA, operational
+gotchas and ready-to-run reset/verification SQL. **Read it before running further experiments
+on that user.**

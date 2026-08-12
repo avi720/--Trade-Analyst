@@ -211,7 +211,7 @@ jar. Not a defect — just don't expect `?geo_bypass=` to work in `next dev`.
 | `GEO_BYPASS_SECRET` | *(unset)* | Secret for `?geo_bypass=`. Unset = the escape hatch is disabled entirely. |
 
 All three are server-only (no `NEXT_PUBLIC_`), read only from `proxy.ts` /
-`lib/geo/gate.ts`. Per [env-var-checklist.md](../../.claude/rules/env-var-checklist.md) they
+`lib/geo/gate.ts`. Per the [`env-var` skill](../../.claude/skills/env-var/SKILL.md) they
 land in `.env.example` + the CLAUDE.md table in this change, and must be set in Vercel
 **before** `GEO_GATE_ENABLED=true` is flipped.
 
@@ -247,7 +247,7 @@ Supabase supports hCaptcha / Cloudflare Turnstile natively (project-level toggle
 `app/(auth)/signup/verified/page.tsx` · `.env.example` · `CLAUDE.md`
 
 **DB:** migration `extend_audit_event_types_for_auth`, then regenerate `lib/db/types.ts`
-per [migrations.md](../../.claude/rules/migrations.md).
+per the [`db-schema` skill](../../.claude/skills/db-schema/SKILL.md).
 
 ---
 
