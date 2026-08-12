@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__.*__apply_migration",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/db-migration-notice.sh\" pre",
+            "timeout": 10,
+            "statusMessage": "Loading db-schema checklist"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "mcp__.*__apply_migration",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/db-migration-notice.sh\" post",
+            "timeout": 10,
+            "statusMessage": "Checking generated types"
+          }
+        ]
+      }
+    ]
+  }
+}

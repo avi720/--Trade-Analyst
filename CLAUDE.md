@@ -26,6 +26,12 @@ dropped in cleanup (`tax`, `tradeDate`, `exchange`, `proceeds`, `brokerTradeId`,
 must not be re-added** — the audit trail lives on `BrokerEvent.rawPayload`; and **`SITE_URL`
 must be the non-redirecting origin**, or every cron silently no-ops while Actions stays green.
 
+The `db-schema` row is additionally enforced, not just requested: a `PreToolUse` /
+`PostToolUse` hook pair in [.claude/settings.json](.claude/settings.json) fires on any MCP
+`apply_migration` call and injects the checklist plus the regenerate-types reminder
+([.claude/hooks/db-migration-notice.sh](.claude/hooks/db-migration-notice.sh)). It emits JSON
+via `node`, not `jq` — `jq` is not installed on this machine.
+
 **Nested CLAUDE.md** — [app/(dashboard)/admin/CLAUDE.md](app/(dashboard)/admin/CLAUDE.md)
 covers the admin panel and loads on its own when admin files are read.
 
