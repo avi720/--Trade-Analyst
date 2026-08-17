@@ -86,5 +86,12 @@ Billing columns are RLS-protected against `authenticated`-role writes (migration
 - `is_admin(uuid)` — `SECURITY DEFINER` helper backing every `admins_select_all_*` policy.
 - `admin_system_metrics()`, `admin_table_sizes()`, `admin_timeseries(days)` — read-only
   metrics for `/admin/health`. All `SECURITY DEFINER STABLE`, self-gating on
-  `is_admin(auth.uid())` (raise `admin_only` otherwise), granted only to
-  `authenticated, service_role`.
+  `is_admin(auth.uid())` (raise `admin_only` otherwise), granted to **`service_role` only**
+  (migration `revoke_admin_metrics_rpc_from_anon_authenticated`). `/admin/health` reaches them
+  through `createAdminClient()`, so no other role needs `EXECUTE`. Note that Supabase's default
+  privileges on `public` grant `EXECUTE` on every new function to `anon` **and**
+  `authenticated` — a new admin-only RPC must revoke them explicitly, or advisors 0028/0029
+  fire.
+  `is_admin(uuid)` is the exception: `authenticated` must keep `EXECUTE`, because RLS policy
+  expressions are evaluated with the querying role's privileges and every
+  `admins_select_all_*` policy calls it.
