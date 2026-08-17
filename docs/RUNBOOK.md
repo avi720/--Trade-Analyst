@@ -1,6 +1,6 @@
 # Operations Runbook — Trade Analyst
 
-Operational procedures for incidents and routine maintenance. Each runbook is self-contained: read it, follow the steps, you're done. Last updated: 2026-06-28.
+Operational procedures for incidents and routine maintenance. Each runbook is self-contained: read it, follow the steps, you're done. Last updated: 2026-08-17.
 
 For background on the architecture, read [`CLAUDE.md`](../CLAUDE.md). For security context, read [`docs/SECURITY-AUDIT.md`](SECURITY-AUDIT.md).
 
@@ -84,7 +84,7 @@ For background on the architecture, read [`CLAUDE.md`](../CLAUDE.md). For securi
 2. Select the target timestamp. PITR resolution is 1 second on Pro plan.
 3. **Critical: PITR creates a new project — it does not restore in place.** Choose to restore to a NEW Supabase project. Take note of the new project's URL and anon/service-role keys.
 4. Pause writes to production: deploy a quick "maintenance mode" 503 page via Vercel rollback, OR add a feature flag that returns 503 from all API routes.
-5. Update Vercel env vars to point at the new Supabase project: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `DIRECT_URL`.
+5. Update Vercel env vars to point at the new Supabase project: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
 6. Redeploy and verify a few user accounts manually before resuming public traffic.
 7. After confirmation: pause the old Supabase project (`pause_project`) to avoid double-billing.
 
@@ -133,6 +133,35 @@ For background on the architecture, read [`CLAUDE.md`](../CLAUDE.md). For securi
    VALUES ('<user-uuid>', 'subscription_manual_sync', 'success',
            '{"reason": "webhook desync", "operator": "<your-name>"}'::jsonb, NOW());
    ```
+
+---
+
+## 8. Rotate the Supabase database password
+
+**When:** suspected exposure of the Postgres password, or scheduled rotation.
+
+**Blast radius: none for the running app.** Nothing in the codebase connects over a Postgres
+connection string — the app talks to Supabase through the JS SDK using the anon and
+service-role keys, and `npm run db:seed` uses the service-role key too. Resetting the database
+password does **not** invalidate those keys. What breaks is only direct `psql`/GUI sessions and
+any personal tooling holding the old string.
+
+**Steps:**
+1. Supabase Dashboard → **Database → Settings** → reset the database password.
+   Direct link: `https://supabase.com/dashboard/project/nwvswntqrqqtwzrhzpmi/database/settings`
+   (note: this moved from the old Project Settings → Database location).
+2. Allow a few minutes to propagate. Connecting too early fails with
+   `SCRAM exchange: Wrong password` — that is the propagation window, not a bad password.
+3. Nothing to update in Vercel or `.env.local`: `DATABASE_URL` / `DIRECT_URL` were removed in
+   2026-08 (see `.env.example`). If your local file still has them, delete the lines rather
+   than updating them.
+4. If you keep the password in a password manager or a SQL client, update it there.
+
+**History:** rotated on 2026-08-17 after the password was found in git history — it sat in a
+`Bash(export DATABASE_URL=…)` permission rule inside `.claude/settings.local.json`, which was
+tracked from 2026-04-26 (bc60831) until 2026-07-29 (ea2c860) and pushed to a **public** repo.
+Untracking a file does not remove it from history; rotation is what ends the exposure. The dead
+permission rules were deleted at the same time.
 
 ---
 

@@ -34,7 +34,6 @@ produces cryptic runtime failures on fresh clones.
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL (browser-safe) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key (browser-safe, RLS-bound) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service role key — server-only, bypasses RLS |
-| `DATABASE_URL` / `DIRECT_URL` | Supabase Postgres connection strings (pgbouncer + direct) |
 | `FLEX_TOKEN_ENCRYPTION_KEY` | 64-char hex — AES-256-GCM key for IBKR Flex token at rest |
 | `MASSIVE_API_KEY` | Massive API key (price data; sync currently disabled) |
 | `GEMINI_API_KEY` | Google Gemini API key for the chat assistant |
@@ -56,3 +55,12 @@ produces cryptic runtime failures on fresh clones.
 | `GEO_GATE_ENABLED` | **Optional. Intended state: `false`/unset** — see [docs/decisions/geo-gate.md](../../../docs/decisions/geo-gate.md). `'true'` enforces the geo gate. Anything else = allow all. Server-only. |
 | `GEO_ALLOWED_COUNTRIES` | **Optional.** Comma-separated ISO-3166-1 alpha-2 allow-list for the geo gate. Defaults to `IL`. Server-only. |
 | `GEO_BYPASS_SECRET` | **Optional.** Secret for the `?geo_bypass=<secret>` escape hatch (sets a 90-day cookie exempting that browser). Unset = escape hatch disabled. Server-only. |
+
+## Removed — do not re-add
+
+`DATABASE_URL` / `DIRECT_URL` (removed 2026-08). Prisma-era Postgres connection strings; no
+code, script or workflow has read them since the move to the Supabase JS SDK. They are also a
+standing hazard: a Postgres URL embeds the database password, and a stray copy of one is what
+leaked into public git history in April 2026 (see runbook 8 in
+[docs/RUNBOOK.md](../../../docs/RUNBOOK.md)). Direct `psql` access should pull the string from
+the Supabase dashboard on demand, not keep it in an env file.
