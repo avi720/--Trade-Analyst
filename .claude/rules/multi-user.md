@@ -21,7 +21,7 @@ The app ships as a public multi-user SaaS (public signup via `/signup`). Do **no
   - Server: `@supabase/ssr` via [lib/supabase/server.ts](../../lib/supabase/server.ts).
   - Browser / scripts: `@supabase/supabase-js`.
 - Type safety comes from the generated `Database` type in [lib/db/types.ts](../../lib/db/types.ts).
-- The `_prisma_migrations` table is a leftover from initial bootstrap — kept as an audit row, not used by tooling. Don't reintroduce Prisma or any ORM.
+- Prisma was used only for the initial bootstrap and is gone, including its `_prisma_migrations` table. Don't reintroduce Prisma or any ORM.
 
 ## Never bypass RLS from request paths
 

@@ -17,6 +17,12 @@ files by hand, not via a local Supabase CLI, not via Prisma.
 Each migration should be idempotent-safe where practical (use `IF NOT EXISTS` / `IF EXISTS`
 for objects that may already have been created out-of-band).
 
+Never change the schema by hand in the dashboard or via `execute_sql`. Replaying the migration
+history onto an empty project (how the `Trade-Analysis-dev` preview DB was built) must reproduce
+production exactly; three hand-made changes broke that and had to be codified after the fact in
+`codify_out_of_band_prod_drift`. Apply every migration to both projects — production
+`nwvswntqrqqtwzrhzpmi` and dev `sssichkbdqariguvqprc` — so their histories stay identical.
+
 ## Regenerating the typed Database client
 
 After **any** schema change, regenerate the `Database` types:
@@ -49,8 +55,8 @@ Admin-wide read access uses additive `admins_select_all_*` policies keyed off th
   live under `settings.display`. There are **no** dedicated columns for these. API:
   `GET/PATCH /api/profile`.
 - `User.isAdmin` (boolean) — gates the `/admin` surface.
-- The `_prisma_migrations` table is a leftover from initial bootstrap — kept as an audit row,
-  not used by tooling.
+- There is no `_prisma_migrations` table. `phase2_initial_schema` creates it (Prisma bootstrap
+  leftover); `codify_out_of_band_prod_drift` drops it.
 
 ### Columns deliberately removed — do not re-add
 

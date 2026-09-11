@@ -18,7 +18,7 @@ response was sent.
 
 GitHub Actions fires at **13:00 & 20:00 UTC** ([.github/workflows/ibkr-sync.yml](../../../.github/workflows/ibkr-sync.yml)).
 Twice a day because only the **Activity** Flex Query is used and it updates once per
-end-of-day (Trade Confirmations was dropped; `flexQueryIdTrades` is nullable and unused).
+end-of-day (Trade Confirmations was dropped; the `flexQueryIdTrades` column was dropped).
 
 Step 2 polls every 10s up to **4 attempts** (~40s). IBKR typically generates the statement
 within 1–2 attempts. If all 4 fail, `IbkrTransientError` is thrown → `lastSyncAt` is **not**
