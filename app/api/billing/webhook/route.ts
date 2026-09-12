@@ -146,11 +146,15 @@ export async function POST(request: Request) {
 
   if (!updated || updated.length === 0) {
     console.error('[billing/webhook] orphaned event — no User row for user_id:', userId, 'event:', eventName, 'lsSubscription:', subscriptionId)
+    // userId must be null: AuditEvent.userId has an FK to User(id), and by
+    // definition there is no such row here — the insert would fail with 23503.
+    // The id rides in metadata instead, same convention as the auth-path events.
     await logAuditEvent({
-      userId,
+      userId: null,
       eventType: 'subscription_orphaned',
       status: 'failure',
       metadata: {
+        lsUserId: userId,
         lsEvent: eventName,
         lsSubscriptionId: subscriptionId,
         note: 'user_id valid UUID but no matching User row',

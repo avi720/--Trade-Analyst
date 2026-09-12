@@ -7,7 +7,8 @@
  *   - X5  — sha256(body) idempotency: duplicate delivery returns 200 without
  *           re-writing user state (BillingWebhookEvent unique index)
  *   - X14 — orphan user_id (valid UUID but no matching User row) returns 200
- *           and emits a `subscription_orphaned` AuditEvent
+ *           and emits a `subscription_orphaned` AuditEvent with userId null
+ *           (FK to User) and the LS user_id in metadata
  *
  * Supabase clients + LS config are mocked. HMAC signatures are computed with
  * a fixed test secret so we can build both valid and malformed test cases.
@@ -257,7 +258,10 @@ describe('/api/billing/webhook — hardening', () => {
       const orphanAudit = audits.find((c) => c[0].eventType === 'subscription_orphaned')
       expect(orphanAudit).toBeDefined()
       expect(orphanAudit![0].status).toBe('failure')
-      expect(orphanAudit![0].userId).toBe(REAL_USER_ID)
+      // No User row exists, so userId must be null (AuditEvent.userId FK) —
+      // the LS id rides in metadata instead.
+      expect(orphanAudit![0].userId).toBeNull()
+      expect(orphanAudit![0].metadata).toMatchObject({ lsUserId: REAL_USER_ID })
     })
   })
 })
