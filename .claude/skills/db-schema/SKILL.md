@@ -20,8 +20,19 @@ for objects that may already have been created out-of-band).
 Never change the schema by hand in the dashboard or via `execute_sql`. Replaying the migration
 history onto an empty project (how the `Trade-Analysis-dev` preview DB was built) must reproduce
 production exactly; three hand-made changes broke that and had to be codified after the fact in
-`codify_out_of_band_prod_drift`. Apply every migration to both projects — production
-`nwvswntqrqqtwzrhzpmi` and dev `sssichkbdqariguvqprc` — so their histories stay identical.
+`codify_out_of_band_prod_drift`.
+
+Every migration goes to both projects — production `nwvswntqrqqtwzrhzpmi` and dev
+`sssichkbdqariguvqprc` — with the **same version** in both. `apply_migration` stamps a fresh
+timestamp on every call, so calling it once per project records two different versions (that
+happened with `add_planned_r_generated_column` and `add_trade_tags`, aligned by hand on
+2026-09-14). The method:
+
+1. Apply to **production** with `apply_migration` — that call records the version.
+2. Read it back: `select version from supabase_migrations.schema_migrations where name = '<name>'`.
+3. On **dev**, run the same SQL with `execute_sql`, then record production's version:
+   `insert into supabase_migrations.schema_migrations (version, name) values ('<version>', '<name>')`.
+   Never call `apply_migration` on dev.
 
 ## Regenerating the typed Database client
 
