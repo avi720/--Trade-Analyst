@@ -244,3 +244,20 @@ export function resumeSubscription(
 export function isActiveStatus(status: string): boolean {
   return status === 'on_trial' || status === 'active'
 }
+
+// Owner decision 2026-09-14 — cancelling keeps what was paid for. In Lemon
+// Squeezy `cancelled` means the customer stopped renewal, not that access ended:
+// the subscription stays paid-up until `ends_at` (the end of the current monthly
+// or annual period), and LS fires `subscription_expired` at that moment, which
+// arrives here as `expired` → Free. Contrast X6 above: `past_due` means a
+// renewal already failed, so there is no paid period left to honour.
+export function grantsPro(
+  status: string,
+  endsAt: string | null,
+  now: number = Date.now(),
+): boolean {
+  if (isActiveStatus(status)) return true
+  if (status !== 'cancelled' || !endsAt) return false
+  const end = Date.parse(endsAt)
+  return Number.isFinite(end) && end > now
+}

@@ -5,7 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import {
   getLemonSqueezyConfig,
   HANDLED_EVENTS,
-  isActiveStatus,
+  grantsPro,
   type HandledEvent,
   type WebhookPayload,
 } from '@/lib/billing/lemon-squeezy'
@@ -115,8 +115,9 @@ export async function POST(request: Request) {
   const customerId = String(payload.data.attributes.customer_id ?? '')
   const status = payload.data.attributes.status
   const renewsAt = payload.data.attributes.renews_at
+  const endsAt = payload.data.attributes.ends_at
 
-  const newTier = isActiveStatus(status) ? 'Pro' : 'Free'
+  const newTier = grantsPro(status, endsAt) ? 'Pro' : 'Free'
 
   const { data: prior } = await admin
     .from('User')

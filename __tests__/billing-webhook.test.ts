@@ -62,6 +62,7 @@ function makeBody(overrides?: {
   userId?: string
   status?: string
   subscriptionId?: string
+  endsAt?: string | null
 }) {
   return JSON.stringify({
     meta: {
@@ -74,7 +75,7 @@ function makeBody(overrides?: {
         status: overrides?.status ?? 'active',
         customer_id: 12345,
         renews_at: '2027-01-01T00:00:00Z',
-        ends_at: null,
+        ends_at: overrides?.endsAt ?? null,
       },
     },
   })
@@ -103,6 +104,7 @@ function mockAdmin(opts: AdminMockOpts = {}) {
     userSelectResult = { data: { subscriptionTier: 'Free' } },
     userUpdateResult = { data: [{ id: REAL_USER_ID }], error: null },
   } = opts
+  const updatePayloads: Record<string, unknown>[] = []
 
   // Postgrest chain: .from(table).insert(row) / .update(row).eq(k,v).select(cols) /
   // .select(cols).eq(k,v).maybeSingle()
@@ -124,13 +126,16 @@ function mockAdmin(opts: AdminMockOpts = {}) {
       }
       return {
         select: vi.fn(() => selectChain),
-        update: vi.fn(() => updateChain),
+        update: vi.fn((payload: Record<string, unknown>) => {
+          updatePayloads.push(payload)
+          return updateChain
+        }),
       }
     }
     throw new Error(`unexpected table access in test: ${table}`)
   }
 
-  const client = { from: vi.fn(chain) }
+  const client = { from: vi.fn(chain), updatePayloads }
   vi.mocked(createAdminClient).mockReturnValue(
     client as unknown as ReturnType<typeof createAdminClient>,
   )
@@ -263,5 +268,56 @@ describe('/api/billing/webhook — hardening', () => {
       expect(orphanAudit![0].userId).toBeNull()
       expect(orphanAudit![0].metadata).toMatchObject({ lsUserId: REAL_USER_ID })
     })
+  })
+})
+
+describe('/api/billing/webhook — cancelled keeps Pro until the paid period ends', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(getLemonSqueezyConfig).mockReturnValue(makeConfig())
+  })
+
+  const DAY = 24 * 60 * 60 * 1000
+  const inDays = (n: number) => new Date(Date.now() + n * DAY).toISOString()
+
+  async function deliver(eventName: string, status: string, endsAt: string | null, priorTier = 'Pro') {
+    const client = mockAdmin({ userSelectResult: { data: { subscriptionTier: priorTier } } })
+    const body = makeBody({ eventName, status, endsAt })
+    const res = await POST(makeReq(body, sign(body)))
+    expect(res.status).toBe(200)
+    expect(client.updatePayloads).toHaveLength(1)
+    return client.updatePayloads[0]
+  }
+
+  it('monthly cancel with 8 days left → stays Pro, status cancelled', async () => {
+    const update = await deliver('subscription_cancelled', 'cancelled', inDays(8))
+    expect(update).toMatchObject({ subscriptionTier: 'Pro', subscriptionStatus: 'cancelled' })
+    expect(vi.mocked(logAuditEvent).mock.calls[0][0].eventType).toBe('subscription_updated')
+  })
+
+  it('annual cancel with ~11 months left → stays Pro', async () => {
+    const update = await deliver('subscription_cancelled', 'cancelled', inDays(330))
+    expect(update).toMatchObject({ subscriptionTier: 'Pro', subscriptionStatus: 'cancelled' })
+  })
+
+  it('the subscription_updated LS sends alongside the cancel also keeps Pro', async () => {
+    const update = await deliver('subscription_updated', 'cancelled', inDays(330))
+    expect(update).toMatchObject({ subscriptionTier: 'Pro' })
+  })
+
+  it('a cancelled event delivered after the period already ended → Free', async () => {
+    const update = await deliver('subscription_updated', 'cancelled', inDays(-1))
+    expect(update).toMatchObject({ subscriptionTier: 'Free' })
+    expect(vi.mocked(logAuditEvent).mock.calls[0][0].eventType).toBe('tier_downgraded')
+  })
+
+  it('subscription_expired at the end of an annual period → Free', async () => {
+    const update = await deliver('subscription_expired', 'expired', inDays(0))
+    expect(update).toMatchObject({ subscriptionTier: 'Free', subscriptionStatus: 'expired' })
+  })
+
+  it('resume before the period ends → Pro, status active', async () => {
+    const update = await deliver('subscription_resumed', 'active', null)
+    expect(update).toMatchObject({ subscriptionTier: 'Pro', subscriptionStatus: 'active' })
   })
 })
