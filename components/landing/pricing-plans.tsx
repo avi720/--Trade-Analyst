@@ -7,8 +7,10 @@ import {
   PRICE_MONTHLY_USD,
   PRICE_ANNUAL_USD,
   PROMO_MONTHLY_USD,
+  PROMO_MONTHLY_DURATION_MONTHS,
   PROMO_ANNUAL_USD,
 } from '@/lib/billing/prices'
+import { CHAT_DAILY_LIMIT_FREE, CHAT_DAILY_LIMIT_PRO } from '@/lib/billing/limits'
 
 type Billing = 'monthly' | 'annual'
 
@@ -18,14 +20,23 @@ type Billing = 'monthly' | 'annual'
  * heading) and standalone on `/pricing` (with a page-level intro). Kept free of
  * any section chrome so both callers own their own surrounding heading — no
  * duplicate h2/h1 and no copy drift between the two placements.
+ *
+ * `promoActive` is decided by the server caller (`isLaunchPromoActive()`) so
+ * the clock is read once on the server and the hydration render agrees.
  */
-export function PricingPlans() {
+export function PricingPlans({ promoActive }: { promoActive: boolean }) {
   const [billing, setBilling] = useState<Billing>('monthly')
   const isAnnual = billing === 'annual'
 
+  // The annual-savings badge is derived from whichever price pair the cards
+  // actually show, so it stays honest when the launch promo ends.
+  const shownMonthly = promoActive ? PROMO_MONTHLY_USD : PRICE_MONTHLY_USD
+  const shownAnnual = promoActive ? PROMO_ANNUAL_USD : PRICE_ANNUAL_USD
+  const annualSavingsPct = Math.round((1 - shownAnnual / (shownMonthly * 12)) * 100)
+
   return (
     <>
-      <BillingToggle value={billing} onChange={setBilling} />
+      <BillingToggle value={billing} onChange={setBilling} savingsPct={annualSavingsPct} />
 
       <div className="mt-10 grid gap-6 sm:grid-cols-2">
         <PricingCard
@@ -37,7 +48,7 @@ export function PricingPlans() {
             'הזנה ידנית — עד 30 טריידים',
             'לוח research מלא',
             'חיפוש וסינון מתקדם',
-            '3 הודעות לחנן ביום (מצב בסיסי)',
+            `${CHAT_DAILY_LIMIT_FREE} הודעות לחנן ביום (מצב בסיסי)`,
           ]}
         />
         <PricingCard
@@ -46,14 +57,14 @@ export function PricingPlans() {
           priceSuffix={isAnnual ? 'לשנה' : 'לחודש'}
           cta="14 ימי ניסיון חינם"
           highlighted
-          launchPrice={isAnnual ? `$${PROMO_ANNUAL_USD}` : `$${PROMO_MONTHLY_USD}`}
-          launchNote={isAnnual ? 'לשנה הראשונה' : 'ל-3 חודשים ראשונים'}
+          launchPrice={promoActive ? (isAnnual ? `$${PROMO_ANNUAL_USD}` : `$${PROMO_MONTHLY_USD}`) : undefined}
+          launchNote={promoActive ? (isAnnual ? 'לשנה הראשונה' : `ל-${PROMO_MONTHLY_DURATION_MONTHS} חודשים ראשונים`) : undefined}
           features={[
             'כל מה שב-Free',
             'הזנה ידנית — ללא הגבלה',
             'ייבוא Excel של עסקאות',
             'סנכרון אוטומטי מ-Interactive Brokers',
-            'חנן ללא הגבלה + מצב Pro מעמיק',
+            `עד ${CHAT_DAILY_LIMIT_PRO} הודעות לחנן ביום + מצב Pro מעמיק`,
             'ייצוא CSV מלא',
           ]}
         />
@@ -65,9 +76,11 @@ export function PricingPlans() {
 function BillingToggle({
   value,
   onChange,
+  savingsPct,
 }: {
   value: Billing
   onChange: (v: Billing) => void
+  savingsPct: number
 }) {
   return (
     <div
@@ -95,7 +108,7 @@ function BillingToggle({
                 : 'bg-green/15 text-green')
             }
           >
-            חסוך 17%
+            חסוך {savingsPct}%
           </span>
         </span>
       </ToggleButton>

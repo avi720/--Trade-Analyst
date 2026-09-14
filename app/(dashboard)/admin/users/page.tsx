@@ -41,7 +41,7 @@ export default async function AdminPage() {
         <p className="text-sm text-text-dim mt-1">
           רשימת כל המשתמשים ומסלול המנוי שלהם. הלחצן מחליף בין Free ל-Pro
           לצורך בדיקת פיצ׳רים מוגבלי-Pro (ייבוא Excel אוטומטי, סנכרון IBKR,
-          חנן ללא הגבלה וכו׳). לחיצה כותבת גם `subscriptionStatus` פיקטיבי
+          מכסת חנן של Pro וכו׳). לחיצה כותבת גם `subscriptionStatus` פיקטיבי
           כדי שהמסך ״מנוי״ בפרופיל יראה מצב עקבי, אך לא נוגעת ב-Lemon Squeezy
           IDs — כך שוובהוק אמיתי עדיין דורס את המצב הפיקטיבי בצורה נקייה.
         </p>

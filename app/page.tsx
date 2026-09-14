@@ -13,6 +13,7 @@ import { createClient } from '@/lib/supabase/server'
 import { TradeLogoIcon } from '@/components/trade-logo'
 import { PublicFooter } from '@/components/public-footer'
 import { PricingSection } from '@/components/landing/pricing-section'
+import { CHAT_DAILY_LIMIT_FREE, CHAT_DAILY_LIMIT_PRO } from '@/lib/billing/limits'
 import { LandingVideo } from '@/components/landing/landing-video'
 
 export default async function RootPage() {
@@ -292,7 +293,7 @@ const faqItems = [
   },
   {
     q: 'מה ההבדל בין חנן ב-Free לב-Pro?',
-    a: 'ב-Free יש עד 3 הודעות ביום במצב בסיסי. ב-Pro אין הגבלת הודעות ומצב "עמוק" שמריץ סטטיסטיקות מותאמות אישית על השאלה שלך במקום לענות מהזיכרון.',
+    a: `ב-Free יש עד ${CHAT_DAILY_LIMIT_FREE} הודעות ביום במצב בסיסי. ב-Pro יש עד ${CHAT_DAILY_LIMIT_PRO} הודעות ביום ומצב "עמוק" שמריץ סטטיסטיקות מותאמות אישית על השאלה שלך במקום לענות מהזיכרון.`,
   },
   {
     q: 'יש תמיכה מלאה בעברית ו-RTL?',

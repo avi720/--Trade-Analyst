@@ -8,7 +8,14 @@ import {
 } from '@/lib/chat/gemini-client'
 import { checkRateLimit, rateLimitedResponse } from '@/lib/auth/rate-limit'
 import { logAuditEvent } from '@/lib/audit/log'
-import { getUserTier, isProTier, proRequiredResponse } from '@/lib/billing/tier'
+import {
+  getUserTier,
+  isProTier,
+  proRequiredResponse,
+  CHAT_HOURLY_LIMIT,
+  CHAT_DAILY_LIMIT_FREE,
+  CHAT_DAILY_LIMIT_PRO,
+} from '@/lib/billing/tier'
 import { calcStats } from '@/lib/utils/calculations'
 import { computeResearchAggregates, type ResearchAggregates } from '@/lib/utils/research-aggregate'
 import {
@@ -127,7 +134,7 @@ export async function POST(request: Request) {
   const { tier } = await getUserTier(user.id)
 
   // Hourly cap (both tiers) — Gemini cost protection + compromised-session quota burn defense.
-  const rlHour = await checkRateLimit(`user:${user.id}:chat`, 30, 3600)
+  const rlHour = await checkRateLimit(`user:${user.id}:chat`, CHAT_HOURLY_LIMIT, 3600)
   if (!rlHour.ok) {
     await logAuditEvent({
       userId: user.id,
@@ -139,9 +146,10 @@ export async function POST(request: Request) {
     return rateLimitedResponse(rlHour, 'הגעת למגבלת ההודעות לשעה. נסה שוב מאוחר יותר')
   }
 
-  // Daily cap for Free tier only — 3 messages per day.
+  // Daily cap, per tier. Separate bucket keys so a tier upgrade starts the Pro
+  // count fresh instead of inheriting the exhausted Free window.
   if (!isProTier(tier)) {
-    const rlDay = await checkRateLimit(`user:${user.id}:chat:daily-free`, 3, 86400)
+    const rlDay = await checkRateLimit(`user:${user.id}:chat:daily-free`, CHAT_DAILY_LIMIT_FREE, 86400)
     if (!rlDay.ok) {
       await logAuditEvent({
         userId: user.id,
@@ -152,7 +160,23 @@ export async function POST(request: Request) {
       })
       return rateLimitedResponse(
         rlDay,
-        'הגעת למכסת 3 ההודעות היומית של המסלול החינמי. שדרג ל-Pro להודעות ללא הגבלה',
+        `הגעת למכסת ${CHAT_DAILY_LIMIT_FREE} ההודעות היומית של המסלול החינמי. שדרג ל-Pro ל-${CHAT_DAILY_LIMIT_PRO} הודעות ביום`,
+      )
+    }
+  } else {
+    const rlDay = await checkRateLimit(`user:${user.id}:chat:daily-pro`, CHAT_DAILY_LIMIT_PRO, 86400)
+    if (!rlDay.ok) {
+      await logAuditEvent({
+        userId: user.id,
+        eventType: 'rate_limit_hit',
+        status: 'failure',
+        metadata: { action: 'chat', bucket: 'daily_pro' },
+        request,
+      })
+      const hoursLeft = Math.max(1, Math.ceil((rlDay.resetAt.getTime() - Date.now()) / 3_600_000))
+      return rateLimitedResponse(
+        rlDay,
+        `הגעת למכסת ${CHAT_DAILY_LIMIT_PRO} ההודעות היומית. המכסה מתחדשת בעוד כ-${hoursLeft} שעות`,
       )
     }
   }

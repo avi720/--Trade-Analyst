@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Brain, MessageCircle, Search, Sparkles } from 'lucide-react'
 import { FeatureLanding } from '@/components/landing/feature-landing'
+import { CHAT_DAILY_LIMIT_FREE, CHAT_DAILY_LIMIT_PRO } from '@/lib/billing/limits'
 
 export const metadata: Metadata = {
   title: 'חנן — עוזר AI למסחר',
@@ -59,7 +60,7 @@ export default function AiTradingAssistantPage() {
         },
       ]}
       closingTitle="רוצה להכיר את חנן?"
-      closingBody="3 הודעות ביום חינם. ללא הגבלה ומצב מעמיק במסלול Pro."
+      closingBody={`${CHAT_DAILY_LIMIT_FREE} הודעות ביום חינם. עד ${CHAT_DAILY_LIMIT_PRO} ביום ומצב מעמיק במסלול Pro.`}
     />
   )
 }

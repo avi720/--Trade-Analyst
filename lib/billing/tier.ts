@@ -51,6 +51,10 @@ export function proRequiredResponse(feature: string): NextResponse {
 // Beyond this, POST /api/trades/manual returns errorCode='trade_limit_reached'.
 export const MANUAL_TRADE_LIMIT_FREE = 30
 
+// Chat caps live in the client-safe `limits.ts`; re-exported here so server
+// code has one import for everything tier-related.
+export { CHAT_HOURLY_LIMIT, CHAT_DAILY_LIMIT_FREE, CHAT_DAILY_LIMIT_PRO } from './limits'
+
 export async function getUserTradeCount(userId: string): Promise<number> {
   const admin = createAdminClient()
   const { count } = await admin

@@ -33,6 +33,17 @@ function lsRemove(key: string) {
   try { localStorage.removeItem(key) } catch {}
 }
 
+// HH:MM:SS for the post-429 countdown; hours are omitted when zero.
+function formatCountdown(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000))
+  const h = Math.floor(total / 3600)
+  const m = Math.floor((total % 3600) / 60)
+  const s = total % 60
+  const mm = String(m).padStart(2, '0')
+  const ss = String(s).padStart(2, '0')
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`
+}
+
 export function ChatSidebar({ isPro = false }: { isPro?: boolean }) {
   const { isOpen, toggleChat } = useChatOpen()
   const { contextData } = useChatContextData()
@@ -54,7 +65,23 @@ export function ChatSidebar({ isPro = false }: { isPro?: boolean }) {
   const [respectFilter, setRespectFilter] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const [input, setInput] = useState('')
+  // Set from a 429 — the input stays disabled until this instant passes, so a
+  // capped user isn't invited to keep sending into an exhausted bucket.
+  const [blockedUntil, setBlockedUntil] = useState<number | null>(null)
+  const [now, setNow] = useState(() => Date.now())
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Tick once a second while blocked, for the countdown; clear on expiry.
+  useEffect(() => {
+    if (blockedUntil == null) return
+    const id = setInterval(() => {
+      const t = Date.now()
+      setNow(t)
+      if (t >= blockedUntil) setBlockedUntil(null)
+    }, 1000)
+    return () => clearInterval(id)
+  }, [blockedUntil])
+  const isBlocked = blockedUntil != null && now < blockedUntil
 
   // Restore the persisted conversation from localStorage. Read after hydration
   // rather than in a mount effect (see useHydrated) — localStorage is
@@ -126,7 +153,7 @@ export function ChatSidebar({ isPro = false }: { isPro?: boolean }) {
 
   async function handleSend() {
     const text = input.trim()
-    if (!text || isLoading) return
+    if (!text || isLoading || isBlocked) return
 
     setInput('')
     setMessages(prev => [...prev, { role: 'user', content: text }])
@@ -152,6 +179,11 @@ export function ChatSidebar({ isPro = false }: { isPro?: boolean }) {
       if (!res.ok || data.error) {
         const errMsg = data.error ?? 'שגיאה לא ידועה. נסה שוב.'
         setMessages(prev => [...prev, { role: 'assistant', content: errMsg, isError: true }])
+        if (res.status === 429) {
+          const secs = typeof data.retryAfterSeconds === 'number' ? data.retryAfterSeconds : 60
+          setNow(Date.now())
+          setBlockedUntil(Date.now() + secs * 1000)
+        }
         return
       }
 
@@ -308,18 +340,23 @@ export function ChatSidebar({ isPro = false }: { isPro?: boolean }) {
 
         {/* Input area */}
         <div className="px-4 py-3 border-t border-border flex-shrink-0">
+          {isBlocked && (
+            <p className="mb-2 text-xs font-sans text-text-dim" role="status" aria-live="polite">
+              ניתן לשלוח שוב בעוד <span className="font-mono">{formatCountdown(blockedUntil! - now)}</span>
+            </p>
+          )}
           <div className="flex gap-2">
             <input
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
-              disabled={isLoading}
-              placeholder="שאל את חנן..."
+              disabled={isLoading || isBlocked}
+              placeholder={isBlocked ? 'הגעת למכסת ההודעות' : 'שאל את חנן...'}
               className="flex-1 bg-input-bg border border-shade rounded text-text-main text-sm px-3 py-2 placeholder-text-mute outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2 focus:border-amber/50 disabled:opacity-50"
             />
             <button
               onClick={handleSend}
-              disabled={isLoading || !input.trim()}
+              disabled={isLoading || isBlocked || !input.trim()}
               className="bg-amber text-bg-dark rounded px-3 py-2 text-sm font-mono font-bold hover:bg-amber/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               שלח

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Sparkles, Loader2 } from "lucide-react";
 import type { SubscriptionTier } from "@/lib/billing/tier";
+import { CHAT_DAILY_LIMIT_FREE, CHAT_DAILY_LIMIT_PRO } from "@/lib/billing/limits";
 import {
   PRICE_MONTHLY_USD,
   PRICE_ANNUAL_USD,
@@ -34,7 +35,7 @@ const FREE_FEATURES = [
   "הזנה ידנית — עד 30 טריידים",
   "לוח research מלא",
   "חיפוש וסינון עסקאות",
-  "3 הודעות לחנן (AI) ביום, מצב בסיסי",
+  `${CHAT_DAILY_LIMIT_FREE} הודעות לחנן (AI) ביום, מצב בסיסי`,
 ];
 
 const PRO_FEATURES = [
@@ -42,7 +43,7 @@ const PRO_FEATURES = [
   "הזנה ידנית — ללא הגבלה",
   "ייבוא Excel של עסקאות",
   "סנכרון אוטומטי מ-Interactive Brokers",
-  "חנן ללא הגבלה + מצב Pro מעמיק (גישה לכל ההיסטוריה)",
+  `עד ${CHAT_DAILY_LIMIT_PRO} הודעות לחנן ביום + מצב Pro מעמיק (גישה לכל ההיסטוריה)`,
   "ייצוא CSV של פעילות",
   "14 ימי ניסיון חינם",
 ];
@@ -161,7 +162,7 @@ export function TabBilling({ userTier, subscriptionStatus, subscriptionRenewsAt,
           <div className="rounded-md border border-amber/30 bg-amber-tint p-4">
             <p className="text-sm text-text-main">
               אתה במסלול <strong>Free</strong>. שדרג ל-Pro לקבלת סנכרון IBKR,
-              חנן ללא הגבלה, וייצוא CSV.
+              עד {CHAT_DAILY_LIMIT_PRO} הודעות לחנן ביום, וייצוא CSV.
             </p>
           </div>
 

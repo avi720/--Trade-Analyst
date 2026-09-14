@@ -1,4 +1,6 @@
 import { PricingPlans } from './pricing-plans'
+import { isLaunchPromoActive } from '@/lib/billing/prices'
+import { CHAT_DAILY_LIMIT_PRO } from '@/lib/billing/limits'
 
 export function PricingSection() {
   return (
@@ -7,11 +9,11 @@ export function PricingSection() {
         <div className="mx-auto mb-8 max-w-2xl text-center">
           <h2 className="text-3xl font-semibold text-text-main">תמחור פשוט</h2>
           <p className="mt-3 text-text-dim">
-            התחל חינם. שדרג ל-Pro כשתרצה סנכרון אוטומטי וחנן ללא הגבלה.
+            התחל חינם. שדרג ל-Pro כשתרצה סנכרון אוטומטי ועד {CHAT_DAILY_LIMIT_PRO} הודעות לחנן ביום.
           </p>
         </div>
 
-        <PricingPlans />
+        <PricingPlans promoActive={isLaunchPromoActive()} />
       </div>
     </section>
   )

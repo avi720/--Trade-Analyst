@@ -2,11 +2,13 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { CreditCard, XCircle, Sparkles, ArrowLeft } from 'lucide-react'
 import { PricingPlans } from '@/components/landing/pricing-plans'
+import { isLaunchPromoActive } from '@/lib/billing/prices'
+import { CHAT_DAILY_LIMIT_PRO } from '@/lib/billing/limits'
 
 export const metadata: Metadata = {
   title: 'תמחור',
   description:
-    'תמחור פשוט ושקוף ל-Trade Analyst — מתחילים חינם בלי כרטיס אשראי, ומשדרגים ל-Pro רק כשסנכרון אוטומטי מ-IBKR וחנן ללא הגבלה עוזרים לך. ביטול בקליק, בכל רגע.',
+    'תמחור פשוט ושקוף ל-Trade Analyst — מתחילים חינם בלי כרטיס אשראי, ומשדרגים ל-Pro רק כשסנכרון אוטומטי מ-IBKR ו-100 הודעות ביום לחנן עוזרים לך. ביטול בקליק, בכל רגע.',
 }
 
 export default function PricingPage() {
@@ -35,7 +37,7 @@ export default function PricingPage() {
 
       {/* Plans */}
       <div className="relative mt-12">
-        <PricingPlans />
+        <PricingPlans promoActive={isLaunchPromoActive()} />
       </div>
 
       {/* Reassurance points */}
@@ -147,6 +149,6 @@ const FAQ = [
   },
   {
     q: 'מה בעצם ההבדל בין Free ל-Pro?',
-    a: 'ב-Free יש לך לוח research מלא, חיפוש, והזנה ידנית של עד 30 טריידים. Pro פותח הזנה ללא הגבלה, ייבוא Excel, סנכרון אוטומטי מ-Interactive Brokers, וחנן ללא הגבלה עם מצב מעמיק שמריץ סטטיסטיקות מותאמות על השאלה שלך.',
+    a: `ב-Free יש לך לוח research מלא, חיפוש, והזנה ידנית של עד 30 טריידים. Pro פותח הזנה ללא הגבלה, ייבוא Excel, סנכרון אוטומטי מ-Interactive Brokers, ועד ${CHAT_DAILY_LIMIT_PRO} הודעות ביום לחנן עם מצב מעמיק שמריץ סטטיסטיקות מותאמות על השאלה שלך.`,
   },
 ]
