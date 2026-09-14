@@ -34,6 +34,25 @@ happened with `add_planned_r_generated_column` and `add_trade_tags`, aligned by 
    `insert into supabase_migrations.schema_migrations (version, name) values ('<version>', '<name>')`.
    Never call `apply_migration` on dev.
 
+### Destructive changes wait for the code
+
+Production runs `main`, and a migration hits production the moment it is applied — long before
+the code that goes with it is merged. So a migration that removes or narrows anything the code
+touches (`DROP COLUMN`, `DROP TABLE`, a rename, a new `NOT NULL`, a tighter `CHECK`) ships in
+two steps:
+
+1. **Code first.** Deploy to `main` the code that no longer reads or writes the old shape.
+   Additive migrations (a new nullable column, a new table, an index) may go in before that code.
+2. **Then contract.** Only once that code is live in production, apply the destructive migration.
+
+Before any destructive migration, confirm production code no longer uses the name:
+`git grep -n "<name>" origin/main -- lib app components` must come back empty.
+
+`add_planned_r_generated_column` broke this on 2026-09-14: it dropped `Trade.rMultipleEntry`
+from production while `main` still wrote `rMultipleEntry: null` in `buildTradeInsert`
+(`lib/ibkr/process-executions.ts`), so every new-position insert failed with
+`Could not find the 'rMultipleEntry' column of 'Trade' in the schema cache`.
+
 ## Regenerating the typed Database client
 
 After **any** schema change, regenerate the `Database` types:
