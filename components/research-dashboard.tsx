@@ -62,6 +62,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
   const [dateTo, setDateTo] = useState('')
   const [tickerFilter, setTickerFilter] = useState('')
   const [setupFilter, setSetupFilter] = useState('all')
+  const [tagFilter, setTagFilter] = useState('all')
   const [directionFilter, setDirectionFilter] = useState('all')
   const [resultFilter, setResultFilter] = useState('all')
   const [execQualMin, setExecQualMin] = useState('')
@@ -87,7 +88,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
     setTransitioning(true)
     const t = setTimeout(() => setTransitioning(false), 300)
     return () => clearTimeout(t)
-  }, [dateFrom, dateTo, tickerFilter, setupFilter, directionFilter, resultFilter,
+  }, [dateFrom, dateTo, tickerFilter, setupFilter, tagFilter, directionFilter, resultFilter,
       execQualMin, execQualMax, holdHoursMin, holdHoursMax, holdUnit, rMin, rMax])
 
   // Adopt persisted preferences once hydration is done (localStorage is
@@ -151,6 +152,11 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
     [closedTrades],
   )
 
+  const allTags = useMemo(
+    () => Array.from(new Set(closedTrades.flatMap(t => t.tags))).sort((a, b) => a.localeCompare(b, 'he')),
+    [closedTrades],
+  )
+
   const uniqueTickers = useMemo(
     () => Array.from(new Set(closedTrades.map(t => t.ticker))).sort(),
     [closedTrades],
@@ -179,6 +185,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
       if (toDate && t.openedAt > toDate) return false
       if (tickerFilter && !t.ticker.toUpperCase().includes(tickerFilter.toUpperCase())) return false
       if (setupFilter !== 'all' && t.setupType !== setupFilter) return false
+      if (tagFilter !== 'all' && !t.tags.includes(tagFilter)) return false
       if (directionFilter !== 'all' && t.direction !== directionFilter) return false
       if (resultFilter !== 'all' && t.result !== resultFilter) return false
       if (execQualMin !== '' && (t.executionQuality ?? 0) < Number(execQualMin)) return false
@@ -194,7 +201,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
       }
       return true
     })
-  }, [closedTrades, dateFrom, dateTo, tickerFilter, setupFilter, directionFilter, resultFilter,
+  }, [closedTrades, dateFrom, dateTo, tickerFilter, setupFilter, tagFilter, directionFilter, resultFilter,
       execQualMin, execQualMax, holdHoursMin, holdHoursMax, holdUnit, rMin, rMax])
 
   // P9: one single walk over filteredTrades produces both `stats` and the full
@@ -237,7 +244,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
   }
 
   function resetFilters() {
-    setDateFrom(''); setDateTo(''); setTickerFilter(''); setSetupFilter('all')
+    setDateFrom(''); setDateTo(''); setTickerFilter(''); setSetupFilter('all'); setTagFilter('all')
     setDirectionFilter('all'); setResultFilter('all')
     setExecQualMin(''); setExecQualMax(''); setHoldHoursMin(''); setHoldHoursMax('')
     setRMin(''); setRMax('')
@@ -251,6 +258,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
     if (dateTo) params.set('to', dateTo)
     if (tickerFilter) params.set('q', tickerFilter)
     if (setupFilter !== 'all') params.set('setup', setupFilter)
+    if (tagFilter !== 'all') params.set('tag', tagFilter)
     if (directionFilter !== 'all') params.set('direction', directionFilter)
     if (resultFilter !== 'all') params.set('result', resultFilter)
     if (rMin) params.set('rMin', rMin)
@@ -265,7 +273,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
   }
 
   const hasActiveFilter =
-    !!(dateFrom || dateTo || tickerFilter || setupFilter !== 'all' || directionFilter !== 'all' ||
+    !!(dateFrom || dateTo || tickerFilter || setupFilter !== 'all' || tagFilter !== 'all' || directionFilter !== 'all' ||
        resultFilter !== 'all' || execQualMin || execQualMax || holdHoursMin || holdHoursMax ||
        rMin || rMax)
 
@@ -314,6 +322,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
           dateTo={dateTo}
           tickerFilter={tickerFilter}
           setupFilter={setupFilter}
+          tagFilter={tagFilter}
           directionFilter={directionFilter}
           resultFilter={resultFilter}
           execQualMin={execQualMin}
@@ -324,6 +333,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
           rMin={rMin}
           rMax={rMax}
           setupTypes={setupTypes}
+          tags={allTags}
           tickers={uniqueTickers}
           hasActiveFilter={hasActiveFilter}
           collapsed={filterCollapsed}
@@ -332,6 +342,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
           onDateToChange={setDateTo}
           onTickerChange={setTickerFilter}
           onSetupChange={setSetupFilter}
+          onTagChange={setTagFilter}
           onDirectionChange={setDirectionFilter}
           onResultChange={setResultFilter}
           onExecQualMinChange={setExecQualMin}

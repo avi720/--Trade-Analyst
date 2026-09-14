@@ -5,6 +5,7 @@ import type { ManualLeg } from '@/lib/trade/manual-entry'
 import { CURRENCIES, BROKERS } from '@/lib/constants/trade-options'
 import { TRADE_TIMEZONES, DEFAULT_TIMEZONE, toUtcPreview } from '@/lib/trade/tz'
 import { SetupTypeInput } from './inputs/setup-type-input'
+import { TagsInput } from './inputs/tags-input'
 import { EmotionalStateInput } from './inputs/emotional-state-input'
 import { CloseFieldsInput, emptyCloseFields, type CloseFieldsValue } from './inputs/close-fields-input'
 
@@ -289,6 +290,12 @@ export function ClosedTradeEntryForm() {
                   value={open.setupType}
                   onChange={v => patchOpen({ setupType: v })}
                   inputCls={inputCls} selectCls={selectCls} labelCls={labelCls}
+                  idPrefix="open-"
+                />
+                <TagsInput
+                  value={open.tags}
+                  onChange={v => patchOpen({ tags: v })}
+                  inputCls={inputCls} labelCls={labelCls}
                   idPrefix="open-"
                 />
                 <EmotionalStateInput

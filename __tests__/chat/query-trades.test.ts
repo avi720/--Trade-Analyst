@@ -10,6 +10,7 @@ function makeTrade(over: Partial<ChatTrade> & { id: string }): ChatTrade {
     ticker: 'AAPL',
     direction: 'Long',
     setupType: 'פריצה',
+    tags: [],
     openedAt: new Date('2026-01-01T09:00:00Z'),
     closedAt: new Date('2026-01-01T10:00:00Z'),
     actualR: 1,
@@ -301,7 +302,7 @@ describe('queryTradesTool — smart-mode gate', () => {
   it('defaults smart rows to the 7 allowed non-free-text fields', async () => {
     const r = await run({ limit: 1 }, 'smart')
     expect(Object.keys(r.rows[0]).sort())
-      .toEqual(['actualR', 'closedAt', 'direction', 'realizedPnl', 'result', 'setup', 'ticker'])
+      .toEqual(['actualR', 'closedAt', 'direction', 'realizedPnl', 'result', 'setup', 'tags', 'ticker'])
   })
 
   it('ignores an emotionalState filter in smart mode', async () => {
@@ -325,7 +326,7 @@ describe('queryTradesTool — smart-mode gate', () => {
   it('falls back to the default fields when every requested field is forbidden', async () => {
     const r = await run({ fields: ['notes', 'emotionalState'], limit: 1 }, 'smart')
     expect(Object.keys(r.rows[0]).sort())
-      .toEqual(['actualR', 'closedAt', 'direction', 'realizedPnl', 'result', 'setup', 'ticker'])
+      .toEqual(['actualR', 'closedAt', 'direction', 'realizedPnl', 'result', 'setup', 'tags', 'ticker'])
   })
 
   it('never throws on forbidden input', async () => {
@@ -340,7 +341,7 @@ describe('queryTradesTool — full mode', () => {
     const r = await run({ limit: 1 }, 'full')
     expect(Object.keys(r.rows[0]).sort()).toEqual([
       'actualR', 'closedAt', 'direction', 'emotionalState', 'executionQuality',
-      'openedAt', 'plannedR', 'realizedPnl', 'result', 'setup', 'ticker',
+      'openedAt', 'plannedR', 'realizedPnl', 'result', 'setup', 'tags', 'ticker',
     ])
     expect(r.droppedFields).toBeUndefined()
   })

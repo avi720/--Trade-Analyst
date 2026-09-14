@@ -83,6 +83,50 @@ export function validateEmotionalState(s: string | null | undefined): string | n
   return null
 }
 
+// ─── Free-form tags ──────────────────────────────────────────────────────────
+// Multi-valued, user-defined labels alongside the single structured setupType.
+// Stored in Trade.tags (text[]). The DB only backstops cardinality; shape lives here.
+export const TAG_MAX_COUNT = 10
+export const TAG_MAX_LEN = 20
+
+/**
+ * Canonical form of a tag list: trimmed, inner whitespace collapsed, empties
+ * dropped, deduped case-insensitively (first spelling wins), insertion order
+ * kept. Does NOT enforce limits — validateTags does, on the normalized list.
+ */
+export function normalizeTags(raw: readonly string[] | null | undefined): string[] {
+  if (!raw) return []
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const s of raw) {
+    if (typeof s !== 'string') continue
+    const t = s.trim().replace(/\s+/g, ' ')
+    if (!t) continue
+    const key = t.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(t)
+  }
+  return out
+}
+
+/** Splits a free-text cell ("a, b; c | d") into raw tags; normalize afterwards. */
+export function splitTagString(s: string | null | undefined): string[] {
+  if (!s) return []
+  return s.split(/[,;|]/)
+}
+
+// Server-side validation of a (normalized) tag list. Returns null if valid, or an error message.
+export function validateTags(tags: readonly string[] | null | undefined): string | null {
+  if (!tags) return null
+  if (tags.length > TAG_MAX_COUNT) return `tags: at most ${TAG_MAX_COUNT} tags per trade`
+  for (const t of tags) {
+    if (typeof t !== 'string' || !t.trim()) return 'tags: empty tag'
+    if (t.length > TAG_MAX_LEN) return `tags: "${t}" over ${TAG_MAX_LEN} chars`
+  }
+  return null
+}
+
 export const CLOSE_REASONS = [
   { key: 'original_stop', label: 'נמכר בסטופ המקורי',       requires: 'stop'    },
   { key: 'target',        label: 'נמכר במחיר היעד',          requires: 'target'  },

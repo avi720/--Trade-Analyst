@@ -13,7 +13,7 @@
  */
 
 import type { ClosedTrade } from '@/types/trade'
-import { STOP_DISCIPLINE_TOLERANCE_R, type TradeStats, type EquityPoint, type RBin, type SetupStat } from './calculations'
+import { STOP_DISCIPLINE_TOLERANCE_R, type TradeStats, type EquityPoint, type RBin, type SetupStat, type TagStat } from './calculations'
 import type { TickerStat, HoldTimePoint, DayStat, HourStat } from './research-charts'
 
 // Kept in lockstep with calculations.ts R_BINS.
@@ -45,6 +45,7 @@ export interface ResearchAggregates {
   equity: EquityPoint[]
   rdist: RBin[]
   setup: SetupStat[]
+  tag: TagStat[]
   ticker: TickerStat[]
   holdWins: HoldTimePoint[]
   holdLoss: HoldTimePoint[]
@@ -83,6 +84,7 @@ export function computeResearchAggregates(trades: ClosedTrade[]): ResearchAggreg
       equity: [],
       rdist: R_BINS.map(b => ({ label: b.label, count: 0 })),
       setup: [],
+      tag: [],
       ticker: [],
       holdWins: [],
       holdLoss: [],
@@ -116,6 +118,7 @@ export function computeResearchAggregates(trades: ClosedTrade[]): ResearchAggreg
   const rdistCounts: number[] = new Array(R_BINS.length).fill(0)
 
   const setupMap = new Map<string, SetupBucket>()
+  const tagMap = new Map<string, SetupBucket>() // same bucket shape; multi-membership
   const tickerMap = new Map<string, TickerBucket>()
 
   const holdWins: HoldTimePoint[] = []
@@ -166,6 +169,18 @@ export function computeResearchAggregates(trades: ClosedTrade[]): ResearchAggreg
 
     // drawdown — every trade, sort after; matches calcStats' sortedByClose walk
     drawdownRaw.push({ t: closedTs, pnl })
+
+    // tag groups — one bucket per tag the trade carries (mirrors tagPerformance)
+    for (const tag of t.tags) {
+      let tb = tagMap.get(tag)
+      if (!tb) {
+        tb = { wins: 0, count: 0, rSum: 0, rCount: 0 }
+        tagMap.set(tag, tb)
+      }
+      tb.count++
+      if (pnl > 0) tb.wins++
+      if (r != null) { tb.rSum += r; tb.rCount++ }
+    }
 
     // setup groups — key mirrors setupPerformance's 'untagged' fallback
     const setupKey = t.setupType ?? 'untagged'
@@ -295,6 +310,17 @@ export function computeResearchAggregates(trades: ClosedTrade[]): ResearchAggreg
     })
   }
 
+  // tagPerformance — same materialization as setup, insertion order preserved.
+  const tag: TagStat[] = []
+  for (const [name, b] of tagMap) {
+    tag.push({
+      tag: name,
+      winRate: b.wins / b.count,
+      avgR: b.rCount > 0 ? b.rSum / b.rCount : 0,
+      count: b.count,
+    })
+  }
+
   // pnlByTicker — materialize + sort descending by totalPnl.
   const ticker: TickerStat[] = []
   for (const [tickerName, b] of tickerMap) {
@@ -319,6 +345,7 @@ export function computeResearchAggregates(trades: ClosedTrade[]): ResearchAggreg
     equity,
     rdist,
     setup,
+    tag,
     ticker,
     holdWins,
     holdLoss,

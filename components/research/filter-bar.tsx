@@ -15,6 +15,7 @@ export interface FilterState {
   dateTo: string
   tickerFilter: string
   setupFilter: string
+  tagFilter: string
   directionFilter: string
   resultFilter: string
   execQualMin: string
@@ -28,6 +29,7 @@ export interface FilterState {
 
 export interface FilterBarProps extends FilterState {
   setupTypes: string[]
+  tags: string[]
   tickers: string[]
   hasActiveFilter: boolean
   collapsed: boolean
@@ -36,6 +38,7 @@ export interface FilterBarProps extends FilterState {
   onDateToChange: (v: string) => void
   onTickerChange: (v: string) => void
   onSetupChange: (v: string) => void
+  onTagChange: (v: string) => void
   onDirectionChange: (v: string) => void
   onResultChange: (v: string) => void
   onExecQualMinChange: (v: string) => void
@@ -117,6 +120,16 @@ export function FilterBar(p: FilterBarProps) {
             {p.setupTypes.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
+        {p.tags.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <label htmlFor="filter-tag" className="text-text-dim text-sm font-sans">תגית</label>
+            <select id="filter-tag" value={p.tagFilter} onChange={e => p.onTagChange(e.target.value)}
+              className="input-base text-sm font-sans">
+              <option value="all">הכל</option>
+              {p.tags.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+        )}
 
         <div className="flex flex-col gap-1">
           <label htmlFor="filter-direction" className="text-text-dim text-sm font-sans">כיוון</label>

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { RawTrade } from './trade-search'
 import { SetupTypeInput } from './inputs/setup-type-input'
+import { TagsInput } from './inputs/tags-input'
 import { EmotionalStateInput } from './inputs/emotional-state-input'
 import { fmtLocalDateTime } from '@/lib/utils/format-date'
 import { useModalDialog } from '@/lib/utils/use-modal-dialog'
@@ -45,6 +46,7 @@ export function TradeDetailModal({ trade, mode = 'edit', onClose, onSaved }: Pro
   // Soft field form state
   const [notes, setNotes] = useState(trade.notes ?? '')
   const [setupType, setSetupType] = useState<string | undefined>(trade.setupType ?? undefined)
+  const [tags, setTags] = useState<string[]>(trade.tags ?? [])
   const [emotionalState, setEmotionalState] = useState<string | undefined>(trade.emotionalState ?? undefined)
   const [executionQuality, setExecutionQuality] = useState(trade.executionQuality?.toString() ?? '')
   const [stopPrice, setStopPrice] = useState(trade.stopPrice?.toString() ?? '')
@@ -72,6 +74,7 @@ export function TradeDetailModal({ trade, mode = 'edit', onClose, onSaved }: Pro
       const body: Record<string, unknown> = {
         notes: notes || null,
         setupType: setupType || null,
+        tags,
         emotionalState: emotionalState || null,
         executionQuality: executionQuality !== '' ? parseFloat(executionQuality) : null,
         stopPrice: stopPrice !== '' ? parseFloat(stopPrice) : null,
@@ -96,6 +99,7 @@ export function TradeDetailModal({ trade, mode = 'edit', onClose, onSaved }: Pro
         ...trade,
         notes: body.notes as string | null,
         setupType: body.setupType as string | null,
+        tags,
         emotionalState: body.emotionalState as string | null,
         executionQuality: body.executionQuality as number | null,
         stopPrice: body.stopPrice as number | null,
@@ -211,6 +215,12 @@ export function TradeDetailModal({ trade, mode = 'edit', onClose, onSaved }: Pro
                 value={setupType}
                 onChange={v => setSetupType(v)}
                 inputCls={inputCls} selectCls={selectCls} labelCls={labelCls}
+              />
+              <TagsInput
+                value={tags}
+                onChange={setTags}
+                inputCls={inputCls} labelCls={labelCls}
+                idPrefix="modal-"
               />
               <EmotionalStateInput
                 value={emotionalState}

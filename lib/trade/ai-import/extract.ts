@@ -88,7 +88,8 @@ The target schema (a "leg" = one execution) has these fields:
   quantity (positive number, required), price (positive number, required),
   commission (number), currency (one of USD,EUR,ILS,GBP,JPY,CHF,CAD,AUD,CNY,HKD)
 - optional: commissionCurrency, orderType, orderPlacedDate, orderPlacedTime, broker,
-  setupType, emotionalState, stopPrice, targetPrice, notes, didRight
+  setupType, emotionalState, stopPrice, targetPrice, notes, didRight,
+  tags (free-form labels; a list of strings, or one cell with values separated by , ; |)
 
 You receive the workbook as JSON: each sheet has a 0-indexed "rows" array (arrays of cell
 values) and "mergedRanges" (A1 ranges of merged cells). You MUST reply with a single JSON

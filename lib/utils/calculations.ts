@@ -45,6 +45,16 @@ export interface SetupStat {
   count: number
 }
 
+// Same shape as SetupStat, keyed by tag. A trade contributes to every tag it
+// carries (multi-membership), so counts across rows can exceed the trade count.
+// Untagged trades are simply absent — there is no 'untagged' bucket.
+export interface TagStat {
+  tag: string
+  winRate: number
+  avgR: number
+  count: number
+}
+
 export function calcStats(trades: ClosedTrade[]): TradeStats {
   if (trades.length === 0) {
     return {
@@ -147,6 +157,27 @@ export function rDistribution(trades: ClosedTrade[]): RBin[] {
     if (idx !== -1) counts[idx].count++
   }
   return counts
+}
+
+export function tagPerformance(trades: ClosedTrade[]): TagStat[] {
+  const groups = new Map<string, ClosedTrade[]>()
+  for (const t of trades) {
+    for (const tag of t.tags) {
+      if (!groups.has(tag)) groups.set(tag, [])
+      groups.get(tag)!.push(t)
+    }
+  }
+
+  return Array.from(groups.entries()).map(([tag, group]) => {
+    const wins = group.filter(t => t.realizedPnl > 0)
+    const rGroup = group.filter((t): t is ClosedTrade & { actualR: number } => t.actualR != null)
+    return {
+      tag,
+      winRate: wins.length / group.length,
+      avgR: rGroup.length > 0 ? rGroup.reduce((s, t) => s + t.actualR, 0) / rGroup.length : 0,
+      count: group.length,
+    }
+  })
 }
 
 export function setupPerformance(trades: ClosedTrade[]): SetupStat[] {

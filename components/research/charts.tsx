@@ -27,6 +27,7 @@ export interface ChartData {
   equity:    { date: number; cumulativeR: number }[]
   rdist:     { label: string; count: number }[]
   setup:     { setupType: string; avgR: number; winRate: number }[]
+  tag:       { tag: string; avgR: number; winRate: number }[]
   ticker:    { ticker: string; totalPnl: number }[]
   holdWins:  { holdHours: number; actualR: number; ticker: string; result: string }[]
   holdLoss:  { holdHours: number; actualR: number; ticker: string; result: string }[]
@@ -114,24 +115,32 @@ export const RDistributionChart = React.memo(function RDistributionChart({
 })
 RDistributionChart.displayName = 'RDistributionChart'
 
-// ─── SetupPerformanceChart ────────────────────────────────────────────────────
+// ─── PerformanceBarChart (setup + tag) ───────────────────────────────────────
+// One body for the two "avg R + win rate per bucket" charts. The setup and tag
+// charts differ only in the bucket key, title and explainer, so they share it.
 
-export const SetupPerformanceChart = React.memo(function SetupPerformanceChart({
-  data, defaultHeight: dh, setupSeries, onSetupSeriesChange,
+interface PerformanceRow { label: string; avgR: number; winRate: number }
+
+function PerformanceBarChart({
+  chartId, title, ariaLabel, info, data, defaultHeight: dh, setupSeries, onSetupSeriesChange,
 }: {
-  data: ChartData['setup']
+  chartId: ChartId
+  title: string
+  ariaLabel: string
+  info: React.ReactNode
+  data: PerformanceRow[]
   defaultHeight: number
   setupSeries: SetupSeries
   onSetupSeriesChange: (next: SetupSeries) => void
 }) {
   return (
     <ChartCard
-      chartId="setup"
-      title="ביצועי סטאפ"
-      ariaLabel="גרף עמודות: ביצועי כל סוג סטאפ — R ממוצע ואחוז הצלחה"
+      chartId={chartId}
+      title={title}
+      ariaLabel={ariaLabel}
       fullWidth
       defaultHeight={dh}
-      info={CHART_INFO.setup}
+      info={info}
       headerExtra={
         <div className="flex items-center gap-3 text-xs font-sans" dir="rtl">
           <label className="flex items-center gap-1 cursor-pointer">
@@ -151,7 +160,7 @@ export const SetupPerformanceChart = React.memo(function SetupPerformanceChart({
       footerExtra={
         <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-1 text-xs font-sans" dir="rtl">
           {data.map((entry, i) => (
-            <div key={entry.setupType} className="flex items-center gap-1.5">
+            <div key={entry.label} className="flex items-center gap-1.5">
               <span
                 aria-hidden="true"
                 style={{
@@ -159,7 +168,7 @@ export const SetupPerformanceChart = React.memo(function SetupPerformanceChart({
                   width: 12, height: 12, display: 'inline-block', borderRadius: 2,
                 }}
               />
-              <span className="text-text-main">{entry.setupType}</span>
+              <span className="text-text-main">{entry.label}</span>
             </div>
           ))}
         </div>
@@ -168,7 +177,7 @@ export const SetupPerformanceChart = React.memo(function SetupPerformanceChart({
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
-          <XAxis dataKey="setupType" hide />
+          <XAxis dataKey="label" hide />
           {setupSeries.avgR && (
             <YAxis yAxisId="r" stroke={AXIS_STROKE} tick={AXIS_TICK} tickMargin={6} tickFormatter={v => ltr(`${v}R`)} />
           )}
@@ -186,10 +195,10 @@ export const SetupPerformanceChart = React.memo(function SetupPerformanceChart({
             cursor={{ fill: '#FFFFFF', fillOpacity: 0.04 }}
             content={({ payload, active }) => {
               if (!active || !payload?.length) return null
-              const row = payload[0].payload as { setupType: string; avgR: number; winRate: number }
+              const row = payload[0].payload as PerformanceRow
               return (
                 <div style={TOOLTIP_STYLE} dir="rtl" className="px-3 py-2 rounded">
-                  <p className="text-text-main font-bold text-sm">{row.setupType}</p>
+                  <p className="text-text-main font-bold text-sm">{row.label}</p>
                   {payload.map(p => (
                     <p key={String(p.dataKey)} className="text-xs" style={{ color: p.color }}>
                       {p.dataKey === 'winRate'
@@ -219,8 +228,64 @@ export const SetupPerformanceChart = React.memo(function SetupPerformanceChart({
       </ResponsiveContainer>
     </ChartCard>
   )
+}
+
+export const SetupPerformanceChart = React.memo(function SetupPerformanceChart({
+  data, defaultHeight, setupSeries, onSetupSeriesChange,
+}: {
+  data: ChartData['setup']
+  defaultHeight: number
+  setupSeries: SetupSeries
+  onSetupSeriesChange: (next: SetupSeries) => void
+}) {
+  const rows = React.useMemo(() => data.map(d => ({ label: d.setupType, avgR: d.avgR, winRate: d.winRate })), [data])
+  return (
+    <PerformanceBarChart
+      chartId="setup"
+      title="ביצועי סטאפ"
+      ariaLabel="גרף עמודות: ביצועי כל סוג סטאפ — R ממוצע ואחוז הצלחה"
+      info={CHART_INFO.setup}
+      data={rows}
+      defaultHeight={defaultHeight}
+      setupSeries={setupSeries}
+      onSetupSeriesChange={onSetupSeriesChange}
+    />
+  )
 })
 SetupPerformanceChart.displayName = 'SetupPerformanceChart'
+
+export const TagPerformanceChart = React.memo(function TagPerformanceChart({
+  data, defaultHeight, setupSeries, onSetupSeriesChange,
+}: {
+  data: ChartData['tag']
+  defaultHeight: number
+  setupSeries: SetupSeries
+  onSetupSeriesChange: (next: SetupSeries) => void
+}) {
+  const rows = React.useMemo(() => data.map(d => ({ label: d.tag, avgR: d.avgR, winRate: d.winRate })), [data])
+  if (rows.length === 0) {
+    return (
+      <ChartCard chartId="tag" title="ביצועים לפי תגית" ariaLabel="גרף ביצועים לפי תגית — אין תגיות בטווח" fullWidth defaultHeight={defaultHeight} info={CHART_INFO.tag}>
+        <div className="h-full flex items-center justify-center text-text-dim text-sm font-sans" dir="rtl">
+          אין טריידים עם תגיות בטווח הנוכחי. הוסף תגיות בטופס ההזנה או בעריכת טרייד.
+        </div>
+      </ChartCard>
+    )
+  }
+  return (
+    <PerformanceBarChart
+      chartId="tag"
+      title="ביצועים לפי תגית"
+      ariaLabel="גרף עמודות: ביצועי כל תגית — R ממוצע ואחוז הצלחה"
+      info={CHART_INFO.tag}
+      data={rows}
+      defaultHeight={defaultHeight}
+      setupSeries={setupSeries}
+      onSetupSeriesChange={onSetupSeriesChange}
+    />
+  )
+})
+TagPerformanceChart.displayName = 'TagPerformanceChart'
 
 // ─── PnlByTickerChart ─────────────────────────────────────────────────────────
 
@@ -357,6 +422,15 @@ export function renderChart({ id, data, defaultHeight: dh, setupSeries, onSetupS
       return (
         <SetupPerformanceChart
           data={data.setup}
+          defaultHeight={dh}
+          setupSeries={setupSeries}
+          onSetupSeriesChange={onSetupSeriesChange}
+        />
+      )
+    case 'tag':
+      return (
+        <TagPerformanceChart
+          data={data.tag}
           defaultHeight={dh}
           setupSeries={setupSeries}
           onSetupSeriesChange={onSetupSeriesChange}

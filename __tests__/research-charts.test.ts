@@ -20,6 +20,7 @@ function makeTrade(overrides: Partial<ClosedTrade> = {}): ClosedTrade {
     ticker: 'AAPL',
     direction: 'Long',
     setupType: 'breakout',
+    tags: [],
     openedAt: LOCAL_OPEN,
     closedAt: LOCAL_CLOSE,
     actualR: 1.5,

@@ -5,6 +5,10 @@ import {
   BROKERS,
   validateSetupType,
   validateEmotionalState,
+  normalizeTags,
+  validateTags,
+  TAG_MAX_COUNT,
+  TAG_MAX_LEN,
 } from '@/lib/constants/trade-options'
 import { localToUtcIso } from './tz'
 
@@ -37,6 +41,7 @@ export const manualLegSchema = z.object({
   targetPrice: z.number().finite().positive().nullable().optional(),
   notes: z.string().max(4000).nullable().optional(),
   didRight: z.string().max(4000).nullable().optional(),
+  tags: z.array(z.string().max(TAG_MAX_LEN)).max(TAG_MAX_COUNT).nullable().optional(),
 })
 
 export const manualLegsSchema = z
@@ -72,6 +77,7 @@ export interface ManualLeg {
   targetPrice?: number | null
   notes?: string
   didRight?: string
+  tags?: string[]           // free-form labels (≤10 × ≤20 chars), normalized on persist
 }
 
 export interface ManualEntryError {
@@ -113,6 +119,9 @@ export function validateLeg(leg: ManualLeg, index: number): ManualEntryError[] {
 
   const emotionErr = validateEmotionalState(leg.emotionalState)
   if (emotionErr) errors.push({ field: `${p}.emotionalState`, message: emotionErr })
+
+  const tagsErr = validateTags(normalizeTags(leg.tags))
+  if (tagsErr) errors.push({ field: `${p}.tags`, message: tagsErr })
 
   return errors
 }
@@ -207,5 +216,7 @@ export function extractAnnotations(leg: ManualLeg): TablesUpdate<'Trade'> {
   if (leg.targetPrice != null && Number.isFinite(leg.targetPrice)) ann.targetPrice = leg.targetPrice
   if (leg.notes?.trim()) ann.notes = leg.notes.trim()
   if (leg.didRight?.trim()) ann.didRight = leg.didRight.trim()
+  const tags = normalizeTags(leg.tags)
+  if (tags.length > 0) ann.tags = tags
   return ann
 }

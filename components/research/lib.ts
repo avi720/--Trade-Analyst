@@ -13,6 +13,7 @@ export interface RawClosedTrade {
   ticker: string
   direction: string
   setupType: string | null
+  tags: string[] | null
   openedAt: string
   closedAt: string | null
   actualR: number | null
@@ -34,6 +35,7 @@ export function toClosedTrade(t: RawClosedTrade): ClosedTrade | null {
     ticker: t.ticker,
     direction: t.direction as 'Long' | 'Short',
     setupType: t.setupType,
+    tags: t.tags ?? [],
     openedAt: new Date(t.openedAt),
     closedAt: new Date(t.closedAt),
     actualR: t.actualR,
@@ -50,13 +52,14 @@ export function toClosedTrade(t: RawClosedTrade): ClosedTrade | null {
 
 // ─── Chart toggle constants ───────────────────────────────────────────────────
 
-export const CHART_IDS = ['equity', 'rdist', 'setup', 'ticker', 'holdtime', 'dayhour'] as const
+export const CHART_IDS = ['equity', 'rdist', 'setup', 'tag', 'ticker', 'holdtime', 'dayhour'] as const
 export type ChartId = typeof CHART_IDS[number]
 
 export const CHART_LABELS: Record<ChartId, string> = {
   equity:   'עקומת הון',
   rdist:    'התפלגות R',
   setup:    'ביצועי סטאפ',
+  tag:      'ביצועים לפי תגית',
   ticker:   'P&L לפי נייר',
   holdtime: 'זמן החזקה vs R',
   dayhour:  'P&L לפי יום/שעה',
@@ -164,7 +167,7 @@ export function saveRowRatio(pairKey: string, ratio: number) {
 
 // ─── Row grouping ────────────────────────────────────────────────────────────
 
-export const FULLWIDTH_CHARTS = new Set<ChartId>(['setup'])
+export const FULLWIDTH_CHARTS = new Set<ChartId>(['setup', 'tag'])
 
 export type ChartRow =
   | { type: 'full'; chartId: ChartId }

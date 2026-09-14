@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { manualLegSchema, type ManualLeg } from '@/lib/trade/manual-entry'
 import { TRADE_TIMEZONES } from '@/lib/trade/tz'
-import { CURRENCIES } from '@/lib/constants/trade-options'
+import { CURRENCIES, normalizeTags, splitTagString } from '@/lib/constants/trade-options'
 import { trackEvent } from '@/lib/analytics/posthog'
 import { useHydrated } from '@/lib/hooks/use-hydrated'
 
@@ -546,6 +546,7 @@ function PreviewEditor({
               <th className={th}>מטבע</th>
               <th className={th}>סטופ</th>
               <th className={th}>יעד</th>
+              <th className={th}>תגיות</th>
               <th className={th}></th>
             </tr>
           </thead>
@@ -642,6 +643,20 @@ function PreviewEditor({
                     onChange={(e) =>
                       onUpdate(i, { targetPrice: e.target.value === '' ? null : Number(e.target.value) })
                     }
+                  />
+                </td>
+                <td className="px-1 py-1 w-32">
+                  {/* Comma-separated; committed on blur so a trailing "," survives typing. */}
+                  <input
+                    key={`tags-${i}-${(leg.tags ?? []).join('|')}`}
+                    className={inputCls}
+                    type="text"
+                    defaultValue={(leg.tags ?? []).join(', ')}
+                    placeholder="a, b"
+                    onBlur={(e) => {
+                      const next = normalizeTags(splitTagString(e.target.value))
+                      onUpdate(i, { tags: next.length ? next : undefined })
+                    }}
                   />
                 </td>
                 <td className="px-1 py-1">

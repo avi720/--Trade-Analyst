@@ -1,5 +1,5 @@
 import type { ManualLeg } from '@/lib/trade/manual-entry'
-import { CURRENCIES } from '@/lib/constants/trade-options'
+import { CURRENCIES, normalizeTags, splitTagString } from '@/lib/constants/trade-options'
 import type {
   MappingResult,
   Transformations,
@@ -234,6 +234,7 @@ export function applyMapping(rows: unknown[][], mapping: MappingResult): ApplyRe
       targetPrice: num(row, 'targetPrice'),
       notes: str(row, 'notes'),
       didRight: str(row, 'didRight'),
+      tags: (() => { const t = normalizeTags(splitTagString(str(row, 'tags'))); return t.length ? t : undefined })(),
     }
 
     legs.push(leg)

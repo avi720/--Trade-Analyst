@@ -31,7 +31,7 @@ export interface WorkbookSample {
 export const MAPPABLE_FIELDS = [
   'ticker', 'date', 'time', 'side', 'quantity', 'price', 'commission', 'currency',
   'commissionCurrency', 'orderType', 'orderPlacedDate', 'orderPlacedTime', 'broker',
-  'setupType', 'emotionalState', 'stopPrice', 'targetPrice', 'notes', 'didRight',
+  'setupType', 'emotionalState', 'stopPrice', 'targetPrice', 'notes', 'didRight', 'tags',
 ] as const
 export type MappableField = (typeof MAPPABLE_FIELDS)[number]
 
@@ -79,6 +79,8 @@ export const aiLegSchema = z.object({
   targetPrice: z.coerce.number().nullish(),
   notes: z.string().nullish(),
   didRight: z.string().nullish(),
+  // Either shape is accepted — the model may return a list or a delimited cell.
+  tags: z.union([z.array(z.string()), z.string()]).nullish(),
 })
 export type AiLeg = z.infer<typeof aiLegSchema>
 

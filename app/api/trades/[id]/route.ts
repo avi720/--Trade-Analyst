@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { recomputeActualR } from '@/lib/trade/recompute-actual-r'
-import { validateSetupType, validateEmotionalState } from '@/lib/constants/trade-options'
+import {
+  validateSetupType,
+  validateEmotionalState,
+  normalizeTags,
+  validateTags,
+} from '@/lib/constants/trade-options'
 import type { TablesUpdate } from '@/lib/db/types'
 
 type SoftField =
@@ -14,6 +18,7 @@ type SoftField =
   | 'targetPrice'
   | 'didRight'
   | 'wouldChange'
+  | 'tags'
 
 const SOFT_FIELDS = new Set<SoftField>([
   'notes',
@@ -24,6 +29,7 @@ const SOFT_FIELDS = new Set<SoftField>([
   'targetPrice',
   'didRight',
   'wouldChange',
+  'tags',
 ])
 
 export async function PATCH(
@@ -63,6 +69,12 @@ export async function PATCH(
   if (setupErr) return NextResponse.json({ error: setupErr }, { status: 400 })
   const emoErr = typeof update.emotionalState === 'string' ? validateEmotionalState(update.emotionalState) : null
   if (emoErr) return NextResponse.json({ error: emoErr }, { status: 400 })
+  if ('tags' in update) {
+    if (!Array.isArray(update.tags)) return NextResponse.json({ error: 'tags: must be an array' }, { status: 400 })
+    update.tags = normalizeTags(update.tags)
+    const tagsErr = validateTags(update.tags)
+    if (tagsErr) return NextResponse.json({ error: tagsErr }, { status: 400 })
+  }
 
   const { error } = await supabase
     .from('Trade')
@@ -77,9 +89,10 @@ export async function PATCH(
   // A stop written onto an already-closed trade (typically back-filling an
   // IBKR trade, which never carries one) changes actualR — the FIFO close
   // computed it as null. plannedR needs no such step: it is a DB-generated
-  // column. Scoped by userId inside the helper, so the admin client is safe.
+  // column. The user-scoped client is passed on purpose (multi-user rule:
+  // no service-role client on a request path) — RLS already owns the row.
   if ('stopPrice' in update) {
-    await recomputeActualR(createAdminClient(), id, user.id)
+    await recomputeActualR(supabase, id, user.id)
   }
 
   return NextResponse.json({ ok: true })

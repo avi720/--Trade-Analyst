@@ -12,6 +12,7 @@ function makeTrade(over: Partial<ChatTrade> & { id: string }): ChatTrade {
     ticker: 'AAPL',
     direction: 'Long',
     setupType: 'פריצה',
+    tags: [],
     openedAt: new Date('2026-03-02T14:30:00Z'),
     closedAt: new Date('2026-03-02T18:00:00Z'),
     actualR: 1.5,
@@ -43,9 +44,9 @@ function makeMany(n: number): ChatTrade[] {
 describe('projectTrade — per-mode field gate', () => {
   const t = makeTrade({ id: 'a' })
 
-  it('smart mode exposes exactly the 7 spec fields', () => {
+  it('smart mode exposes exactly the 8 spec fields', () => {
     expect(Object.keys(projectTrade(t, 'smart')).sort()).toEqual(
-      ['actualR', 'closedAt', 'direction', 'realizedPnl', 'result', 'setup', 'ticker'],
+      ['actualR', 'closedAt', 'direction', 'realizedPnl', 'result', 'setup', 'tags', 'ticker'],
     )
   })
 
@@ -64,7 +65,7 @@ describe('projectTrade — per-mode field gate', () => {
     expect(Object.keys(projectTrade(t, 'full')).sort()).toEqual(
       [
         'actualR', 'closedAt', 'direction', 'emotionalState', 'executionQuality',
-        'openedAt', 'plannedR', 'realizedPnl', 'result', 'setup', 'ticker',
+        'openedAt', 'plannedR', 'realizedPnl', 'result', 'setup', 'tags', 'ticker',
       ],
     )
   })

@@ -1,6 +1,7 @@
 import ExcelJS from 'exceljs'
 import type { ManualLeg } from './manual-entry'
 import { cellToPrimitive } from './ai-import/xlsx-cell'
+import { splitTagString, normalizeTags } from '@/lib/constants/trade-options'
 
 // Expected template column headers (case-insensitive, underscores/spaces normalised)
 const COL_ALIASES: Record<string, keyof ManualLeg> = {
@@ -73,6 +74,11 @@ const COL_ALIASES: Record<string, keyof ManualLeg> = {
   did_right:                'didRight',
   didright:                 'didRight',
   מה_עשיתי_נכון:           'didRight',
+  tags:                     'tags',
+  tag:                      'tags',
+  תגיות:                   'tags',
+  תגים:                    'tags',
+  תגית:                    'tags',
 }
 
 function normalizeHeader(h: string): keyof ManualLeg | null {
@@ -249,6 +255,8 @@ export async function parseExcelBuffer(buffer: ArrayBuffer): Promise<ParseResult
       targetPrice: isNaN(targetParsed) ? undefined : targetParsed,
       notes: str('notes'),
       didRight: str('didRight'),
+      // One cell, split on , ; | — e.g. "פריצה, גאפ"
+      tags: (() => { const t = normalizeTags(splitTagString(str('tags'))); return t.length ? t : undefined })(),
     })
   }
 
@@ -265,7 +273,7 @@ export async function generateTemplate(): Promise<ArrayBuffer> {
     // Order details
     'commission_currency', 'order_type', 'order_date', 'order_time', 'broker',
     // Annotations (open-time only — "would_change" is captured at close, not here)
-    'setup_type', 'emotional_state', 'stop_price', 'target_price', 'notes', 'did_right',
+    'setup_type', 'emotional_state', 'stop_price', 'target_price', 'notes', 'did_right', 'tags',
   ]
 
   const example = [
@@ -273,7 +281,7 @@ export async function generateTemplate(): Promise<ArrayBuffer> {
     // Order details (all optional)
     'USD', 'LIMIT', '2026-01-15', '09:29', 'IBKR',
     // Annotations (all optional). Examples use the canonical Hebrew values:
-    'פריצת תבנית - דגל שורי', 'רגוע', 145.00, 165.00, 'Strong volume', 'Waited for confirmation',
+    'פריצת תבנית - דגל שורי', 'רגוע', 145.00, 165.00, 'Strong volume', 'Waited for confirmation', 'earnings, gap',
   ]
 
   ws.addRow(header)

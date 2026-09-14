@@ -7,7 +7,7 @@ export default async function ResearchPage() {
   const { data: rawTrades } = await supabase
     .from('Trade')
     .select(
-      'id, ticker, direction, setupType, openedAt, closedAt, actualR, plannedR, realizedPnl, avgEntryPrice, avgExitPrice, stopPrice, totalQuantityOpened, result, executionQuality'
+      'id, ticker, direction, setupType, tags, openedAt, closedAt, actualR, plannedR, realizedPnl, avgEntryPrice, avgExitPrice, stopPrice, totalQuantityOpened, result, executionQuality'
     )
     .eq('status', 'Closed')
     .order('closedAt', { ascending: true })

@@ -5,6 +5,7 @@ export interface ClosedTrade {
   ticker: string
   direction: 'Long' | 'Short'
   setupType: string | null
+  tags: string[]
   openedAt: Date
   closedAt: Date
   actualR: number | null

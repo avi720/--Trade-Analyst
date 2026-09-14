@@ -61,9 +61,14 @@ export async function persistManualLegs(
 
     const annotations = extractAnnotations(leg)
     if (Object.keys(annotations).length === 0) continue
-    // Last-leg-wins merge preserves the sequential loop's overwrite semantics.
+    // Last-leg-wins merge preserves the sequential loop's overwrite semantics —
+    // except tags, which are a set: legs of the same trade contribute a union.
     const merged = annotationsByTradeId.get(result.tradeId) ?? {}
-    annotationsByTradeId.set(result.tradeId, { ...merged, ...annotations })
+    const next: TablesUpdate<'Trade'> = { ...merged, ...annotations }
+    if (merged.tags && annotations.tags) {
+      next.tags = Array.from(new Set([...merged.tags, ...annotations.tags]))
+    }
+    annotationsByTradeId.set(result.tradeId, next)
   }
 
   await Promise.allSettled(

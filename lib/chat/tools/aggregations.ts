@@ -68,6 +68,53 @@ function bucketAvgR(b: Bucket): number | null {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 1b. Tag breakdown
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const getTagBreakdown: ChatTool = {
+  name: 'getTagBreakdown',
+  modes: ['smart', 'full'],
+  declaration: {
+    name: 'getTagBreakdown',
+    description:
+      'Server-computed performance per free-form tag over every in-scope closed trade. ' +
+      'Returns one row per tag with tradeCount, winRate (0-1 fraction) and avgR. ' +
+      'A trade carrying several tags counts once in each of them, so tradeCount summed across ' +
+      'rows can exceed totalTrades. Untagged trades do not appear. ' +
+      'avgR is null when no trade with that tag had a stop price. ' +
+      'Use this whenever the question is about which tag performs best or worst.',
+    parameters: NO_PARAMS,
+  },
+  execute(_args: Record<string, unknown>, ctx: ToolContext) {
+    const byTag = new Map<string, Bucket>()
+    for (const t of ctx.trades) {
+      for (const tag of t.tags) {
+        let b = byTag.get(tag)
+        if (!b) {
+          b = newBucket()
+          byTag.set(tag, b)
+        }
+        b.tradeCount++
+        if (t.realizedPnl > 0) b.wins++
+        if (t.actualR != null) {
+          b.rCount++
+          b.rSum += t.actualR
+        }
+      }
+    }
+
+    const tags = Array.from(byTag, ([tag, b]) => ({
+      tag,
+      tradeCount: b.tradeCount,
+      winRate: bucketWinRate(b),
+      avgR: bucketAvgR(b),
+    })).sort((a, b) => b.tradeCount - a.tradeCount)
+
+    return { tags, totalTrades: ctx.trades.length }
+  },
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 1. Setup breakdown
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -394,6 +441,7 @@ export const getHoldTimeVsRSummary: ChatTool = {
 
 export const aggregationTools: ChatTool[] = [
   getSetupBreakdown,
+  getTagBreakdown,
   getTickerBreakdown,
   getDayHourBreakdown,
   getExecutionQualityBreakdown,

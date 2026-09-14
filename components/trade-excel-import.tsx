@@ -191,6 +191,7 @@ export function TradeExcelImport() {
                   <th className={thCls}>סוג פקודה</th>
                   <th className={thCls}>סטופ</th>
                   <th className={thCls}>יעד</th>
+                  <th className={thCls}>תגיות</th>
                 </tr>
               </thead>
               <tbody>
@@ -208,6 +209,7 @@ export function TradeExcelImport() {
                     <td className={tdCls}>{leg.orderType ?? '—'}</td>
                     <td className={tdCls}>{leg.stopPrice != null ? leg.stopPrice : '—'}</td>
                     <td className={tdCls}>{leg.targetPrice != null ? leg.targetPrice : '—'}</td>
+                    <td className={tdCls}>{leg.tags?.length ? leg.tags.join(', ') : '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -319,7 +321,7 @@ function ImportFormatExplainer() {
             <li>סדר השורות לפי תאריך ושעה. המערכת מחשבת FIFO לפי הסדר הזה.</li>
             <li>מכירה בכמות גדולה מהפתוח הופכת את הפוזיציה לכיוון ההפוך — ודא שהכמויות נכונות.</li>
             <li>טיקר ללא שורת קנייה שקודמת למכירה ייפתח כפוזיציית שורט.</li>
-            <li>שעה ריקה נחשבת כתחילת היום; העמודות האופציונליות (סטופ, יעד, סטאפ, הערות) מתייחסות לטרייד כולו.</li>
+            <li>שעה ריקה נחשבת כתחילת היום; העמודות האופציונליות (סטופ, יעד, סטאפ, הערות, תגיות) מתייחסות לטרייד כולו. בעמודת <span className="font-mono">tags</span> מפרידים בין תגיות בפסיק.</li>
             <li>
               <span className="text-text-main">שים לב:</span> טאב{' '}
               <span className="font-mono">״טרייד פתוח״</span> מיועד לפתיחת פוזיציה בלבד ולכן

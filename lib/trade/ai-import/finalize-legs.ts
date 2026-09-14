@@ -6,6 +6,10 @@ import {
   BROKERS,
   validateSetupType,
   validateEmotionalState,
+  normalizeTags,
+  splitTagString,
+  TAG_MAX_COUNT,
+  TAG_MAX_LEN,
 } from '@/lib/constants/trade-options'
 import type { LegError } from './types'
 
@@ -49,6 +53,16 @@ export function finalizeLegs(
       validateEmotionalState(cleaned.emotionalState)
     ) {
       delete cleaned.emotionalState
+    }
+    // tags: accept a list or a delimited string; drop over-long tags and cap
+    // the count rather than rejecting the leg.
+    if ('tags' in cleaned) {
+      const raw = Array.isArray(cleaned.tags)
+        ? cleaned.tags.filter((x): x is string => typeof x === 'string')
+        : typeof cleaned.tags === 'string' ? splitTagString(cleaned.tags) : []
+      const tags = normalizeTags(raw).filter((t) => t.length <= TAG_MAX_LEN).slice(0, TAG_MAX_COUNT)
+      if (tags.length) cleaned.tags = tags
+      else delete cleaned.tags
     }
 
     // Timezone is authoritative and user-supplied.

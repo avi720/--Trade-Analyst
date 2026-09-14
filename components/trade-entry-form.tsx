@@ -14,6 +14,7 @@ import type { NormalizedExecution } from '@/types/trade'
 import { CURRENCIES, BROKERS } from '@/lib/constants/trade-options'
 import { TRADE_TIMEZONES, DEFAULT_TIMEZONE, toUtcPreview } from '@/lib/trade/tz'
 import { SetupTypeInput } from './inputs/setup-type-input'
+import { TagsInput } from './inputs/tags-input'
 import { EmotionalStateInput } from './inputs/emotional-state-input'
 
 const ORDER_TYPES = ['LIMIT', 'MARKET', 'STOP', 'STOP LIMIT', 'MOO', 'MOC']
@@ -379,6 +380,13 @@ function LegCard({ leg, index, canRemove, timezone, warning, onChange, onRemove 
                 onChange={v => onChange({ setupType: v })}
                 inputCls={inputCls}
                 selectCls={selectCls}
+                labelCls={labelCls}
+                idPrefix={`leg-${index}-`}
+              />
+              <TagsInput
+                value={leg.tags}
+                onChange={v => onChange({ tags: v })}
+                inputCls={inputCls}
                 labelCls={labelCls}
                 idPrefix={`leg-${index}-`}
               />

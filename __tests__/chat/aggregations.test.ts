@@ -11,6 +11,7 @@ import { describe, it, expect } from 'vitest'
 import {
   aggregationTools,
   getSetupBreakdown,
+  getTagBreakdown,
   getTickerBreakdown,
   getDayHourBreakdown,
   getExecutionQualityBreakdown,
@@ -32,6 +33,7 @@ function makeTrade(over: Partial<ChatTrade> & { id: string }): ChatTrade {
     ticker: 'AAPL',
     direction: 'Long',
     setupType: 'breakout',
+    tags: [],
     openedAt: d(0, 6, 10),
     closedAt: d(0, 6, 14),
     actualR: 1,
@@ -497,9 +499,10 @@ describe('getHoldTimeVsRSummary', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('tool registration', () => {
-  it('exports all six in order', () => {
+  it('exports all seven in order', () => {
     expect(aggregationTools.map(t => t.name)).toEqual([
       'getSetupBreakdown',
+      'getTagBreakdown',
       'getTickerBreakdown',
       'getDayHourBreakdown',
       'getExecutionQualityBreakdown',
@@ -508,16 +511,17 @@ describe('tool registration', () => {
     ])
   })
 
-  it('smart mode sees only the three annotation-free tools', () => {
+  it('smart mode sees only the four annotation-free tools', () => {
     expect(toolsForMode(aggregationTools, 'smart').map(t => t.name)).toEqual([
       'getSetupBreakdown',
+      'getTagBreakdown',
       'getTickerBreakdown',
       'getDayHourBreakdown',
     ])
   })
 
-  it('full mode sees all six', () => {
-    expect(toolsForMode(aggregationTools, 'full')).toHaveLength(6)
+  it('full mode sees all seven', () => {
+    expect(toolsForMode(aggregationTools, 'full')).toHaveLength(7)
   })
 
   it('every declaration name matches its tool name and carries a description', () => {
@@ -558,5 +562,41 @@ describe('empty trade set', () => {
     expect(hold.buckets.every(b => b.tradeCount === 0)).toBe(true)
     expect(hold.tradesWithR).toBe(0)
     expect(hold.tradesWithoutR).toBe(0)
+  })
+})
+
+describe('getTagBreakdown — multi-membership', () => {
+  const trades: ChatTrade[] = [
+    makeTrade({ id: 'a', tags: ['gap', 'earnings'], actualR: 2, realizedPnl: 200, result: 'Win' }),
+    makeTrade({ id: 'b', tags: ['gap'], actualR: -1, realizedPnl: -100, result: 'Loss' }),
+    makeTrade({ id: 'c', tags: ['gap'], actualR: null, realizedPnl: 50, result: 'Win' }),
+    makeTrade({ id: 'd', tags: [], actualR: 1, realizedPnl: 100, result: 'Win' }),
+  ]
+  const res = getTagBreakdown.execute({}, makeCtx(trades)) as {
+    tags: Array<{ tag: string; tradeCount: number; winRate: number; avgR: number | null }>
+    totalTrades: number
+  }
+
+  it('is registered in both modes', () => {
+    expect(aggregationTools).toContain(getTagBreakdown)
+    for (const mode of ['smart', 'full'] as const) {
+      expect(toolsForMode(aggregationTools, mode).map(t => t.name)).toContain('getTagBreakdown')
+    }
+  })
+
+  it('counts a trade once per tag it carries and skips untagged trades', () => {
+    expect(res.totalTrades).toBe(4)
+    expect(res.tags.map(r => r.tag)).toEqual(['gap', 'earnings']) // most used first
+    const gap = res.tags.find(r => r.tag === 'gap')!
+    expect(gap.tradeCount).toBe(3)
+    expect(gap.winRate).toBeCloseTo(2 / 3, 4)
+    expect(gap.avgR).toBeCloseTo(0.5, 4) // (2 + −1) / 2 — the R-less trade is excluded from avgR
+  })
+
+  it('reports avgR null when no trade with that tag has an R', () => {
+    const r = getTagBreakdown.execute({}, makeCtx([
+      makeTrade({ id: 'x', tags: ['noR'], actualR: null, realizedPnl: 10, result: 'Win' }),
+    ])) as { tags: Array<{ avgR: number | null }> }
+    expect(r.tags[0].avgR).toBeNull()
   })
 })

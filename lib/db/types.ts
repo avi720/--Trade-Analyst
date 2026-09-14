@@ -395,6 +395,7 @@ export type Database = {
           source: string
           status: string
           stopPrice: number | null
+          tags: string[]
           targetPrice: number | null
           ticker: string
           totalCommission: number | null
@@ -428,6 +429,7 @@ export type Database = {
           source?: string
           status: string
           stopPrice?: number | null
+          tags?: string[]
           targetPrice?: number | null
           ticker: string
           totalCommission?: number | null
@@ -461,6 +463,7 @@ export type Database = {
           source?: string
           status?: string
           stopPrice?: number | null
+          tags?: string[]
           targetPrice?: number | null
           ticker?: string
           totalCommission?: number | null

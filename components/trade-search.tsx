@@ -20,6 +20,7 @@ export interface RawTrade {
   source: string
   closeReason: string | null
   setupType: string | null
+  tags: string[]
   openedAt: string
   closedAt: string | null
   actualR: number | null
@@ -115,6 +116,7 @@ export function TradeSearch({ trades, initialParams }: Props) {
   const [direction, setDirection] = useState(initialParams.direction ?? '')
   const [filterResult, setFilterResult] = useState(initialParams.result ?? '')
   const [setup, setSetup] = useState(initialParams.setup ?? '')
+  const [tag, setTag] = useState(initialParams.tag ?? '')
   const [rMin, setRMin] = useState(initialParams.rMin ?? '')
   const [rMax, setRMax] = useState(initialParams.rMax ?? '')
   const [status, setStatus] = useState(initialParams.status ?? 'All')
@@ -212,6 +214,10 @@ export function TradeSearch({ trades, initialParams }: Props) {
     () => [...new Set(effectiveTrades.map(t => t.setupType).filter((s): s is string => s !== null))].sort(),
     [effectiveTrades]
   )
+  const allTags = useMemo(
+    () => [...new Set(effectiveTrades.flatMap(t => t.tags ?? []))].sort((a, b) => a.localeCompare(b, 'he')),
+    [effectiveTrades]
+  )
 
   function bump(fn: () => void) {
     fn()
@@ -230,12 +236,12 @@ export function TradeSearch({ trades, initialParams }: Props) {
 
   function clearFilters() {
     setQ(''); setFrom(''); setTo(''); setDirection(''); setFilterResult('')
-    setSetup(''); setRMin(''); setRMax(''); setStatus('All')
+    setSetup(''); setTag(''); setRMin(''); setRMax(''); setStatus('All')
     setSortCol('closedAt'); setSortDir('desc'); setPage(0)
     router.replace('/search', { scroll: false })
   }
 
-  const hasFilters = q || from || to || direction || filterResult || setup || rMin || rMax || status !== 'All'
+  const hasFilters = q || from || to || direction || filterResult || setup || tag || rMin || rMax || status !== 'All'
 
   const filtered = useMemo(() => {
     return effectiveTrades.filter(t => {
@@ -253,6 +259,7 @@ export function TradeSearch({ trades, initialParams }: Props) {
       if (direction && t.direction !== direction) return false
       if (filterResult && t.result !== filterResult) return false
       if (setup && t.setupType !== setup) return false
+      if (tag && !(t.tags ?? []).includes(tag)) return false
 
       const rMinN = rMin !== '' ? parseFloat(rMin) : null
       const rMaxN = rMax !== '' ? parseFloat(rMax) : null
@@ -261,7 +268,7 @@ export function TradeSearch({ trades, initialParams }: Props) {
 
       return true
     })
-  }, [effectiveTrades, status, q, from, to, direction, filterResult, setup, rMin, rMax])
+  }, [effectiveTrades, status, q, from, to, direction, filterResult, setup, tag, rMin, rMax])
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -347,6 +354,12 @@ export function TradeSearch({ trades, initialParams }: Props) {
               <option value="">כל סטאפ</option>
               {setups.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
+            {allTags.length > 0 && (
+              <select value={tag} aria-label="תגית" onChange={e => bump(() => setTag(e.target.value))} className={selectCls}>
+                <option value="">כל תגית</option>
+                {allTags.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            )}
           </div>
           {/* Row 2 */}
           <div className="flex flex-wrap gap-2 items-center">
@@ -429,7 +442,16 @@ export function TradeSearch({ trades, initialParams }: Props) {
                     <td className={cn('px-3 py-2 font-mono text-xs', t.direction === 'Long' ? 'text-green' : 'text-red')}>
                       <span aria-hidden="true">{t.direction === 'Long' ? '↑' : '↓'}</span> {t.direction}
                     </td>
-                    <td className="px-3 py-2 text-text-dim text-sm">{t.setupType ?? '—'}</td>
+                    <td className="px-3 py-2 text-text-dim text-sm">
+                      {t.setupType ?? '—'}
+                      {t.tags?.length > 0 && (
+                        <span className="mt-0.5 flex flex-wrap gap-1">
+                          {t.tags.map(tg => (
+                            <span key={tg} className="rounded-full border border-amber/30 bg-amber-tint px-1.5 text-[10px] font-sans text-text-main">{tg}</span>
+                          ))}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-3 py-2 font-mono text-sm text-text-dim whitespace-nowrap">{fmtDate(t.openedAt)}</td>
                     <td className="px-3 py-2 font-mono text-sm text-text-dim whitespace-nowrap">{fmtDate(t.closedAt)}</td>
                     <td

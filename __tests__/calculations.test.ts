@@ -8,6 +8,7 @@ function makeTrade(overrides: Partial<ClosedTrade> & { actualR: number; realized
     ticker: 'AAPL',
     direction: 'Long',
     setupType: null,
+    tags: [],
     openedAt: new Date('2026-01-01'),
     closedAt: new Date('2026-01-02'),
     avgEntryPrice: 100,

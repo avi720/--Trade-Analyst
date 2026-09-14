@@ -9,7 +9,7 @@
 
 import { describe, it, expect } from 'vitest'
 import type { ClosedTrade } from '@/types/trade'
-import { calcStats, equityCurve, rDistribution, setupPerformance } from '@/lib/utils/calculations'
+import { calcStats, equityCurve, rDistribution, setupPerformance, tagPerformance } from '@/lib/utils/calculations'
 import { pnlByTicker, holdTimeVsR, pnlByDayOfWeek, pnlByHour } from '@/lib/utils/research-charts'
 import { computeResearchAggregates } from '@/lib/utils/research-aggregate'
 
@@ -24,6 +24,7 @@ function makeTrade(overrides: Partial<ClosedTrade>): ClosedTrade {
     ticker: 'AAPL',
     direction: 'Long',
     setupType: 'breakout',
+    tags: [],
     openedAt: d(0, 6, 10),
     closedAt: d(0, 6, 14),
     avgEntryPrice: 100,
@@ -44,8 +45,8 @@ function makeTrade(overrides: Partial<ClosedTrade>): ClosedTrade {
 // the sort branches of equity + drawdown + hour.
 const fixture: ClosedTrade[] = [
   // plannedR on three winners: below target (1), exactly on target (3), past target (6).
-  makeTrade({ id: '1', ticker: 'AAPL', setupType: 'breakout',    actualR: 2,    plannedR: 3,   realizedPnl: 200, result: 'Win',       closedAt: d(0, 6, 14), openedAt: d(0, 6, 10) }),
-  makeTrade({ id: '2', ticker: 'AAPL', setupType: 'breakout',    actualR: -1,   realizedPnl: -100, result: 'Loss',     closedAt: d(0, 7, 15), openedAt: d(0, 7, 9) }),
+  makeTrade({ id: '1', ticker: 'AAPL', setupType: 'breakout',    actualR: 2,    plannedR: 3,   realizedPnl: 200, result: 'Win',       closedAt: d(0, 6, 14), openedAt: d(0, 6, 10), tags: ['gap', 'earnings'] }),
+  makeTrade({ id: '2', ticker: 'AAPL', setupType: 'breakout',    actualR: -1,   realizedPnl: -100, result: 'Loss',     closedAt: d(0, 7, 15), openedAt: d(0, 7, 9), tags: ['gap'] }),
   makeTrade({ id: '3', ticker: 'TSLA', setupType: 'pullback_ema',actualR: 1.5,  plannedR: 1.5, realizedPnl: 150, result: 'Win',       closedAt: d(0, 5, 10), openedAt: d(0, 5, 8) }),
   makeTrade({ id: '4', ticker: 'TSLA', setupType: 'pullback_ema',actualR: 0.5,  realizedPnl: 50,  result: 'Win',       closedAt: d(0, 8, 11), openedAt: d(0, 8, 9) }),
   makeTrade({ id: '5', ticker: 'MSFT', setupType: null,          actualR: -2,   realizedPnl: -200, result: 'Loss',     closedAt: d(0, 9, 12), openedAt: d(0, 8, 12) }),
@@ -53,7 +54,7 @@ const fixture: ClosedTrade[] = [
   makeTrade({ id: '7', ticker: 'NVDA', setupType: 'breakout',    actualR: -3,   realizedPnl: -300, result: 'Loss',     closedAt: d(0, 6, 4),  openedAt: d(0, 6, 3) }),
   makeTrade({ id: '8', ticker: 'NVDA', setupType: 'breakout',    actualR: 0,    realizedPnl: 0,   result: 'Breakeven', closedAt: d(0, 12, 16), openedAt: d(0, 12, 10) }),
   // Null actualR (no stop) — counted in $-metrics, skipped in R-based ones
-  makeTrade({ id: '9',  ticker: 'AMD', setupType: 'gap_fill', actualR: null as unknown as number, realizedPnl: 75,  result: 'Win',  closedAt: d(0, 13, 9),  openedAt: d(0, 13, 8) }),
+  makeTrade({ id: '9',  ticker: 'AMD', setupType: 'gap_fill', actualR: null as unknown as number, realizedPnl: 75,  result: 'Win',  closedAt: d(0, 13, 9),  openedAt: d(0, 13, 8), tags: ['gap'] }),
   makeTrade({ id: '10', ticker: 'AMD', setupType: 'gap_fill', actualR: null as unknown as number, realizedPnl: -50, result: 'Loss', closedAt: d(0, 14, 15), openedAt: d(0, 14, 14) }),
   // Null realizedPnl — filtered out of pnlByTicker/Day/Hour
   makeTrade({ id: '11', ticker: 'INTC', setupType: 'reversal', actualR: 1,  realizedPnl: null as unknown as number, result: 'Win',  closedAt: d(0, 15, 10), openedAt: d(0, 15, 9) }),
@@ -74,6 +75,7 @@ describe('computeResearchAggregates — golden regression', () => {
     expect(agg.equity).toEqual(equityCurve([]))
     expect(agg.rdist).toEqual(rDistribution([]))
     expect(agg.setup).toEqual(setupPerformance([]))
+    expect(agg.tag).toEqual(tagPerformance([]))
     expect(agg.ticker).toEqual(pnlByTicker([]))
     expect(agg.dayofweek).toEqual(pnlByDayOfWeek([]))
     expect(agg.hour).toEqual(pnlByHour([]))
@@ -115,6 +117,10 @@ describe('computeResearchAggregates — golden regression', () => {
     expect(agg.equity).toEqual(equityCurve(fixture))
     expect(agg.rdist).toEqual(rDistribution(fixture))
     expect(agg.setup).toEqual(setupPerformance(fixture))
+    expect(agg.tag).toEqual(tagPerformance(fixture))
+    // Multi-membership sanity: 'gap' rides on 1, 2 and 9; 'earnings' on 1 only.
+    expect(agg.tag.find(x => x.tag === 'gap')?.count).toBe(3)
+    expect(agg.tag.find(x => x.tag === 'earnings')?.count).toBe(1)
     expect(agg.ticker).toEqual(pnlByTicker(fixture))
     expect(agg.dayofweek).toEqual(pnlByDayOfWeek(fixture))
     expect(agg.hour).toEqual(pnlByHour(fixture))

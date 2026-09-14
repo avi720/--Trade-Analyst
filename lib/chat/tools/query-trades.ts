@@ -32,6 +32,7 @@ const SMART_FIELDS = [
   'ticker',
   'direction',
   'setup',
+  'tags',
   'actualR',
   'realizedPnl',
   'result',
@@ -85,6 +86,7 @@ interface Filters {
   direction?: 'Long' | 'Short'
   result?: string
   setup?: string
+  tag?: string
   emotionalState?: string
   minR?: number
   maxR?: number
@@ -154,6 +156,7 @@ function parseFilters(raw: unknown, mode: ChatContextMode): { filters: Filters; 
   if (dir === 'Long' || dir === 'Short') filters.direction = dir
   filters.result = asString(r.result)
   filters.setup = asString(r.setup)
+  filters.tag = asString(r.tag)
 
   // Gated: emotionalState is a full-only column, so it cannot be used as a
   // filter in smart mode either — filtering by a hidden field still discloses it.
@@ -189,6 +192,7 @@ function matches(t: ChatTrade, f: Filters): boolean {
   if (f.direction && t.direction !== f.direction) return false
   if (f.result !== undefined && t.result !== f.result) return false
   if (f.setup !== undefined && t.setupType !== f.setup) return false
+  if (f.tag !== undefined && !t.tags.includes(f.tag)) return false
   if (f.emotionalState !== undefined && t.emotionalState !== f.emotionalState) return false
 
   // A null actualR is "unmeasurable", not zero — it must never satisfy an R filter.
@@ -250,6 +254,7 @@ function projectRow(t: ChatTrade, fields: FieldName[]): Record<string, unknown> 
       case 'ticker': row.ticker = t.ticker; break
       case 'direction': row.direction = t.direction; break
       case 'setup': row.setup = t.setupType; break
+      case 'tags': row.tags = t.tags; break
       case 'actualR': row.actualR = t.actualR; break
       case 'realizedPnl': row.realizedPnl = t.realizedPnl; break
       case 'result': row.result = t.result; break
@@ -276,6 +281,7 @@ const filtersSchema = {
     direction: { type: Type.STRING, enum: ['Long', 'Short'] },
     result: { type: Type.STRING, description: 'התאמה מדויקת, למשל Win / Loss / Breakeven' },
     setup: { type: Type.STRING, description: 'שם סטאפ — התאמה מדויקת' },
+    tag: { type: Type.STRING, description: 'תגית — הטרייד חייב לשאת אותה (התאמה מדויקת לתגית אחת)' },
     emotionalState: { type: Type.STRING, description: 'מצב רגשי — התאמה מדויקת. זמין רק במצב עומק (Pro)' },
     minR: { type: Type.NUMBER, description: 'actualR מינימלי. טרייד ללא סטופ (actualR ריק) לעולם לא יתאים' },
     maxR: { type: Type.NUMBER, description: 'actualR מקסימלי. טרייד ללא סטופ לעולם לא יתאים' },

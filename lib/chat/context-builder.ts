@@ -47,7 +47,7 @@ export interface ChatTrade extends ClosedTrade {
  * Must stay a single string literal — supabase-js infers the row type from the
  * literal, and any concatenation degrades it to `GenericStringError`.
  */
-export const CHAT_TRADE_COLUMNS = 'id, ticker, direction, setupType, openedAt, closedAt, actualR, plannedR, realizedPnl, result, executionQuality, emotionalState, avgEntryPrice, avgExitPrice, stopPrice, totalQuantityOpened'
+export const CHAT_TRADE_COLUMNS = 'id, ticker, direction, setupType, tags, openedAt, closedAt, actualR, plannedR, realizedPnl, result, executionQuality, emotionalState, avgEntryPrice, avgExitPrice, stopPrice, totalQuantityOpened'
 
 export interface ChatContextResult {
   /** The rendered block that gets substituted into the system prompt. */
@@ -72,6 +72,7 @@ function projectSmart(t: ChatTrade) {
     ticker: t.ticker,
     direction: t.direction,
     setup: t.setupType,
+    tags: t.tags,
     actualR: t.actualR,
     realizedPnl: t.realizedPnl,
     result: t.result,
