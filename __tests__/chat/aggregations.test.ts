@@ -35,6 +35,7 @@ function makeTrade(over: Partial<ChatTrade> & { id: string }): ChatTrade {
     openedAt: d(0, 6, 10),
     closedAt: d(0, 6, 14),
     actualR: 1,
+    plannedR: null,
     realizedPnl: 100,
     avgEntryPrice: 100,
     avgExitPrice: 110,

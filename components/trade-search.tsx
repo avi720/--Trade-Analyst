@@ -23,6 +23,7 @@ export interface RawTrade {
   openedAt: string
   closedAt: string | null
   actualR: number | null
+  plannedR: number | null
   realizedPnl: number | null
   totalCommission: number | null
   result: string | null
@@ -39,7 +40,7 @@ export interface RawTrade {
   totalQuantity: number
 }
 
-type SortCol = 'ticker' | 'direction' | 'setupType' | 'openedAt' | 'closedAt' | 'actualR' | 'realizedPnl'
+type SortCol = 'ticker' | 'direction' | 'setupType' | 'openedAt' | 'closedAt' | 'actualR' | 'plannedR' | 'realizedPnl'
 
 interface Props {
   trades: RawTrade[]
@@ -387,6 +388,7 @@ export function TradeSearch({ trades, initialParams }: Props) {
                 <SortTh col="openedAt"   label="פתיחה"  current={sortCol} dir={sortDir} onSort={handleSort} />
                 <SortTh col="closedAt"   label="סגירה"  current={sortCol} dir={sortDir} onSort={handleSort} />
                 <SortTh col="actualR"    label="R"      current={sortCol} dir={sortDir} onSort={handleSort} />
+                <SortTh col="plannedR"   label="R מתוכנן" current={sortCol} dir={sortDir} onSort={handleSort} />
                 <SortTh col="realizedPnl" label="P&L"  current={sortCol} dir={sortDir} onSort={handleSort} />
                 <th className="px-3 py-2 text-right text-sm font-mono text-text-dim">עמ׳</th>
                 <th className="px-3 py-2 text-right text-sm font-mono text-text-dim">תוצאה</th>
@@ -396,7 +398,7 @@ export function TradeSearch({ trades, initialParams }: Props) {
             <tbody>
               {pageItems.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="px-3 py-8 text-center text-text-dim text-sm">
+                  <td colSpan={11} className="px-3 py-8 text-center text-text-dim text-sm">
                     לא נמצאו טריידים
                   </td>
                 </tr>
@@ -438,6 +440,12 @@ export function TradeSearch({ trades, initialParams }: Props) {
                       )}
                     >
                       {fmtR(t.actualR)}
+                    </td>
+                    <td
+                      title={t.plannedR == null ? 'אין stop ו-target מוגדרים' : undefined}
+                      className="px-3 py-2 font-mono text-xs whitespace-nowrap text-text-dim"
+                    >
+                      {fmtR(t.plannedR)}
                     </td>
                     <td className={cn('px-3 py-2 font-mono text-xs whitespace-nowrap',
                       t.realizedPnl != null && t.realizedPnl > 0 ? 'text-green' :

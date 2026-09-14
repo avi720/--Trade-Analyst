@@ -31,6 +31,7 @@ function makeTrade(overrides: Partial<ClosedTrade>): ClosedTrade {
     stopPrice: 95,
     totalQuantityOpened: 100,
     actualR: 1,
+    plannedR: null,
     realizedPnl: 100,
     result: 'Win',
     executionQuality: null,
@@ -42,12 +43,13 @@ function makeTrade(overrides: Partial<ClosedTrade>): ClosedTrade {
 // edges, multiple days-of-week + hours, out-of-order close times to exercise
 // the sort branches of equity + drawdown + hour.
 const fixture: ClosedTrade[] = [
-  makeTrade({ id: '1', ticker: 'AAPL', setupType: 'breakout',    actualR: 2,    realizedPnl: 200, result: 'Win',       closedAt: d(0, 6, 14), openedAt: d(0, 6, 10) }),
+  // plannedR on three winners: below target (1), exactly on target (3), past target (6).
+  makeTrade({ id: '1', ticker: 'AAPL', setupType: 'breakout',    actualR: 2,    plannedR: 3,   realizedPnl: 200, result: 'Win',       closedAt: d(0, 6, 14), openedAt: d(0, 6, 10) }),
   makeTrade({ id: '2', ticker: 'AAPL', setupType: 'breakout',    actualR: -1,   realizedPnl: -100, result: 'Loss',     closedAt: d(0, 7, 15), openedAt: d(0, 7, 9) }),
-  makeTrade({ id: '3', ticker: 'TSLA', setupType: 'pullback_ema',actualR: 1.5,  realizedPnl: 150, result: 'Win',       closedAt: d(0, 5, 10), openedAt: d(0, 5, 8) }),
+  makeTrade({ id: '3', ticker: 'TSLA', setupType: 'pullback_ema',actualR: 1.5,  plannedR: 1.5, realizedPnl: 150, result: 'Win',       closedAt: d(0, 5, 10), openedAt: d(0, 5, 8) }),
   makeTrade({ id: '4', ticker: 'TSLA', setupType: 'pullback_ema',actualR: 0.5,  realizedPnl: 50,  result: 'Win',       closedAt: d(0, 8, 11), openedAt: d(0, 8, 9) }),
   makeTrade({ id: '5', ticker: 'MSFT', setupType: null,          actualR: -2,   realizedPnl: -200, result: 'Loss',     closedAt: d(0, 9, 12), openedAt: d(0, 8, 12) }),
-  makeTrade({ id: '6', ticker: 'MSFT', setupType: null,          actualR: 3,    realizedPnl: 300, result: 'Win',       closedAt: d(0, 10, 21), openedAt: d(0, 10, 4) }),
+  makeTrade({ id: '6', ticker: 'MSFT', setupType: null,          actualR: 3,    plannedR: 2,   realizedPnl: 300, result: 'Win',       closedAt: d(0, 10, 21), openedAt: d(0, 10, 4) }),
   makeTrade({ id: '7', ticker: 'NVDA', setupType: 'breakout',    actualR: -3,   realizedPnl: -300, result: 'Loss',     closedAt: d(0, 6, 4),  openedAt: d(0, 6, 3) }),
   makeTrade({ id: '8', ticker: 'NVDA', setupType: 'breakout',    actualR: 0,    realizedPnl: 0,   result: 'Breakeven', closedAt: d(0, 12, 16), openedAt: d(0, 12, 10) }),
   // Null actualR (no stop) — counted in $-metrics, skipped in R-based ones
@@ -59,6 +61,10 @@ const fixture: ClosedTrade[] = [
   makeTrade({ id: '12', ticker: 'META', setupType: 'breakout', actualR: 0.75, realizedPnl: 75, result: 'Partial', closedAt: d(0, 16, 13), openedAt: d(0, 16, 11) }),
   // Close-before-open — clamp hold to 0
   makeTrade({ id: '13', ticker: 'GOOG', setupType: 'breakout', actualR: -1, realizedPnl: -100, result: 'Loss', closedAt: d(0, 17, 10), openedAt: d(0, 17, 14) }),
+  // Loser just inside the stop-discipline tolerance (−1.02R honors a 1R plan)
+  makeTrade({ id: '14', ticker: 'GOOG', setupType: 'breakout', actualR: -1.02, plannedR: 2, realizedPnl: -102, result: 'Loss', closedAt: d(0, 18, 10), openedAt: d(0, 18, 9) }),
+  // Loser with a plan but no actualR — must not count toward stop discipline
+  makeTrade({ id: '15', ticker: 'GOOG', setupType: 'breakout', actualR: null as unknown as number, plannedR: 2, realizedPnl: -60, result: 'Loss', closedAt: d(0, 19, 10), openedAt: d(0, 19, 9) }),
 ]
 
 describe('computeResearchAggregates — golden regression', () => {
@@ -93,6 +99,17 @@ describe('computeResearchAggregates — golden regression', () => {
     expect(agg.stats.totalPnl).toBeCloseTo(refStats.totalPnl, 10)
     expect(agg.stats.avgWin).toBeCloseTo(refStats.avgWin, 10)
     expect(agg.stats.avgLoss).toBeCloseTo(refStats.avgLoss, 10)
+    expect(agg.stats.planDeviation).toBeCloseTo(refStats.planDeviation!, 10)
+    expect(agg.stats.planDeviationCount).toBe(refStats.planDeviationCount)
+    expect(agg.stats.stopDiscipline).toBeCloseTo(refStats.stopDiscipline!, 10)
+    expect(agg.stats.stopDisciplineCount).toBe(refStats.stopDisciplineCount)
+    // Sanity on the fixture itself so the golden equality is not vacuous:
+    // winners with a plan: (2−3) + (1.5−1.5) + (3−2) = 0 over 3 trades;
+    // losers with actualR: −1, −2, −3, −1, −1.02 → 3 of 5 within −1.1R.
+    expect(refStats.planDeviationCount).toBe(3)
+    expect(refStats.planDeviation).toBeCloseTo(0, 10)
+    expect(refStats.stopDisciplineCount).toBe(5)
+    expect(refStats.stopDiscipline).toBeCloseTo(3 / 5, 10)
 
     // Structural shapes — deep equal against reference helpers.
     expect(agg.equity).toEqual(equityCurve(fixture))

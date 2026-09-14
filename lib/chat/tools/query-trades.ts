@@ -40,6 +40,7 @@ const SMART_FIELDS = [
 
 const FULL_ONLY_FIELDS = [
   'openedAt',
+  'plannedR',
   'executionQuality',
   'emotionalState',
   'notes',
@@ -254,6 +255,7 @@ function projectRow(t: ChatTrade, fields: FieldName[]): Record<string, unknown> 
       case 'result': row.result = t.result; break
       case 'closedAt': row.closedAt = t.closedAt.toISOString(); break
       case 'openedAt': row.openedAt = t.openedAt.toISOString(); break
+      case 'plannedR': row.plannedR = t.plannedR; break
       case 'executionQuality': row.executionQuality = t.executionQuality; break
       case 'emotionalState': row.emotionalState = t.emotionalState; break
       // Free text is merged in afterwards, once the page is known.

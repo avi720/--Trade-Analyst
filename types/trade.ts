@@ -8,6 +8,9 @@ export interface ClosedTrade {
   openedAt: Date
   closedAt: Date
   actualR: number | null
+  // Planned reward/risk at entry — DB-generated from entry/stop/target, so
+  // never computed in app code. Null when the plan is incomplete or inverted.
+  plannedR: number | null
   realizedPnl: number
   avgEntryPrice: number
   avgExitPrice: number | null

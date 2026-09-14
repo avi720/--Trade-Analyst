@@ -14,6 +14,7 @@ function makeTrade(overrides: Partial<ClosedTrade> & { actualR: number; realized
     avgExitPrice: 110,
     stopPrice: 95,
     totalQuantityOpened: 100,
+    plannedR: null,
     result: overrides.actualR > 0 ? 'Win' : overrides.actualR < 0 ? 'Loss' : 'Breakeven',
     executionQuality: null,
     ...overrides,
@@ -210,5 +211,63 @@ describe('setupPerformance', () => {
     const pullback = stats.find(s => s.setupType === 'pullback_ema')!
     expect(pullback.winRate).toBe(1)
     expect(pullback.avgR).toBe(1)
+  })
+})
+
+// ─── plan deviation + stop discipline ────────────────────────────────────────
+
+describe('calcStats — plan deviation', () => {
+  it('empty → null with count 0', () => {
+    const s = calcStats([])
+    expect(s.planDeviation).toBeNull()
+    expect(s.planDeviationCount).toBe(0)
+  })
+
+  it('averages actualR − plannedR over winners only; losers with a plan are ignored', () => {
+    const trades = [
+      makeTrade({ actualR: 2,    realizedPnl: 200,  plannedR: 3 }),   // exited 1R early
+      makeTrade({ actualR: 2.5,  realizedPnl: 250,  plannedR: 2 }),   // ran 0.5R past target
+      makeTrade({ actualR: -1,   realizedPnl: -100, plannedR: 3 }),   // loser — excluded
+      makeTrade({ actualR: 1,    realizedPnl: 100,  plannedR: null }),// winner, no plan — excluded
+    ]
+    const s = calcStats(trades)
+    expect(s.planDeviationCount).toBe(2)
+    expect(s.planDeviation).toBeCloseTo((-1 + 0.5) / 2, 10)
+  })
+
+  it('no winner with a plan → null, even when losers carry plannedR', () => {
+    const s = calcStats([makeTrade({ actualR: -1, realizedPnl: -100, plannedR: 3 })])
+    expect(s.planDeviation).toBeNull()
+    expect(s.planDeviationCount).toBe(0)
+  })
+})
+
+describe('calcStats — stop discipline', () => {
+  it('empty → null with count 0', () => {
+    const s = calcStats([])
+    expect(s.stopDiscipline).toBeNull()
+    expect(s.stopDisciplineCount).toBe(0)
+  })
+
+  it('counts losers with actualR; honors ≤ 1R + tolerance', () => {
+    const trades = [
+      makeTrade({ actualR: -1,    realizedPnl: -100 }), // honored
+      makeTrade({ actualR: -1.1,  realizedPnl: -110 }), // exactly at tolerance — honored
+      makeTrade({ actualR: -1.11, realizedPnl: -111 }), // breach
+      makeTrade({ actualR: -0.4,  realizedPnl: -40 }),  // cut early — honored
+      makeTrade({ actualR: 2,     realizedPnl: 200 }),  // winner — excluded
+    ]
+    const s = calcStats(trades)
+    expect(s.stopDisciplineCount).toBe(4)
+    expect(s.stopDiscipline).toBeCloseTo(3 / 4, 10)
+  })
+
+  it('losers without actualR do not count; all winners → null', () => {
+    const noR = calcStats([makeTrade({ actualR: null as unknown as number, realizedPnl: -50 })])
+    expect(noR.stopDiscipline).toBeNull()
+    expect(noR.stopDisciplineCount).toBe(0)
+
+    const allWins = calcStats([makeTrade({ actualR: 1, realizedPnl: 100 })])
+    expect(allWins.stopDiscipline).toBeNull()
   })
 })

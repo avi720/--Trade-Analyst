@@ -270,6 +270,10 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
        rMin || rMax)
 
   // Metric card color helpers
+  const stopDisciplineColor =
+    stats.stopDiscipline == null   ? undefined :
+    stats.stopDiscipline >= 0.9    ? 'text-green' :
+    stats.stopDiscipline >= 0.75   ? 'text-amber' : 'text-red'
   const winRateColor =
     stats.totalTrades === 0 ? 'text-text-main' :
     stats.winRate >= 0.5    ? 'text-green' :
@@ -374,7 +378,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
           )}
         </div>
         {!metricsCollapsed && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6">
           <MetricCard
             label="טריידים"
             value={String(stats.totalTrades)}
@@ -452,6 +456,20 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
               <span aria-hidden="true" className="text-text-mute font-mono text-base shrink-0">›</span>
             </dd>
           </dl>
+          <MetricCard
+            label="סטייה מהתוכנית"
+            value={stats.planDeviation == null ? '—' : `${stats.planDeviation >= 0 ? '+' : ''}${stats.planDeviation.toFixed(2)}R`}
+            color={stats.planDeviation == null ? undefined : stats.planDeviation >= 0 ? 'text-green' : 'text-red'}
+            info={METRIC_INFO.planDeviation}
+            onClick={() => drillDown({ result: 'Win' })}
+          />
+          <MetricCard
+            label="משמעת סטופ"
+            value={stats.stopDiscipline == null ? '—' : `${(stats.stopDiscipline * 100).toFixed(0)}%`}
+            color={stopDisciplineColor}
+            info={METRIC_INFO.stopDiscipline}
+            onClick={() => drillDown({ result: 'Loss' })}
+          />
         </div>
         )}
 

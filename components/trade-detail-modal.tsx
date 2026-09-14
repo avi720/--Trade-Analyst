@@ -157,6 +157,7 @@ export function TradeDetailModal({ trade, mode = 'edit', onClose, onSaved }: Pro
               ['מחיר יציאה', trade.avgExitPrice != null ? `$${trade.avgExitPrice.toFixed(2)}` : '—'],
               ['P&L', fmtUsd(trade.realizedPnl)],
               ['R', trade.actualR != null ? (trade.actualR >= 0 ? '+' : '') + trade.actualR.toFixed(2) + 'R' : '—'],
+              ['R מתוכנן', trade.plannedR != null ? '+' + trade.plannedR.toFixed(2) + 'R' : '—'],
               ['עמ׳', trade.totalCommission != null ? `$${Math.abs(trade.totalCommission).toFixed(2)}` : '—'],
               ['תוצאה', trade.result ?? '—'],
             ].map(([label, val]) => (

@@ -16,6 +16,7 @@ export interface RawClosedTrade {
   openedAt: string
   closedAt: string | null
   actualR: number | null
+  plannedR: number | null
   realizedPnl: number | null
   avgEntryPrice: number
   avgExitPrice: number | null
@@ -36,6 +37,7 @@ export function toClosedTrade(t: RawClosedTrade): ClosedTrade | null {
     openedAt: new Date(t.openedAt),
     closedAt: new Date(t.closedAt),
     actualR: t.actualR,
+    plannedR: t.plannedR ?? null,
     realizedPnl: t.realizedPnl,
     avgEntryPrice: t.avgEntryPrice,
     avgExitPrice: t.avgExitPrice ?? null,

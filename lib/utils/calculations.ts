@@ -1,5 +1,10 @@
 import type { ClosedTrade } from '@/types/trade'
 
+// A losing trade "honored its stop" when it lost no more than 1R plus this
+// tolerance — commissions and slippage routinely land an original-stop exit at
+// −1.00…−1.05R, and those are discipline, not a breach.
+export const STOP_DISCIPLINE_TOLERANCE_R = 0.1
+
 export interface TradeStats {
   totalTrades: number
   rTradeCount: number   // trades that have an R-multiple (stop price set)
@@ -11,6 +16,16 @@ export interface TradeStats {
   totalPnl: number
   avgWin: number        // $-based: avg realizedPnl of winning trades
   avgLoss: number       // $-based: avg realizedPnl of losing trades
+  // Plan-vs-reality. Deviation is measured on WINNERS only (realizedPnl > 0)
+  // that carry both actualR and plannedR: negative = exited before target,
+  // positive = ran past it. Losers are excluded on purpose — a stopped-out
+  // trade sits −(plannedR+1) below plan by construction and would make a
+  // perfectly disciplined trader look like they deviate on every loss.
+  planDeviation: number | null   // R-based: mean (actualR − plannedR); null when no eligible trade
+  planDeviationCount: number
+  // Share of LOSERS (realizedPnl < 0) with actualR that lost ≤ 1R + tolerance.
+  stopDiscipline: number | null  // 0..1; null when there is no loser with actualR
+  stopDisciplineCount: number
 }
 
 export interface EquityPoint {
@@ -32,7 +47,10 @@ export interface SetupStat {
 
 export function calcStats(trades: ClosedTrade[]): TradeStats {
   if (trades.length === 0) {
-    return { totalTrades: 0, rTradeCount: 0, winRate: 0, avgR: 0, profitFactor: 0, expectancy: 0, maxDrawdown: 0, totalPnl: 0, avgWin: 0, avgLoss: 0 }
+    return {
+      totalTrades: 0, rTradeCount: 0, winRate: 0, avgR: 0, profitFactor: 0, expectancy: 0, maxDrawdown: 0, totalPnl: 0, avgWin: 0, avgLoss: 0,
+      planDeviation: null, planDeviationCount: 0, stopDiscipline: null, stopDisciplineCount: 0,
+    }
   }
 
   // $-based win/loss classification — counts every trade, including those without an R-multiple
@@ -68,6 +86,19 @@ export function calcStats(trades: ClosedTrade[]): TradeStats {
   // Expectancy in R equals the mean R over rTrades
   const expectancy = avgR
 
+  // Plan deviation — winners with both R values (see TradeStats for why winners only)
+  const planTrades = winners.filter(
+    (t): t is ClosedTrade & { actualR: number; plannedR: number } => t.actualR != null && t.plannedR != null,
+  )
+  const planDeviation = planTrades.length > 0
+    ? planTrades.reduce((s, t) => s + (t.actualR - t.plannedR), 0) / planTrades.length
+    : null
+
+  // Stop discipline — losers with an R value
+  const stopTrades = losers.filter((t): t is ClosedTrade & { actualR: number } => t.actualR != null)
+  const honored = stopTrades.filter(t => t.actualR >= -(1 + STOP_DISCIPLINE_TOLERANCE_R)).length
+  const stopDiscipline = stopTrades.length > 0 ? honored / stopTrades.length : null
+
   return {
     totalTrades: trades.length,
     rTradeCount: rTrades.length,
@@ -79,6 +110,10 @@ export function calcStats(trades: ClosedTrade[]): TradeStats {
     totalPnl,
     avgWin,
     avgLoss,
+    planDeviation,
+    planDeviationCount: planTrades.length,
+    stopDiscipline,
+    stopDisciplineCount: stopTrades.length,
   }
 }
 

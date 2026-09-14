@@ -15,6 +15,7 @@ function makeTrade(over: Partial<ChatTrade> & { id: string }): ChatTrade {
     openedAt: new Date('2026-03-02T14:30:00Z'),
     closedAt: new Date('2026-03-02T18:00:00Z'),
     actualR: 1.5,
+    plannedR: 2.5,
     realizedPnl: 300,
     avgEntryPrice: 100,
     avgExitPrice: 103,
@@ -59,11 +60,11 @@ describe('projectTrade — per-mode field gate', () => {
     expect((projectTrade(t, 'smart') as Record<string, unknown>).realizedPnl).toBe(300)
   })
 
-  it('full mode adds openedAt, executionQuality and emotionalState', () => {
+  it('full mode adds openedAt, plannedR, executionQuality and emotionalState', () => {
     expect(Object.keys(projectTrade(t, 'full')).sort()).toEqual(
       [
         'actualR', 'closedAt', 'direction', 'emotionalState', 'executionQuality',
-        'openedAt', 'realizedPnl', 'result', 'setup', 'ticker',
+        'openedAt', 'plannedR', 'realizedPnl', 'result', 'setup', 'ticker',
       ],
     )
   })

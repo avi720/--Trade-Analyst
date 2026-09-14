@@ -12,7 +12,7 @@ export default async function SearchPage({
   const { data: trades } = await supabase
     .from('Trade')
     .select(
-      'id, ticker, direction, status, source, closeReason, setupType, openedAt, closedAt, actualR, realizedPnl, totalCommission, result, notes, emotionalState, executionQuality, stopPrice, targetPrice, didRight, wouldChange, avgEntryPrice, avgExitPrice, totalQuantityOpened, totalQuantity'
+      'id, ticker, direction, status, source, closeReason, setupType, openedAt, closedAt, actualR, plannedR, realizedPnl, totalCommission, result, notes, emotionalState, executionQuality, stopPrice, targetPrice, didRight, wouldChange, avgEntryPrice, avgExitPrice, totalQuantityOpened, totalQuantity'
     )
     .order('openedAt', { ascending: false })
 

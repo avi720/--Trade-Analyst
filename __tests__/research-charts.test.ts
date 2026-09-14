@@ -23,6 +23,7 @@ function makeTrade(overrides: Partial<ClosedTrade> = {}): ClosedTrade {
     openedAt: LOCAL_OPEN,
     closedAt: LOCAL_CLOSE,
     actualR: 1.5,
+    plannedR: null,
     realizedPnl: 300,
     avgEntryPrice: 150,
     avgExitPrice: 155,

@@ -13,6 +13,7 @@ function makeTrade(over: Partial<ChatTrade> & { id: string }): ChatTrade {
     openedAt: new Date('2026-01-01T09:00:00Z'),
     closedAt: new Date('2026-01-01T10:00:00Z'),
     actualR: 1,
+    plannedR: 2,
     realizedPnl: 100,
     avgEntryPrice: 100,
     avgExitPrice: 103,
@@ -339,7 +340,7 @@ describe('queryTradesTool — full mode', () => {
     const r = await run({ limit: 1 }, 'full')
     expect(Object.keys(r.rows[0]).sort()).toEqual([
       'actualR', 'closedAt', 'direction', 'emotionalState', 'executionQuality',
-      'openedAt', 'realizedPnl', 'result', 'setup', 'ticker',
+      'openedAt', 'plannedR', 'realizedPnl', 'result', 'setup', 'ticker',
     ])
     expect(r.droppedFields).toBeUndefined()
   })

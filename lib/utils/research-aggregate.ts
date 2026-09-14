@@ -13,7 +13,7 @@
  */
 
 import type { ClosedTrade } from '@/types/trade'
-import type { TradeStats, EquityPoint, RBin, SetupStat } from './calculations'
+import { STOP_DISCIPLINE_TOLERANCE_R, type TradeStats, type EquityPoint, type RBin, type SetupStat } from './calculations'
 import type { TickerStat, HoldTimePoint, DayStat, HourStat } from './research-charts'
 
 // Kept in lockstep with calculations.ts R_BINS.
@@ -76,7 +76,10 @@ export function computeResearchAggregates(trades: ClosedTrade[]): ResearchAggreg
   // ── Empty short-circuit — mirrors calcStats' empty guard. ──────────────────
   if (trades.length === 0) {
     return {
-      stats: { totalTrades: 0, rTradeCount: 0, winRate: 0, avgR: 0, profitFactor: 0, expectancy: 0, maxDrawdown: 0, totalPnl: 0, avgWin: 0, avgLoss: 0 },
+      stats: {
+        totalTrades: 0, rTradeCount: 0, winRate: 0, avgR: 0, profitFactor: 0, expectancy: 0, maxDrawdown: 0, totalPnl: 0, avgWin: 0, avgLoss: 0,
+        planDeviation: null, planDeviationCount: 0, stopDiscipline: null, stopDisciplineCount: 0,
+      },
       equity: [],
       rdist: R_BINS.map(b => ({ label: b.label, count: 0 })),
       setup: [],
@@ -97,6 +100,12 @@ export function computeResearchAggregates(trades: ClosedTrade[]): ResearchAggreg
   let totalPnl = 0
   let rSum = 0
   let rCount = 0
+  // Plan-vs-reality (see TradeStats): deviation over winners with both R
+  // values, stop discipline over losers with actualR.
+  let planDevSum = 0
+  let planDevCount = 0
+  let stopCount = 0
+  let stopHonored = 0
 
   // For equity curve and drawdown we need sorted-by-closedAt order.
   // Materialize the projections we need so the post-pass is O(n log n) sort +
@@ -130,9 +139,17 @@ export function computeResearchAggregates(trades: ClosedTrade[]): ResearchAggreg
     if (pnl > 0) {
       winnersCount++
       grossWinUsd += pnl
+      if (r != null && t.plannedR != null) {
+        planDevSum += r - t.plannedR
+        planDevCount++
+      }
     } else if (pnl < 0) {
       losersCount++
       grossLossUsd += -pnl // Math.abs(pnl); pnl < 0 here so -pnl > 0
+      if (r != null) {
+        stopCount++
+        if (r >= -(1 + STOP_DISCIPLINE_TOLERANCE_R)) stopHonored++
+      }
     }
     if (r != null) {
       rSum += r
@@ -257,6 +274,10 @@ export function computeResearchAggregates(trades: ClosedTrade[]): ResearchAggreg
     totalPnl,
     avgWin,
     avgLoss,
+    planDeviation: planDevCount > 0 ? planDevSum / planDevCount : null,
+    planDeviationCount: planDevCount,
+    stopDiscipline: stopCount > 0 ? stopHonored / stopCount : null,
+    stopDisciplineCount: stopCount,
   }
 
   // rDistribution — bind labels back onto counts.

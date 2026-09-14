@@ -107,7 +107,6 @@ function buildTradeInsert(
     stopPrice: trade.stopPrice ?? null,
     // Nullable fields set at user-entry time (not from broker)
     targetPrice: null,
-    rMultipleEntry: null,
     actualR: null,
     avgExitPrice: null,
     closedAt: null,
