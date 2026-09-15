@@ -40,7 +40,7 @@ import {
   type SetupSeries,
   type RawClosedTrade,
 } from './research/lib'
-import { MetricCard, PairRow, ltr } from './research/shell'
+import { MetricCard, PairRow, ltr, FitText } from './research/shell'
 import { renderChart, type ChartData } from './research/charts'
 import { FilterBar } from './research/filter-bar'
 
@@ -452,8 +452,8 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
                 <InfoTooltip label="מידע על ממוצע רווח / הפסד">{METRIC_INFO.avgWinLoss}</InfoTooltip>
               </span>
             </dt>
-            <dd className="text-2xl font-mono font-bold m-0 flex items-center justify-between gap-2">
-              <span className="truncate">
+            <dd className="font-mono font-bold m-0 flex items-center justify-between gap-2">
+              <FitText className="flex-1" maxPx={24} minPx={13}>
                 {stats.totalTrades === 0 ? (
                   <span className="text-text-main">—</span>
                 ) : (
@@ -463,7 +463,7 @@ export function ResearchDashboard({ trades: rawTrades }: Props) {
                     <span className="text-red">{ltr(formatUsd(stats.avgLoss))}</span>
                   </>
                 )}
-              </span>
+              </FitText>
               <span aria-hidden="true" className="text-text-mute font-mono text-base shrink-0">›</span>
             </dd>
           </dl>

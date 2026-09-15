@@ -424,6 +424,52 @@ export function DayHourInner({
   )
 }
 
+// ─── FitText ────────────────────────────────────────────────────────────────
+// Shrinks single-line, monospace content to fit its box width, growing back up
+// to maxPx when space allows. The metric tiles use it so a wide value — chiefly
+// the two-part "avg win / avg loss" — stays on one line and as large as it fits
+// instead of being truncated. Monospace ⇒ text width scales linearly with
+// font-size, so one measure-and-scale pass is exact.
+const useIsoLayoutEffect = typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect
+
+export function FitText({
+  children, maxPx = 24, minPx = 13, className,
+}: {
+  children: React.ReactNode
+  maxPx?: number
+  minPx?: number
+  className?: string
+}) {
+  const boxRef = useRef<HTMLDivElement>(null)
+  const spanRef = useRef<HTMLSpanElement>(null)
+
+  useIsoLayoutEffect(() => {
+    const box = boxRef.current
+    const span = spanRef.current
+    if (!box || !span) return
+    const fit = () => {
+      span.style.fontSize = `${maxPx}px`
+      const avail = box.clientWidth
+      const natural = span.scrollWidth
+      if (natural > avail && natural > 0) {
+        span.style.fontSize = `${Math.max(minPx, Math.floor((maxPx * avail) / natural))}px`
+      }
+    }
+    fit()
+    const ro = new ResizeObserver(fit)
+    ro.observe(box)
+    return () => ro.disconnect()
+  })
+
+  return (
+    <div ref={boxRef} className={`min-w-0 overflow-hidden ${className ?? ''}`}>
+      <span ref={spanRef} className="inline-block whitespace-nowrap align-middle">
+        {children}
+      </span>
+    </div>
+  )
+}
+
 // ─── MetricCard ───────────────────────────────────────────────────────────────
 
 export function MetricCard({ label, value, color, info, onClick }: { label: string; value: string; color?: string; info?: React.ReactNode; onClick?: () => void }) {
@@ -453,8 +499,8 @@ export function MetricCard({ label, value, color, info, onClick }: { label: stri
         <span>{label}</span>
         {info && <span onClick={e => e.stopPropagation()}><InfoTooltip label={`מידע על ${label}`}>{info}</InfoTooltip></span>}
       </dt>
-      <dd className={`text-2xl font-mono font-bold truncate m-0 flex items-center justify-between gap-2 ${color ?? 'text-text-main'}`}>
-        <span className="truncate">{ltr(value)}</span>
+      <dd className={`font-mono font-bold m-0 flex items-center justify-between gap-2 ${color ?? 'text-text-main'}`}>
+        <FitText className="flex-1" maxPx={24} minPx={13}>{ltr(value)}</FitText>
         {interactive && (
           <span aria-hidden="true" className="text-text-mute font-mono text-base shrink-0">›</span>
         )}
